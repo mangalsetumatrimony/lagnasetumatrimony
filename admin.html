@@ -783,6 +783,21 @@
             </div>
         </div>
 
+        <!-- Report delete confirm -->
+        <div class="modal-backdrop modal-center" id="modalDeleteReport">
+            <div class="modal-card">
+                <div class="modal-icon-circle" style="background:var(--error-bg);color:var(--error);"><i
+                        class="fa-solid fa-trash-can"></i></div>
+                <div class="h-display h-lg">Delete report?</div>
+                <p class="p-muted" style="margin-top:8px;">This report will be permanently removed from the system.</p>
+                <div class="btn-row" style="margin-top:20px;">
+                    <button class="btn btn-outline" onclick="closeModal('modalDeleteReport')">Cancel</button>
+                    <button class="btn btn-primary" style="background:var(--error);border-color:var(--error);" onclick="doDeleteReport()"><i class="fa-solid fa-trash-can"></i>
+                        Delete</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Delete user confirm -->
         <div class="modal-backdrop modal-center" id="modalDelete">
             <div class="modal-card" style="max-width:420px;">

@@ -3361,6 +3361,11 @@ function supabaseSubscribeAdminRealtime(callbacks = {}) {
                     callbacks.onProfilesChange(payload);
                 }
             })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, payload => {
+                if (typeof callbacks.onReportsChange === 'function') {
+                    callbacks.onReportsChange(payload);
+                }
+            })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, payload => {
                 const row = payload.new || payload.old;
                 if (row && row.role === 'report') {
@@ -3692,11 +3697,21 @@ if (typeof window !== 'undefined') {
  */
 async function supabaseSubmitReport(reportData) {
     const client = getSupabaseClient();
-    const repId = 'rep_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    // PostgreSQL reports table uses BIGINT id (millisecond timestamp)
+    const numId = (typeof reportData.id === 'number' && reportData.id > 0) ? reportData.id : Date.now();
     const dateStr = reportData.date || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     
+    const detailsText = reportData.details || reportData.notes || 'Submitted via in-app report.';
+    // Bundle metadata inside details JSON so reporter/target details are fully preserved
+    const detailsPayload = JSON.stringify({
+        notes: detailsText,
+        targetUserName: reportData.targetUserName || reportData.userName || '',
+        targetUserPhoto: reportData.targetUserPhoto || '',
+        reporterName: reportData.reporterName || ''
+    });
+
     const reportObj = {
-        id: repId,
+        id: numId,
         reporterId: reportData.reporterId || 'guest',
         reporterName: reportData.reporterName || 'A Member',
         reporterEmail: reportData.reporterEmail || '',
@@ -3705,7 +3720,7 @@ async function supabaseSubmitReport(reportData) {
         targetUserEmail: reportData.targetUserEmail || '',
         targetUserPhoto: reportData.targetUserPhoto || '',
         reason: reportData.reason || 'Inappropriate profile',
-        details: reportData.details || reportData.notes || 'Submitted via in-app report.',
+        details: detailsText,
         date: dateStr,
         status: 'open',
         createdAt: new Date().toISOString()
@@ -3723,37 +3738,28 @@ async function supabaseSubmitReport(reportData) {
 
     let cloudSaved = false;
 
-    // 1. Universal Cloud Sync into users table (role: 'report')
+    // Primary Store: Dedicated public.reports table (BIGINT id)
     try {
-        const payload = {
-            id: repId,
-            email: `${repId}@report.internal`,
-            name: `Report: ${reportObj.reason}`,
-            role: 'report',
-            status: 'open',
-            suspension_reason: JSON.stringify(reportObj),
-            profile_complete: false,
-            payment_status: 'Unpaid',
-            updated_at: new Date().toISOString()
-        };
-        const { error: uErr } = await client.from('users').upsert(payload, { onConflict: 'id' });
-        if (!uErr) cloudSaved = true;
-    } catch(e) {}
-
-    // 3. Log into email_logs for audit log
-    try {
-        await client.from('email_logs').insert({
-            id: 'log_' + repId,
-            recipient_email: 'admin@mangalsetu.in',
-            recipient_name: 'Admin Team',
-            subject: `User Report: ${reportObj.reason}`,
-            notification_type: 'USER_REPORT',
-            payload: reportObj,
+        const { error: rErr } = await client.from('reports').insert({
+            id: numId,
+            reporter_id: String(reportData.reporterId || ''),
+            reporter_email: String(reportData.reporterEmail || ''),
+            target_user_id: String(reportData.targetUserId || reportData.userId || ''),
+            target_user_email: String(reportData.targetUserEmail || ''),
+            reason: String(reportData.reason || 'Inappropriate profile'),
+            details: detailsPayload,
             status: 'open'
         });
-    } catch(e) {}
+        if (!rErr) {
+            cloudSaved = true;
+        } else {
+            console.warn('[Supabase] Insert into reports note:', rErr);
+        }
+    } catch(e) {
+        console.warn('[Supabase] Insert into reports exception:', e);
+    }
 
-    console.info('[Supabase] User report submitted successfully:', reportObj.id);
+    console.info('[Supabase] User report submitted successfully:', numId);
     return { success: true, cloudSaved, report: reportObj };
 }
 
@@ -3771,71 +3777,49 @@ async function supabaseFetchReportsForAdmin() {
 
     const reportMap = new Map();
 
-    // 1. Fetch from users table (role: 'report' - primary cloud store)
+    // 1. Fetch from public.reports table (Primary production source of truth)
     try {
-        const { data: uReports, error: uErr } = await client
-            .from('users')
-            .select('id, status, suspension_reason, created_at')
-            .eq('role', 'report')
+        const { data: dbReports, error: rErr } = await client
+            .from('reports')
+            .select('*')
             .order('created_at', { ascending: false });
-        if (!uErr && Array.isArray(uReports)) {
-            uReports.forEach(r => {
-                try {
-                    const parsed = JSON.parse(r.suspension_reason || '{}');
-                    const repId = String(r.id);
-                    if (!reportMap.has(repId)) {
-                        reportMap.set(repId, {
-                            id: repId,
-                            userId: parsed.targetUserId || parsed.userId,
-                            targetUserId: parsed.targetUserId || parsed.userId,
-                            targetUserName: parsed.targetUserName || parsed.userName,
-                            targetUserEmail: parsed.targetUserEmail,
-                            targetUserPhoto: parsed.targetUserPhoto,
-                            reporterId: parsed.reporterId,
-                            reporterName: parsed.reporterName,
-                            reporterEmail: parsed.reporterEmail,
-                            reason: parsed.reason,
-                            details: parsed.details || parsed.notes,
-                            date: parsed.date || (r.created_at ? new Date(r.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent'),
-                            status: r.status || parsed.status || 'open'
-                        });
-                    }
-                } catch(e) {}
-            });
-        }
-    } catch(e) {}
-
-    // 3. Also check email_logs with notification_type: 'USER_REPORT'
-    try {
-        const { data: logs, error: lErr } = await client
-            .from('email_logs')
-            .select('id, payload, status, created_at')
-            .eq('notification_type', 'USER_REPORT')
-            .order('created_at', { ascending: false });
-        if (!lErr && Array.isArray(logs)) {
-            logs.forEach(l => {
-                const p = l.payload || {};
-                const repId = String(p.id || l.id);
-                if (!reportMap.has(repId)) {
-                    reportMap.set(repId, {
-                        id: repId,
-                        userId: p.targetUserId || p.userId,
-                        targetUserId: p.targetUserId || p.userId,
-                        targetUserName: p.targetUserName,
-                        targetUserEmail: p.targetUserEmail,
-                        targetUserPhoto: p.targetUserPhoto,
-                        reporterId: p.reporterId,
-                        reporterName: p.reporterName,
-                        reporterEmail: p.reporterEmail,
-                        reason: p.reason,
-                        details: p.details || p.notes,
-                        date: p.date || (l.created_at ? new Date(l.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent'),
-                        status: l.status || p.status || 'open'
-                    });
+        if (!rErr && Array.isArray(dbReports)) {
+            dbReports.forEach(r => {
+                if (!r || r.id === undefined || r.id === null) return;
+                const repId = String(r.id);
+                let parsedMeta = {};
+                let displayDetails = r.details || '';
+                if (r.details && typeof r.details === 'string' && r.details.trim().startsWith('{')) {
+                    try {
+                        parsedMeta = JSON.parse(r.details);
+                        displayDetails = parsedMeta.notes || parsedMeta.details || displayDetails;
+                    } catch(e) {}
                 }
+                const rawStatus = String(r.status || 'open').toLowerCase();
+                const normStatus = (rawStatus === 'resolved' || rawStatus === 'closed') ? 'resolved' : 'open';
+                const dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent';
+
+                reportMap.set(repId, {
+                    id: r.id,
+                    userId: r.target_user_id || parsedMeta.targetUserId || '',
+                    targetUserId: r.target_user_id || parsedMeta.targetUserId || '',
+                    targetUserName: parsedMeta.targetUserName || '',
+                    targetUserEmail: r.target_user_email || parsedMeta.targetUserEmail || '',
+                    targetUserPhoto: parsedMeta.targetUserPhoto || '',
+                    reporterId: r.reporter_id || parsedMeta.reporterId || '',
+                    reporterName: parsedMeta.reporterName || '',
+                    reporterEmail: r.reporter_email || parsedMeta.reporterEmail || '',
+                    reason: r.reason || 'Reported profile',
+                    details: displayDetails,
+                    date: dateStr,
+                    status: normStatus,
+                    created_at: r.created_at
+                });
             });
         }
-    } catch(e) {}
+    } catch(e) {
+        console.warn('[Supabase] Error reading reports table:', e);
+    }
 
     const results = Array.from(reportMap.values());
     // Also update local cache
@@ -3851,6 +3835,7 @@ async function supabaseFetchReportsForAdmin() {
 async function supabaseUpdateReportStatus(reportId, status = 'resolved') {
     const client = getSupabaseClient();
     const strId = String(reportId);
+    const numId = Number(reportId);
 
     // Update local cache
     try {
@@ -3863,16 +3848,70 @@ async function supabaseUpdateReportStatus(reportId, status = 'resolved') {
         }
     } catch(e) {}
 
+    // Update memory REPORTS array if present
+    if (typeof REPORTS !== 'undefined' && Array.isArray(REPORTS)) {
+        const m = REPORTS.find(x => String(x.id) === strId);
+        if (m) m.status = status;
+    }
+
     if (!client) return { success: true, localOnly: true };
 
-    // 1. Update in reports table if exists
+    let updated = false;
+
+    // 1. Update in public.reports table
     try {
-        await client.from('reports').update({ status, updated_at: new Date().toISOString() }).eq('id', strId);
+        const idFilter = (!isNaN(numId) && numId > 0) ? numId : strId;
+        const { error: rErr } = await client
+            .from('reports')
+            .update({ status: status })
+            .eq('id', idFilter);
+        if (!rErr) updated = true;
+        else console.warn('[Supabase] Update reports status note:', rErr);
+    } catch(e) {
+        console.warn('[Supabase] Update reports status error:', e);
+    }
+
+    // 2. Also update in users table if legacy report exists
+    try {
+        await client.from('users').update({ status: status, updated_at: new Date().toISOString() }).eq('id', strId);
     } catch(e) {}
 
-    // 2. Update in users table (role: 'report')
+    return { success: true, updated };
+}
+
+/**
+ * Admin: Permanently delete a report from Supabase Cloud
+ */
+async function supabaseDeleteReport(reportId) {
+    const client = getSupabaseClient();
+    const strId = String(reportId);
+    const numId = Number(reportId);
+
+    // Update local cache
     try {
-        await client.from('users').update({ status, updated_at: new Date().toISOString() }).eq('id', strId);
+        const raw = localStorage.getItem(window.LS_REPORTS_KEY || 'LS_COMMUNITY_REPORTS');
+        const list = raw ? JSON.parse(raw) : [];
+        const filtered = list.filter(x => String(x.id) !== strId);
+        localStorage.setItem(window.LS_REPORTS_KEY || 'LS_COMMUNITY_REPORTS', JSON.stringify(filtered));
+    } catch(e) {}
+
+    // Update in-memory REPORTS array
+    if (typeof REPORTS !== 'undefined' && Array.isArray(REPORTS)) {
+        REPORTS = REPORTS.filter(x => String(x.id) !== strId);
+        window.REPORTS = REPORTS;
+    }
+
+    if (!client) return { success: true, localOnly: true };
+
+    // 1. Delete from public.reports table
+    try {
+        const idFilter = (!isNaN(numId) && numId > 0) ? numId : strId;
+        await client.from('reports').delete().eq('id', idFilter);
+    } catch(e) {}
+
+    // 2. Also delete from users table if legacy report exists
+    try {
+        await client.from('users').delete().eq('id', strId).eq('role', 'report');
     } catch(e) {}
 
     return { success: true };
@@ -4156,6 +4195,7 @@ window.getOnlineUsersSet = () => ONLINE_USERS_SET;
 window.supabaseSubmitReport = supabaseSubmitReport;
 window.supabaseFetchReportsForAdmin = supabaseFetchReportsForAdmin;
 window.supabaseUpdateReportStatus = supabaseUpdateReportStatus;
+window.supabaseDeleteReport = supabaseDeleteReport;
 window.supabaseGetMaintenanceMode = supabaseGetMaintenanceMode;
 window.supabaseSetMaintenanceMode = supabaseSetMaintenanceMode;
 window.supabaseSubscribeMaintenance = supabaseSubscribeMaintenance;

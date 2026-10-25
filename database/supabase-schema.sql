@@ -458,19 +458,15 @@ CREATE POLICY "Email logs can be created by everyone" ON public.email_logs FOR I
 -- 5E. REPORTS TABLE (Member Violation & Moderation Reports)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.reports (
-    id TEXT PRIMARY KEY,
+    id BIGINT PRIMARY KEY,
     reporter_id TEXT,
-    reporter_name VARCHAR(200),
     reporter_email VARCHAR(255),
     target_user_id TEXT,
-    target_user_name VARCHAR(200),
     target_user_email VARCHAR(255),
     reason VARCHAR(255) NOT NULL,
     details TEXT,
-    date VARCHAR(50),
     status VARCHAR(20) NOT NULL DEFAULT 'open', -- 'open', 'resolved'
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_reports_status ON public.reports(status);

@@ -790,7 +790,7 @@ window.escapeHtml = escapeHtmlAdmin;
         }
 
         function renderReports() {
-            const list = REPORTS.filter(r => r.status === state.reportTab);
+            const list = (Array.isArray(REPORTS) ? REPORTS : []).filter(r => r && (r.status === state.reportTab || (!r.status && state.reportTab === 'open')));
             const wrap = document.getElementById('reportList');
             if (!wrap) return;
             wrap.innerHTML = '';
@@ -799,7 +799,7 @@ window.escapeHtml = escapeHtmlAdmin;
                     `<div class="empty-state"><i class="fa-solid fa-flag"></i><h3>Nothing here</h3><p>No ${state.reportTab} reports right now.</p></div>`; return;
             }
             list.forEach(r => {
-                const u = findUser(r.userId);
+                const u = findUser(r.userId || r.targetUserId);
                 const reporter = findUser(r.reporterId);
                 const card = document.createElement('div');
                 card.className = 'card';
@@ -808,19 +808,20 @@ window.escapeHtml = escapeHtmlAdmin;
                 const targetName = u ? u.name : (r.targetUserName || 'Member');
                 const reporterName = reporter ? reporter.name : (r.reporterName || 'a member');
                 const safeReportId = String(r.id);
-                const safeUserId = u ? String(u.id) : (r.userId ? String(r.userId) : '');
+                const safeUserId = u ? String(u.id) : (r.userId ? String(r.userId) : (r.targetUserId ? String(r.targetUserId) : ''));
 
                 card.innerHTML = `
       <div style="display:flex;align-items:center;gap:12px;">
         <img src="${photo}" style="width:44px;height:44px;border-radius:12px;object-fit:cover;" alt="" onerror="this.src='images/default-avatar.png'">
-        <div style="flex:1;"><div style="font-weight:800;font-size:14px;">${targetName}</div><div class="p-muted" style="font-size:11.5px;">Reported by ${reporterName} · ${r.date}</div></div>
-        <span class="status-badge ${r.status}">${fmtStatus(r.status)}</span>
+        <div style="flex:1;"><div style="font-weight:800;font-size:14px;">${targetName}</div><div class="p-muted" style="font-size:11.5px;">Reported by ${reporterName} · ${r.date || 'Recent'}</div></div>
+        <span class="status-badge ${r.status || 'open'}">${fmtStatus(r.status || 'open')}</span>
       </div>
-      <div class="chip-row" style="margin-top:10px;"><span class="chip" style="background:var(--error-bg);color:var(--error);">${r.reason}</span></div>
-      <p class="p-muted" style="margin-top:10px;">${r.details}</p>
-      <div class="btn-row" style="margin-top:12px;">
-        ${safeUserId ? `<button class="btn btn-outline btn-sm" style="width:100%;" onclick="openUserDetail('${safeUserId}')"><i class="fa-solid fa-id-card"></i> View profile</button>` : ''}
-        ${r.status === 'open' ? `<button class="btn btn-primary btn-sm" style="width:100%;" onclick="openResolveReportModal('${safeReportId}')"><i class="fa-solid fa-check"></i> Resolve</button>` : ''}
+      <div class="chip-row" style="margin-top:10px;"><span class="chip" style="background:var(--error-bg);color:var(--error);">${r.reason || 'Violation report'}</span></div>
+      <p class="p-muted" style="margin-top:10px;">${r.details || ''}</p>
+      <div class="btn-row" style="margin-top:12px;display:flex;gap:8px;">
+        ${safeUserId ? `<button class="btn btn-outline btn-sm" style="flex:1;" onclick="openUserDetail('${safeUserId}')"><i class="fa-solid fa-id-card"></i> View profile</button>` : ''}
+        ${r.status === 'open' ? `<button class="btn btn-primary btn-sm" style="flex:1;" onclick="openResolveReportModal('${safeReportId}')"><i class="fa-solid fa-check"></i> Resolve</button>` : ''}
+        <button class="btn btn-ghost btn-sm" style="color:var(--error);border:1px solid rgba(239,68,68,0.25);padding:6px 12px;border-radius:8px;" onclick="openDeleteReportModal('${safeReportId}')" title="Delete report permanently"><i class="fa-solid fa-trash-can"></i> Delete</button>
       </div>`;
                 wrap.appendChild(card);
             });
@@ -832,16 +833,39 @@ window.escapeHtml = escapeHtmlAdmin;
         }
 
         async function doResolveReport() {
-            const r = REPORTS.find(x => String(x.id) === String(state.activeReportId));
+            const reportId = state.activeReportId;
+            const r = REPORTS.find(x => String(x.id) === String(reportId));
             if (r) {
                 r.status = 'resolved';
-                if (typeof supabaseUpdateReportStatus === 'function') {
-                    await supabaseUpdateReportStatus(r.id, 'resolved');
-                }
             }
             closeModal('modalResolveReport');
+            renderReports();
+
+            if (typeof supabaseUpdateReportStatus === 'function') {
+                await supabaseUpdateReportStatus(reportId, 'resolved');
+            }
             saveAdminData();
             showToast('Report marked as resolved');
+            renderReports();
+        }
+
+        function openDeleteReportModal(id) {
+            state.activeReportId = id;
+            openModal('modalDeleteReport');
+        }
+
+        async function doDeleteReport() {
+            const reportId = state.activeReportId;
+            REPORTS = REPORTS.filter(x => String(x.id) !== String(reportId));
+            window.REPORTS = REPORTS;
+            closeModal('modalDeleteReport');
+            renderReports();
+
+            if (typeof supabaseDeleteReport === 'function') {
+                await supabaseDeleteReport(reportId);
+            }
+            saveAdminData();
+            showToast('Report permanently deleted');
             renderReports();
         }
 
@@ -1533,3 +1557,8 @@ if (typeof savePlatformSettings !== 'undefined') window.savePlatformSettings = s
 if (typeof toggleAutoApprove !== 'undefined') window.toggleAutoApprove = toggleAutoApprove;
 if (typeof approveMemberProfile !== 'undefined') window.approveMemberProfile = approveMemberProfile;
 if (typeof setUserTab !== 'undefined') window.setUserTab = setUserTab;
+if (typeof setReportTab !== 'undefined') window.setReportTab = setReportTab;
+if (typeof openResolveReportModal !== 'undefined') window.openResolveReportModal = openResolveReportModal;
+if (typeof doResolveReport !== 'undefined') window.doResolveReport = doResolveReport;
+if (typeof openDeleteReportModal !== 'undefined') window.openDeleteReportModal = openDeleteReportModal;
+if (typeof doDeleteReport !== 'undefined') window.doDeleteReport = doDeleteReport;
