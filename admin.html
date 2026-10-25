@@ -202,7 +202,8 @@
                 <div style="margin-top:26px;">
                     <div class="field"><label>Admin email</label>
                         <div class="input-icon-wrap"><i class="fa-solid fa-envelope leading"></i><input class="input"
-                                id="loginEmail" type="email" placeholder="Enter Admin ID or Email" autocomplete="username">
+                                id="loginEmail" type="email" placeholder="Enter Admin ID or Email"
+                                autocomplete="username">
                         </div>
                     </div>
                     <div class="field"><label>Password</label>
@@ -243,12 +244,14 @@
                     <i class="fa-solid fa-key"></i>
                 </div>
                 <div class="h-display h-xl">Reset password</div>
-                <p class="p-muted" style="margin-top:6px;">Enter your registered admin email and we'll send a 6-digit code to
+                <p class="p-muted" style="margin-top:6px;">Enter your registered admin email and we'll send a 6-digit
+                    code to
                     verify it's you.</p>
                 <div style="margin-top:26px;">
                     <div class="field"><label>Admin email</label>
                         <div class="input-icon-wrap"><i class="fa-solid fa-envelope leading"></i><input class="input"
-                                id="forgotAdminEmail" type="email" placeholder="Enter Admin Email" autocomplete="email"></div>
+                                id="forgotAdminEmail" type="email" placeholder="Enter Admin Email" autocomplete="email">
+                        </div>
                     </div>
                     <button class="btn btn-primary" id="btnAdminForgotSend" onclick="sendAdminForgotOtp()"><i
                             class="fa-solid fa-paper-plane"></i> Send code</button>
@@ -265,18 +268,29 @@
                     <i class="fa-solid fa-envelope-open-text"></i>
                 </div>
                 <div class="h-display h-lg">Verify your email</div>
-                <p class="p-muted" style="margin-top:6px;">We sent a 6-digit code to <b id="adminForgotTargetEmail">admin@mangalsetu.in</b></p>
+                <p class="p-muted" style="margin-top:6px;">We sent a 6-digit code to <b
+                        id="adminForgotTargetEmail">admin@mangalsetu.in</b></p>
                 <div class="otp-boxes" id="adminForgotOtpBoxes" onpaste="handleAdminForgotOtpPaste(event)">
-                    <input id="adminForgotOtp1" maxlength="1" inputmode="numeric" onkeyup="handleAdminForgotOtpInput(this, event)">
-                    <input id="adminForgotOtp2" maxlength="1" inputmode="numeric" onkeyup="handleAdminForgotOtpInput(this, event)">
-                    <input id="adminForgotOtp3" maxlength="1" inputmode="numeric" onkeyup="handleAdminForgotOtpInput(this, event)">
-                    <input id="adminForgotOtp4" maxlength="1" inputmode="numeric" onkeyup="handleAdminForgotOtpInput(this, event)">
-                    <input id="adminForgotOtp5" maxlength="1" inputmode="numeric" onkeyup="handleAdminForgotOtpInput(this, event)">
-                    <input id="adminForgotOtp6" maxlength="1" inputmode="numeric" onkeyup="handleAdminForgotOtpInput(this, event)">
+                    <input id="adminForgotOtp1" maxlength="1" inputmode="numeric"
+                        onkeyup="handleAdminForgotOtpInput(this, event)">
+                    <input id="adminForgotOtp2" maxlength="1" inputmode="numeric"
+                        onkeyup="handleAdminForgotOtpInput(this, event)">
+                    <input id="adminForgotOtp3" maxlength="1" inputmode="numeric"
+                        onkeyup="handleAdminForgotOtpInput(this, event)">
+                    <input id="adminForgotOtp4" maxlength="1" inputmode="numeric"
+                        onkeyup="handleAdminForgotOtpInput(this, event)">
+                    <input id="adminForgotOtp5" maxlength="1" inputmode="numeric"
+                        onkeyup="handleAdminForgotOtpInput(this, event)">
+                    <input id="adminForgotOtp6" maxlength="1" inputmode="numeric"
+                        onkeyup="handleAdminForgotOtpInput(this, event)">
                 </div>
-                <div class="p-muted" style="margin-bottom:22px;">Didn't get it? <span class="link-txt" id="adminForgotResendBtn"
-                        onclick="resendAdminForgotOtp()">Resend code</span> <span id="adminForgotTimerText" style="display:none;font-weight:600;font-size:12.5px;color:var(--text-muted);margin-left:4px;"></span></div>
-                <button class="btn btn-primary" id="btnAdminForgotVerify" onclick="verifyAdminForgotOtp()"><i class="fa-solid fa-check"></i> Verify
+                <div class="p-muted" style="margin-bottom:22px;">Didn't get it? <span class="link-txt"
+                        id="adminForgotResendBtn" onclick="resendAdminForgotOtp()">Resend code</span> <span
+                        id="adminForgotTimerText"
+                        style="display:none;font-weight:600;font-size:12.5px;color:var(--text-muted);margin-left:4px;"></span>
+                </div>
+                <button class="btn btn-primary" id="btnAdminForgotVerify" onclick="verifyAdminForgotOtp()"><i
+                        class="fa-solid fa-check"></i> Verify
                     code</button>
             </div>
         </section>
@@ -290,13 +304,17 @@
                 <div style="margin-top:26px;">
                     <div class="field"><label>New password</label>
                         <div class="input-icon-wrap"><i class="fa-solid fa-lock leading"></i><input class="input"
-                                id="adminResetNewPass" type="password" placeholder="••••••••" autocomplete="new-password"><button class="trailing-btn" type="button" onclick="togglePw('adminResetNewPass', this)"><i
-                                    class="fa-solid fa-eye"></i></button></div>
+                                id="adminResetNewPass" type="password" placeholder="••••••••"
+                                autocomplete="new-password"><button class="trailing-btn" type="button"
+                                onclick="togglePw('adminResetNewPass', this)"><i class="fa-solid fa-eye"></i></button>
+                        </div>
                         <span class="hint">Minimum 8 characters</span>
                     </div>
                     <div class="field"><label>Confirm password</label>
-                        <div class="input-icon-wrap"><i class="fa-solid fa-circle-check leading"></i><input class="input"
-                                id="adminResetConfirmPass" type="password" placeholder="••••••••" autocomplete="new-password"><button class="trailing-btn" type="button" onclick="togglePw('adminResetConfirmPass', this)"><i
+                        <div class="input-icon-wrap"><i class="fa-solid fa-circle-check leading"></i><input
+                                class="input" id="adminResetConfirmPass" type="password" placeholder="••••••••"
+                                autocomplete="new-password"><button class="trailing-btn" type="button"
+                                onclick="togglePw('adminResetConfirmPass', this)"><i
                                     class="fa-solid fa-eye"></i></button></div>
                     </div>
                     <button class="btn btn-primary" id="btnAdminResetComplete" onclick="completeAdminPasswordReset()"><i
@@ -792,7 +810,8 @@
                 <p class="p-muted" style="margin-top:8px;">This report will be permanently removed from the system.</p>
                 <div class="btn-row" style="margin-top:20px;">
                     <button class="btn btn-outline" onclick="closeModal('modalDeleteReport')">Cancel</button>
-                    <button class="btn btn-primary" style="background:var(--error);border-color:var(--error);" onclick="doDeleteReport()"><i class="fa-solid fa-trash-can"></i>
+                    <button class="btn btn-primary" style="background:var(--error);border-color:var(--error);"
+                        onclick="doDeleteReport()"><i class="fa-solid fa-trash-can"></i>
                         Delete</button>
                 </div>
             </div>
@@ -821,7 +840,8 @@
 
                 <!-- Reason Input -->
                 <div class="field" style="margin-top:8px;">
-                    <label style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:block;">
+                    <label
+                        style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:block;">
                         <i class="fa-solid fa-pen-to-square" style="color:var(--error);"></i>
                         Reason for deletion <span style="color:var(--error);">*</span>
                     </label>
@@ -830,51 +850,62 @@
                     <div class="dd" id="ddDeleteReason">
                         <div class="dd-trigger placeholder" onclick="ddOpen('ddDeleteReason')">
                             <span id="deleteReasonText_label" style="display:inline-flex;align-items:center;gap:8px;">
-                                <i class="fa-solid fa-circle-exclamation" style="color:var(--text-faint);font-size:13px;"></i>
+                                <i class="fa-solid fa-circle-exclamation"
+                                    style="color:var(--text-faint);font-size:13px;"></i>
                                 Select a reason
                             </span>
                             <i class="fa-solid fa-chevron-down"></i>
                         </div>
                         <ul class="dd-menu">
-                            <li onclick="pickDeleteReason('Violation of community guidelines', 'fa-shield-halved', this)">
+                            <li
+                                onclick="pickDeleteReason('Violation of community guidelines', 'fa-shield-halved', this)">
                                 <span style="display:inline-flex;align-items:center;gap:9px;">
-                                    <i class="fa-solid fa-shield-halved" style="color:var(--primary);font-size:13px;width:15px;text-align:center;"></i>
+                                    <i class="fa-solid fa-shield-halved"
+                                        style="color:var(--primary);font-size:13px;width:15px;text-align:center;"></i>
                                     Violation of community guidelines
                                 </span>
                             </li>
-                            <li onclick="pickDeleteReason('Fake or misleading profile information', 'fa-id-card-clip', this)">
+                            <li
+                                onclick="pickDeleteReason('Fake or misleading profile information', 'fa-id-card-clip', this)">
                                 <span style="display:inline-flex;align-items:center;gap:9px;">
-                                    <i class="fa-solid fa-id-card-clip" style="color:var(--primary);font-size:13px;width:15px;text-align:center;"></i>
+                                    <i class="fa-solid fa-id-card-clip"
+                                        style="color:var(--primary);font-size:13px;width:15px;text-align:center;"></i>
                                     Fake or misleading profile information
                                 </span>
                             </li>
                             <li onclick="pickDeleteReason('Inappropriate behaviour toward members', 'fa-hand', this)">
                                 <span style="display:inline-flex;align-items:center;gap:9px;">
-                                    <i class="fa-solid fa-hand" style="color:var(--primary);font-size:13px;width:15px;text-align:center;"></i>
+                                    <i class="fa-solid fa-hand"
+                                        style="color:var(--primary);font-size:13px;width:15px;text-align:center;"></i>
                                     Inappropriate behaviour toward members
                                 </span>
                             </li>
                             <li onclick="pickDeleteReason('Duplicate account detected', 'fa-copy', this)">
                                 <span style="display:inline-flex;align-items:center;gap:9px;">
-                                    <i class="fa-solid fa-copy" style="color:var(--primary);font-size:13px;width:15px;text-align:center;"></i>
+                                    <i class="fa-solid fa-copy"
+                                        style="color:var(--primary);font-size:13px;width:15px;text-align:center;"></i>
                                     Duplicate account detected
                                 </span>
                             </li>
                             <li onclick="pickDeleteReason('Member requested account removal', 'fa-user-minus', this)">
                                 <span style="display:inline-flex;align-items:center;gap:9px;">
-                                    <i class="fa-solid fa-user-minus" style="color:var(--primary);font-size:13px;width:15px;text-align:center;"></i>
+                                    <i class="fa-solid fa-user-minus"
+                                        style="color:var(--primary);font-size:13px;width:15px;text-align:center;"></i>
                                     Member requested account removal
                                 </span>
                             </li>
                             <li onclick="pickDeleteReason('Spam or misuse of platform', 'fa-ban', this)">
                                 <span style="display:inline-flex;align-items:center;gap:9px;">
-                                    <i class="fa-solid fa-ban" style="color:var(--primary);font-size:13px;width:15px;text-align:center;"></i>
+                                    <i class="fa-solid fa-ban"
+                                        style="color:var(--primary);font-size:13px;width:15px;text-align:center;"></i>
                                     Spam or misuse of platform
                                 </span>
                             </li>
-                            <li onclick="pickDeleteReason('other', 'fa-pen', this)" style="border-top:1px solid var(--border);margin-top:4px;padding-top:12px;">
+                            <li onclick="pickDeleteReason('other', 'fa-pen', this)"
+                                style="border-top:1px solid var(--border);margin-top:4px;padding-top:12px;">
                                 <span style="display:inline-flex;align-items:center;gap:9px;">
-                                    <i class="fa-solid fa-pen" style="color:#D97706;font-size:13px;width:15px;text-align:center;"></i>
+                                    <i class="fa-solid fa-pen"
+                                        style="color:#D97706;font-size:13px;width:15px;text-align:center;"></i>
                                     Other — write below
                                 </span>
                             </li>
