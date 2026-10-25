@@ -865,24 +865,161 @@ function sendInterest(id) {
 }
 window.sendInterest = sendInterest;
 
+function isProfileDetailsUnlocked(p) {
+    if (!p) return false;
+    const isSelf = (typeof isSelfProfile === 'function') ? isSelfProfile(p) : false;
+    if (isSelf) return true;
+
+    const isAdmin = (typeof isSessionValidSync === 'function' && isSessionValidSync()) || 
+                    (typeof window !== 'undefined' && window.location && window.location.pathname && window.location.pathname.includes('admin'));
+    if (isAdmin) return true;
+
+    const status = (typeof interestStatusFor === 'function')
+        ? interestStatusFor(p.id)
+        : (typeof getEffectiveInterestStatus === 'function' ? getEffectiveInterestStatus(p.id) : null);
+
+    return status === 'accepted';
+}
+window.isProfileDetailsUnlocked = isProfileDetailsUnlocked;
+
+function renderFamilyDetailsSection(p) {
+    if (!p) return '';
+    const isSelf = (typeof isSelfProfile === 'function') ? isSelfProfile(p) : false;
+    const unlocked = isProfileDetailsUnlocked(p);
+    const status = (typeof interestStatusFor === 'function')
+        ? interestStatusFor(p.id)
+        : (typeof getEffectiveInterestStatus === 'function' ? getEffectiveInterestStatus(p.id) : null);
+
+    if (unlocked) {
+        return `
+        <div id="profileFamilyDetailsWrap">
+            <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
+                <span><i class="fa-solid fa-people-roof" style="color:var(--primary);margin-right:6px;"></i> Family details</span>
+                ${isSelf 
+                    ? `<span class="privacy-unlocked-badge" style="background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE;"><i class="fa-solid fa-user-check"></i> Your Profile</span>` 
+                    : `<span class="privacy-unlocked-badge"><i class="fa-solid fa-circle-check"></i> Unlocked</span>`
+                }
+            </div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-user-tie"></i> Father</div><div class="dval">${escapeHtml(p.father || p.father_name || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-briefcase"></i> Occupation</div><div class="dval">${escapeHtml(p.fatherOcc || p.father_occ || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person-dress"></i> Mother</div><div class="dval">${escapeHtml(p.mother || p.mother_name || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-briefcase"></i> Occupation</div><div class="dval">${escapeHtml(p.motherOcc || p.mother_occ || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person"></i> Sister</div><div class="dval">${escapeHtml(p.sister || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person"></i> Brother</div><div class="dval">${escapeHtml(p.brother || '—')}</div></div>
+        </div>`;
+    }
+
+    // LOCKED STATE
+    let actionBtnHtml = '';
+    if (status === 'pending') {
+        actionBtnHtml = `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#F3F4F6;border:1px solid #D1D5DB;border-radius:20px;font-size:11.5px;font-weight:700;color:#4B5563;"><i class="fa-solid fa-clock" style="color:#D97706;"></i> Request Sent (Waiting for acceptance)</div>`;
+    } else if (status === 'declined') {
+        actionBtnHtml = `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#FEF2F2;border:1px solid #FECACA;border-radius:20px;font-size:11.5px;font-weight:700;color:#DC2626;"><i class="fa-solid fa-ban"></i> Request Declined</div>`;
+    } else {
+        actionBtnHtml = `<button class="btn btn-gold btn-sm" style="padding:7px 16px;font-size:12px;border-radius:20px;box-shadow:0 3px 10px rgba(245,158,11,0.25);" onclick="sendInterest(${p.id})"><i class="fa-solid fa-heart-circle-check"></i> Send Interest to Unlock</button>`;
+    }
+
+    return `
+    <div id="profileFamilyDetailsWrap">
+        <div class="section-label" style="display:flex;align-items:center;gap:6px;">
+            <i class="fa-solid fa-lock" style="color:var(--accent-deep);font-size:13px;"></i>
+            <span>Family details (Protected)</span>
+        </div>
+        <div class="privacy-protected-card">
+            <div class="privacy-blur-content" aria-hidden="true">
+                <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-user-tie"></i> Father</div><div class="dval">••••••••••••</div></div>
+                <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-briefcase"></i> Occupation</div><div class="dval">••••••••</div></div>
+                <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person-dress"></i> Mother</div><div class="dval">••••••••••••</div></div>
+                <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-briefcase"></i> Occupation</div><div class="dval">••••••••</div></div>
+                <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person"></i> Sister</div><div class="dval">••</div></div>
+                <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person"></i> Brother</div><div class="dval">••</div></div>
+            </div>
+            <div class="privacy-lock-overlay">
+                <div class="privacy-lock-icon gold"><i class="fa-solid fa-shield-halved"></i></div>
+                <div class="privacy-lock-title">Family Details Protected</div>
+                <div style="font-size:11.5px;font-weight:700;color:#B45309;margin-bottom:3px;">સુરક્ષા ખાતર પરિવારની વિગતો ગુપ્ત છે</div>
+                <div class="privacy-lock-desc">Parental details unlock automatically once <b>${escapeHtml(p.name || 'member')}</b> accepts your Interest Request.</div>
+                ${actionBtnHtml}
+            </div>
+        </div>
+    </div>`;
+}
+window.renderFamilyDetailsSection = renderFamilyDetailsSection;
+
+function renderLocationSection(p) {
+    if (!p) return '';
+    const isSelf = (typeof isSelfProfile === 'function') ? isSelfProfile(p) : false;
+    const unlocked = isProfileDetailsUnlocked(p);
+    const status = (typeof interestStatusFor === 'function')
+        ? interestStatusFor(p.id)
+        : (typeof getEffectiveInterestStatus === 'function' ? getEffectiveInterestStatus(p.id) : null);
+
+    if (unlocked) {
+        return `
+        <div id="profileLocationWrap">
+            <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
+                <span><i class="fa-solid fa-map-location-dot" style="color:var(--primary);margin-right:6px;"></i> Location</span>
+                ${isSelf 
+                    ? `<span class="privacy-unlocked-badge" style="background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE;"><i class="fa-solid fa-user-check"></i> Your Profile</span>` 
+                    : `<span class="privacy-unlocked-badge"><i class="fa-solid fa-circle-check"></i> Unlocked</span>`
+                }
+            </div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-location-dot"></i> Village / City</div><div class="dval">${escapeHtml(p.village || p.city || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-map"></i> Taluka</div><div class="dval">${escapeHtml(p.taluka || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-map-location-dot"></i> District</div><div class="dval">${escapeHtml(p.district || '—')}</div></div>
+            <div class="detail-row" style="align-items:flex-start;"><div class="dlabel"><i class="fa-solid fa-house"></i> Full address</div><div class="dval" style="text-align:right;max-width:60%;">${escapeHtml(p.fullAddress || p.address || `${p.village || p.city || ''}, Taluka ${p.taluka || ''}, Dist. ${p.district || ''}`)}</div></div>
+        </div>`;
+    }
+
+    // LOCKED STATE
+    let actionBtnHtml = '';
+    if (status === 'pending') {
+        actionBtnHtml = `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#F3F4F6;border:1px solid #D1D5DB;border-radius:20px;font-size:11.5px;font-weight:700;color:#4B5563;"><i class="fa-solid fa-clock" style="color:#D97706;"></i> Request Sent (Waiting for acceptance)</div>`;
+    } else if (status === 'declined') {
+        actionBtnHtml = `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#FEF2F2;border:1px solid #FECACA;border-radius:20px;font-size:11.5px;font-weight:700;color:#DC2626;"><i class="fa-solid fa-ban"></i> Request Declined</div>`;
+    } else {
+        actionBtnHtml = `<button class="btn btn-gold btn-sm" style="padding:7px 16px;font-size:12px;border-radius:20px;box-shadow:0 3px 10px rgba(245,158,11,0.25);" onclick="sendInterest(${p.id})"><i class="fa-solid fa-heart-circle-check"></i> Send Interest to Unlock</button>`;
+    }
+
+    const broadRegion = p.district ? `${escapeHtml(p.district)}, Gujarat` : 'Gujarat';
+
+    return `
+    <div id="profileLocationWrap">
+        <div class="section-label" style="display:flex;align-items:center;gap:6px;">
+            <i class="fa-solid fa-lock" style="color:var(--accent-deep);font-size:13px;"></i>
+            <span>Location (Protected)</span>
+        </div>
+        <div class="privacy-protected-card">
+            <div class="privacy-blur-content" aria-hidden="true">
+                <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-location-dot"></i> Village / City</div><div class="dval">••••••••</div></div>
+                <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-map"></i> Taluka</div><div class="dval">••••••••</div></div>
+                <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-map-location-dot"></i> District</div><div class="dval">${broadRegion}</div></div>
+                <div class="detail-row" style="align-items:flex-start;"><div class="dlabel"><i class="fa-solid fa-house"></i> Full address</div><div class="dval">••••••••••••••••••••••••</div></div>
+            </div>
+            <div class="privacy-lock-overlay">
+                <div class="privacy-lock-icon indigo"><i class="fa-solid fa-location-crosshairs"></i></div>
+                <div class="privacy-lock-title">Exact Location Protected</div>
+                <div style="font-size:11.5px;font-weight:700;color:#4F46E5;margin-bottom:3px;">સુરક્ષા ખાતર સરનામું ગુપ્ત રાખેલ છે</div>
+                <div class="privacy-lock-desc">Area: <b>${broadRegion}</b>. Exact village, taluka and address unlock automatically upon accepted Interest Request.</div>
+                ${actionBtnHtml}
+            </div>
+        </div>
+    </div>`;
+}
+window.renderLocationSection = renderLocationSection;
+
 function renderFatherContactSection(p) {
     if (!p) return '';
-    const curUser = state.currentUser;
-    const isSelf = curUser && (
-        (curUser.id && (curUser.id === p.id || curUser.id === p.userId)) ||
-        (curUser.email && p.email && curUser.email.trim().toLowerCase() === p.email.trim().toLowerCase())
-    );
-    const isAdmin = (typeof isSessionValidSync === 'function' && isSessionValidSync()) || 
-                    (typeof window !== 'undefined' && window.location.pathname.includes('admin'));
-
-    const interestStatus = typeof interestStatusFor === 'function' ? interestStatusFor(p.id) : null;
-    const isAccepted = interestStatus === 'accepted';
-    const isContactUnlocked = isSelf || isAdmin || isAccepted;
+    const isSelf = (typeof isSelfProfile === 'function') ? isSelfProfile(p) : false;
+    const isContactUnlocked = isProfileDetailsUnlocked(p);
 
     if (isSelf) {
         return `
         <div id="profileFatherContactWrap">
-            <div class="section-label"><i class="fa-solid fa-user-shield" style="color:var(--primary);"></i> Father's Contact (Your Profile)</div>
+            <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
+                <span><i class="fa-solid fa-phone" style="color:var(--primary);margin-right:6px;"></i> Father's Contact</span>
+                <span class="privacy-unlocked-badge" style="background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE;"><i class="fa-solid fa-user-check"></i> Your Profile</span>
+            </div>
             <div class="contact-unlocked-banner" style="background:var(--primary-light);border:1.5px solid rgba(123,44,191,0.2);border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
                 <i class="fa-solid fa-eye" style="font-size:16px;color:var(--primary);"></i>
                 <div style="font-size:12.5px;color:var(--primary-dark);line-height:1.45;">
@@ -963,12 +1100,9 @@ function openProfile(id) {
         return;
     }
 
-    if (typeof isSelfProfile === 'function' && isSelfProfile(p)) {
-        if (typeof go === 'function') go('scr-profile');
-        return;
-    }
+    const isSelf = (typeof isSelfProfile === 'function') ? isSelfProfile(p) : false;
 
-    if (p.visible === false || p.visible === 'false') {
+    if (!isSelf && (p.visible === false || p.visible === 'false')) {
         showToast('This profile is currently hidden from search.');
         return;
     }
@@ -982,29 +1116,30 @@ function openProfile(id) {
     const isUserBoy = state.currentUser && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
     const isUserGirl = state.currentUser && (typeof isGirlGender === 'function' ? isGirlGender(state.currentUser.gender) : (state.currentUser.gender === 'Girl' || state.currentUser.gender === 'girl'));
 
-    if (isUserBoy && isProfileBoy) {
-        showToast('You can only view profiles of eligible brides (girls).');
-        if (typeof go === 'function') go('scr-home');
-        return;
-    }
-    if (isUserGirl && isProfileGirl) {
-        showToast('You can only view profiles of eligible grooms (boys).');
-        if (typeof go === 'function') go('scr-home');
-        return;
-    }
-    
-    // Strict Boy Paywall Protection: NEVER open girl profile for an unpaid boy
-    let passCheck = null;
-    const isBoy = isUserBoy;
-    if (isBoy) {
-        passCheck = typeof checkBoyPassStatus === 'function' 
-            ? checkBoyPassStatus(state.currentUser) 
-            : { active: state.currentUser.paymentStatus === 'Active' };
-        if (!passCheck.active) {
-            go('scr-membership', true);
-            openModal('modalPaywall');
-            showToast('Boys ₹99 Pass required: Pay via UPI to view full profile details.');
+    if (!isSelf) {
+        if (isUserBoy && isProfileBoy) {
+            showToast('You can only view profiles of eligible brides (girls).');
+            if (typeof go === 'function') go('scr-home');
             return;
+        }
+        if (isUserGirl && isProfileGirl) {
+            showToast('You can only view profiles of eligible grooms (boys).');
+            if (typeof go === 'function') go('scr-home');
+            return;
+        }
+        
+        // Strict Boy Paywall Protection: NEVER open girl profile for an unpaid boy
+        const isBoy = isUserBoy;
+        if (isBoy) {
+            const passCheck = typeof checkBoyPassStatus === 'function' 
+                ? checkBoyPassStatus(state.currentUser) 
+                : { active: state.currentUser.paymentStatus === 'Active' };
+            if (!passCheck.active) {
+                go('scr-membership', true);
+                openModal('modalPaywall');
+                showToast('Boys ₹99 Pass required: Pay via UPI to view full profile details.');
+                return;
+            }
         }
     }
 
@@ -1020,6 +1155,11 @@ function openProfile(id) {
     const el = document.getElementById('profileContent');
     if (!el) return;
 
+    const unlocked = isProfileDetailsUnlocked(p);
+    const heroLocHtml = unlocked
+        ? `<i class="fa-solid fa-location-dot"></i> ${escapeHtml(p.village || p.city || '')}${p.district ? ', ' + escapeHtml(p.district) : ''}`
+        : `<i class="fa-solid fa-location-dot"></i> ${escapeHtml(p.district ? p.district + ', Gujarat' : 'Gujarat')} <span style="font-size:10.5px;padding:2px 6px;border-radius:6px;background:rgba(255,255,255,0.25);margin-left:4px;letter-spacing:0.02em;"><i class="fa-solid fa-shield-halved"></i> Protected</span>`;
+
     el.innerHTML = `
         <div class="full-hero" style="cursor:pointer;" onclick="openPhotoCarousel(${p.id}, event)">
             <img src="${mainImg}" alt="${escapeHtml(p.name || 'Profile')}" onerror="this.onerror=null;this.src='${fallbackImg}';">
@@ -1030,7 +1170,7 @@ function openProfile(id) {
             </div>
             <div class="fh-bottom">
                 <div class="fname">${escapeHtml(p.name || '')}, ${p.age}</div>
-                <div class="floc"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(p.city || p.village || '')}</div>
+                <div class="floc" id="profileHeroLoc">${heroLocHtml}</div>
                 <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
                     <div class="verified-tag"><i class="fa-solid fa-shield-check"></i> Verified profile</div>
                     ${hasMultiple ? `<span class="pcount-chip" style="position:static;cursor:pointer;" onclick="event.stopPropagation();openPhotoCarousel(${p.id}, event)"><i class="fa-solid fa-camera"></i> ${photos.length} Photos</span>` : ''}
@@ -1080,39 +1220,34 @@ function openProfile(id) {
                 </div>`;
             })()}
 
-            <div class="section-label">Family details</div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-user-tie"></i> Father</div><div class="dval">${escapeHtml(p.father || '—')}</div></div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-briefcase"></i> Occupation</div><div class="dval">${escapeHtml(p.fatherOcc || p.father_occ || '—')}</div></div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person-dress"></i> Mother</div><div class="dval">${escapeHtml(p.mother || '—')}</div></div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-briefcase"></i> Occupation</div><div class="dval">${escapeHtml(p.motherOcc || p.mother_occ || '—')}</div></div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person"></i> Sister</div><div class="dval">${escapeHtml(p.sister || '—')}</div></div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person"></i> Brother</div><div class="dval">${escapeHtml(p.brother || '—')}</div></div>
+            ${renderFamilyDetailsSection(p)}
 
-            <div class="section-label">Location</div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-location-dot"></i> Village / City</div><div class="dval">${escapeHtml(p.village || p.city || '')}</div></div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-map"></i> Taluka</div><div class="dval">${escapeHtml(p.taluka || '')}</div></div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-map-location-dot"></i> District</div><div class="dval">${escapeHtml(p.district || '')}</div></div>
-            <div class="detail-row" style="align-items:flex-start;"><div class="dlabel"><i class="fa-solid fa-house"></i> Full address</div><div class="dval" style="text-align:right;max-width:60%;">${escapeHtml(p.fullAddress || p.address || `${p.village || p.city}, Taluka ${p.taluka}, Dist. ${p.district}`)}</div></div>
+            ${renderLocationSection(p)}
 
             ${renderFatherContactSection(p)}
 
-            <div class="section-label">Interested?</div>
-            <p class="p-muted" style="margin-top:-8px;margin-bottom:12px;">Send an interest request — if accepted, chat unlocks directly.</p>
-            <button class="btn btn-gold" id="fullInterestBtn" data-pid="${p.id}"><i class="fa-solid fa-heart-circle-check"></i> I'm interested</button>
+            ${isSelf ? `
+                <div class="section-label">Your Profile</div>
+                <p class="p-muted" style="margin-top:-8px;margin-bottom:12px;">This is how eligible community members see your matrimony profile.</p>
+                <button class="btn btn-primary" onclick="go('scr-editprofile')"><i class="fa-solid fa-user-pen"></i> Edit My Profile</button>
+            ` : `
+                <div class="section-label">Interested?</div>
+                <p class="p-muted" style="margin-top:-8px;margin-bottom:12px;">Send an interest request — if accepted, chat, family details &amp; location unlock directly.</p>
+                <button class="btn btn-gold" id="fullInterestBtn" data-pid="${p.id}"><i class="fa-solid fa-heart-circle-check"></i> I'm interested</button>
+            `}
 
-            <button class="btn btn-ghost" style="margin-top:22px;color:var(--error);" onclick="openQuickReport(${p.id})"><i class="fa-solid fa-flag"></i> Report this profile</button>
+            ${!isSelf ? `<button class="btn btn-ghost" style="margin-top:22px;color:var(--error);" onclick="openQuickReport(${p.id})"><i class="fa-solid fa-flag"></i> Report this profile</button>` : ''}
         </div>`;
 
     go('scr-profile');
-    const interestBtn = document.getElementById('fullInterestBtn');
-    setInterestBtnState(interestBtn, p.id);
+    if (!isSelf) {
+        const interestBtn = document.getElementById('fullInterestBtn');
+        setInterestBtnState(interestBtn, p.id);
+    }
 
     // Authorized On-Demand Contact Reveal:
     // Only fetch real unmasked contact if Interest is ACCEPTED, or viewer is self/admin!
-    const isSelf = typeof isSelfProfile === 'function' ? isSelfProfile(p) : (state.currentUser && (String(state.currentUser.id) === String(p.id) || (state.currentUser.email && p.email && state.currentUser.email.toLowerCase() === p.email.toLowerCase())));
-    const interestStatus = typeof interestStatusFor === 'function' ? interestStatusFor(p.id) : null;
-    const isContactUnlocked = isSelf || (interestStatus === 'accepted') || ((typeof isSessionValidSync === 'function' && isSessionValidSync()));
-    if (isContactUnlocked && typeof supabaseFetchAuthorizedContact === 'function') {
+    if (unlocked && typeof supabaseFetchAuthorizedContact === 'function') {
         supabaseFetchAuthorizedContact(p.id).then(contact => {
             if (contact) {
                 if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE) {
@@ -1130,7 +1265,7 @@ function openProfile(id) {
                 if (contact.email && !contact.email.includes('•')) p.email = contact.email;
                 if (contact.fullAddress) {
                     p.fullAddress = contact.fullAddress;
-                    const addrEl = document.querySelector('#scr-profile .detail-row [style*="max-width:60%"]');
+                    const addrEl = document.querySelector('#profileLocationWrap .detail-row [style*="max-width:60%"]');
                     if (addrEl) addrEl.textContent = contact.fullAddress;
                 }
                 const wrap = document.getElementById('profileFatherContactWrap');
@@ -1425,16 +1560,43 @@ if (typeof selectCarouselPhoto !== 'undefined') window.selectCarouselPhoto = sel
 if (typeof setInterestBtnState !== 'undefined') window.setInterestBtnState = setInterestBtnState;
 if (typeof sendInterest !== 'undefined') window.sendInterest = sendInterest;
 
+if (typeof isProfileDetailsUnlocked !== 'undefined') window.isProfileDetailsUnlocked = isProfileDetailsUnlocked;
+if (typeof renderFamilyDetailsSection !== 'undefined') window.renderFamilyDetailsSection = renderFamilyDetailsSection;
+if (typeof renderLocationSection !== 'undefined') window.renderLocationSection = renderLocationSection;
+
 function refreshProfileContactState(profileId) {
     const pid = Number(profileId);
     if (state.activeProfileId && Number(state.activeProfileId) === pid) {
         const p = (typeof findProfile === 'function') ? findProfile(pid) : null;
         if (p) {
+            // 1. Refresh Family details
+            const famWrap = document.getElementById('profileFamilyDetailsWrap');
+            if (famWrap && typeof renderFamilyDetailsSection === 'function') {
+                famWrap.outerHTML = renderFamilyDetailsSection(p);
+            }
+            // 2. Refresh Location
+            const locWrap = document.getElementById('profileLocationWrap');
+            if (locWrap && typeof renderLocationSection === 'function') {
+                locWrap.outerHTML = renderLocationSection(p);
+            }
+            // 3. Refresh Hero Location text
+            const heroLoc = document.getElementById('profileHeroLoc');
+            if (heroLoc) {
+                const unlocked = (typeof isProfileDetailsUnlocked === 'function') ? isProfileDetailsUnlocked(p) : false;
+                if (unlocked) {
+                    heroLoc.innerHTML = `<i class="fa-solid fa-location-dot"></i> ${escapeHtml(p.village || p.city || '')}${p.district ? ', ' + escapeHtml(p.district) : ''}`;
+                } else {
+                    heroLoc.innerHTML = `<i class="fa-solid fa-location-dot"></i> ${escapeHtml(p.district ? p.district + ', Gujarat' : 'Gujarat')} <span style="font-size:10.5px;padding:2px 6px;border-radius:6px;background:rgba(255,255,255,0.25);margin-left:4px;letter-spacing:0.02em;"><i class="fa-solid fa-shield-halved"></i> Protected</span>`;
+                }
+            }
+            // 4. Refresh Father contact
             const wrap = document.getElementById('profileFatherContactWrap');
             if (wrap && typeof renderFatherContactSection === 'function') {
                 wrap.outerHTML = renderFatherContactSection(p);
             }
-            if (typeof supabaseFetchAuthorizedContact === 'function') {
+            // 5. Authorized real contact reveal if unlocked
+            const isUnlocked = (typeof isProfileDetailsUnlocked === 'function') ? isProfileDetailsUnlocked(p) : false;
+            if (isUnlocked && typeof supabaseFetchAuthorizedContact === 'function') {
                 supabaseFetchAuthorizedContact(p.id).then(contact => {
                     if (contact) {
                         if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE) {
@@ -1447,6 +1609,11 @@ function refreshProfileContactState(profileId) {
                             p.fatherMobile = realPhone;
                             p.father_mobile = realPhone;
                             p.rawFatherMobile = realPhone;
+                        }
+                        if (contact.fullAddress) {
+                            p.fullAddress = contact.fullAddress;
+                            const addrEl = document.querySelector('#profileLocationWrap .detail-row [style*="max-width:60%"]');
+                            if (addrEl) addrEl.textContent = contact.fullAddress;
                         }
                         const updatedWrap = document.getElementById('profileFatherContactWrap');
                         if (updatedWrap && typeof renderFatherContactSection === 'function') {

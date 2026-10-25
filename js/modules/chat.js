@@ -381,7 +381,7 @@ function openInterestModal(id) {
     if (txtEl) {
         const resetNote = (usage.count > 0 && usage.resetTimeText) ? ` (resets in ${usage.resetTimeText})` : '';
         txtEl.innerHTML =
-            `You're about to send an interest request to <b>${escapeHtml(p.name || 'this member')}</b>. They will receive an instant email notification on their registered email with your profile details. If they accept, safe text chat and family contact details will unlock immediately.<br><br>` +
+            `You're about to send an interest request to <b>${escapeHtml(p.name || 'this member')}</b>. They will receive an instant email notification on their registered email with your profile details. If they accept, safe text chat, <b>family details, location &amp; direct father contact</b> will unlock immediately.<br><br>` +
             `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(123,44,191,0.08);color:var(--primary,#7B2CBF);border:1px solid rgba(123,44,191,0.2);border-radius:20px;font-size:12px;font-weight:700;">` +
             `<i class="fa-solid fa-clock-rotate-left"></i> Daily Limit: ${usage.remaining} of 5 interest requests left today${resetNote}</div>`;
     }
@@ -1189,7 +1189,7 @@ async function acceptRequest(profileId) {
         if (!thread.peerEmail && peerEmail) thread.peerEmail = peerEmail;
     }
 
-    showToast(`Matched with ${peerName}! Safe text chat & family contact unlocked 🎉`);
+    showToast(`Matched with ${peerName}! Safe text chat, family details & location unlocked 🎉`);
     saveSessionState();
     renderInbox();
     updateInboxBadge();
@@ -2466,7 +2466,7 @@ function handleRealtimeInterestUpdate(dbInterest) {
 
     // Celebratory instant alert when interest is accepted
     if (isMeSender && dbInterest.status === 'accepted') {
-        showToast(`🎉 ${resolvedName} accepted your interest request! Safe text chat & family contact are now unlocked.`);
+        showToast(`🎉 ${resolvedName} accepted your interest request! Safe text chat, family details & location are now unlocked.`);
         if (typeof window.refreshProfileContactState === 'function') {
             window.refreshProfileContactState(peerId);
         }
@@ -2475,7 +2475,7 @@ function handleRealtimeInterestUpdate(dbInterest) {
                 id: `interest_acc_${peerId}_${Date.now()}`,
                 icon: 'fa-heart',
                 title: `🎉 ${resolvedName} accepted your interest request!`,
-                desc: 'Match accepted! Safe text chat & family contact are now unlocked.',
+                desc: 'Match accepted! Safe text chat, family details & location are now unlocked.',
                 time: 'Just now',
                 unread: true,
                 actionType: 'chat',
