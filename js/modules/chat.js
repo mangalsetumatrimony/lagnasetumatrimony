@@ -202,12 +202,12 @@ function interestStatusFor(profileId) {
     return null;
 }
 
-/* ============================================================ DAILY INTEREST LIMIT (5 / DAY) ============================================================ */
-const DAILY_INTEREST_LIMIT = 5;
+/* ============================================================ DAILY INTEREST LIMIT (3 / DAY) ============================================================ */
+const DAILY_INTEREST_LIMIT = 3;
 
 /**
  * Get daily interest usage for the current user (female or male)
- * Enforces a maximum limit of 5 requests per 24 hours
+ * Enforces a maximum limit of 3 requests per 24 hours
  */
 function getDailyInterestUsage() {
     const curUser = (typeof state !== 'undefined' && state.currentUser) ? state.currentUser : null;
@@ -332,13 +332,13 @@ function formatRemainingTime(ms) {
 window.formatRemainingTime = formatRemainingTime;
 
 /**
- * Returns clean single toast message based on the last (5th) sent interest request
- * e.g., "Daily limit reached! Your daily credit of 5 interest requests is finished for today. You can send 5 more interest requests in 5 hours 48 mins."
+ * Returns clean single toast message based on the last (3rd) sent interest request
+ * e.g., "Daily limit reached! Your daily credit of 3 interest requests is finished for today. You can send 3 more interest requests in 5 hours 48 mins."
  */
 function getDailyInterestLimitMessage(usage) {
     const u = usage || (typeof getDailyInterestUsage === 'function' ? getDailyInterestUsage() : null);
     const timeText = (u && u.resetTimeText) ? u.resetTimeText : '24 hours';
-    return `Daily limit reached! Your daily credit of 5 interest requests is finished for today. You can send 5 more interest requests in ${timeText}.`;
+    return `Daily limit reached! Your daily credit of 3 interest requests is finished for today. You can send 3 more interest requests in ${timeText}.`;
 }
 window.getDailyInterestLimitMessage = getDailyInterestLimitMessage;
 
@@ -369,7 +369,7 @@ function openInterestModal(id) {
     const p = findProfile(id);
     if (!p) return;
 
-    // Strict Anti-Spam: Daily Limit of 5 Requests (for both girls and boys)
+    // Strict Anti-Spam: Daily Limit of 3 Requests (for both girls and boys)
     const usage = getDailyInterestUsage();
     if (usage.isLimitReached) {
         showToast(getDailyInterestLimitMessage(usage), 3500);
@@ -383,7 +383,7 @@ function openInterestModal(id) {
         txtEl.innerHTML =
             `You're about to send an interest request to <b>${escapeHtml(p.name || 'this member')}</b>. They will receive an instant email notification on their registered email with your profile details. If they accept, safe text chat, <b>family details, location &amp; direct father contact</b> will unlock immediately.<br><br>` +
             `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(123,44,191,0.08);color:var(--primary,#7B2CBF);border:1px solid rgba(123,44,191,0.2);border-radius:20px;font-size:12px;font-weight:700;">` +
-            `<i class="fa-solid fa-clock-rotate-left"></i> Daily Limit: ${usage.remaining} of 5 interest requests left today${resetNote}</div>`;
+            `<i class="fa-solid fa-clock-rotate-left"></i> Daily Limit: ${usage.remaining} of 3 interest requests left today${resetNote}</div>`;
     }
     openModal('modalInterest');
 }
@@ -408,7 +408,7 @@ async function confirmSendInterest() {
         return;
     }
 
-    // Strict Anti-Spam: Check 5 daily interest requests limit
+    // Strict Anti-Spam: Check 3 daily interest requests limit
     const usage = getDailyInterestUsage();
     if (usage.isLimitReached) {
         closeModal('modalInterest');
@@ -454,7 +454,7 @@ async function confirmSendInterest() {
     const remainingCount = newUsage.remaining;
 
     closeModal('modalInterest');
-    showToast(`Interest request sent to ${p.name}! (${remainingCount} of 5 daily requests remaining) 💍`);
+    showToast(`Interest request sent to ${p.name}! (${remainingCount} of 3 daily requests remaining) 💍`);
     refreshProfileButtons();
     updateInboxBadge();
     saveSessionState();

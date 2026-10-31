@@ -2057,7 +2057,7 @@ async function supabaseSendInterest(senderProfile, receiverProfile) {
     // 1. Supabase Persistence & Strict Daily Limit Guard
     if (client) {
         try {
-            // Anti-Spam Check: Ensure user has not sent >= 5 requests in last 24 hours
+            // Anti-Spam Check: Ensure user has not sent >= 3 requests in last 24 hours
             const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
             const { count: recentSentCount, error: countErr } = await client
                 .from('interests')
@@ -2065,7 +2065,7 @@ async function supabaseSendInterest(senderProfile, receiverProfile) {
                 .or(`sender_id.eq.${senderId},sender_email.eq.${senderEmail}`)
                 .gte('created_at', twentyFourHoursAgo);
 
-            if (!countErr && typeof recentSentCount === 'number' && recentSentCount >= 5) {
+            if (!countErr && typeof recentSentCount === 'number' && recentSentCount >= 3) {
                 console.warn('[Supabase] Daily limit exceeded on database:', recentSentCount);
                 throw new Error('DAILY_LIMIT_EXCEEDED');
             }

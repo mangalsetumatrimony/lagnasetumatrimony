@@ -853,7 +853,7 @@ function sendInterest(id) {
             if (typeof showToast === 'function') {
                 const msg = (typeof getDailyInterestLimitMessage === 'function')
                     ? getDailyInterestLimitMessage(usage)
-                    : `Daily limit reached! Your daily credit of 5 interest requests is finished for today. You can send 5 more interest requests in ${usage.resetTimeText || '24 hours'}.`;
+                    : `Daily limit reached! Your daily credit of 3 interest requests is finished for today. You can send 3 more interest requests in ${usage.resetTimeText || '24 hours'}.`;
                 showToast(msg, 3500);
             }
             return;
