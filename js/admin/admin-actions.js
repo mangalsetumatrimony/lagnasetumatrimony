@@ -361,7 +361,11 @@ window.escapeHtml = escapeHtmlAdmin;
         const formatted = digits.length >= 10 && typeof formatPhoneNumber === 'function' ? formatPhoneNumber(pStr) : pStr;
         const telNum = digits.length === 10 ? '+91' + digits : (digits.startsWith('91') ? '+' + digits : digits);
         const callBtn = digits.length >= 10 ? `<a href="tel:${telNum}" style="margin-left:8px;font-size:11px;font-weight:700;color:var(--primary);text-decoration:none;background:rgba(230,57,70,0.1);padding:3px 9px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;" title="Direct Call Member"><i class="fa-solid fa-phone"></i> Call</a>` : '';
-        return escapeHtmlAdmin(formatted) + callBtn;
+        let cleanOwn = digits;
+        if (cleanOwn.length === 11 && cleanOwn.startsWith('0')) cleanOwn = cleanOwn.substring(1);
+        const waOwnNum = cleanOwn.length === 10 ? '91' + cleanOwn : cleanOwn;
+        const waOwnBtn = digits.length >= 10 ? `<a href="https://wa.me/${waOwnNum}" target="_blank" rel="noopener noreferrer" style="margin-left:6px;font-size:11px;font-weight:700;color:#1d7a44;text-decoration:none;background:rgba(37,211,102,0.12);padding:3px 9px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;" title="Direct WhatsApp Member"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>` : '';
+        return escapeHtmlAdmin(formatted) + callBtn + waOwnBtn;
     })()}</strong><span class="privacy-tag"><i class="fa-solid fa-user-shield"></i> Admin view</span></div></div>
     <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-phone"></i> Father's Mobile</div><div class="dval"><strong style="font-size:15px;letter-spacing:0.5px;color:var(--text);">${(function(){
         const pStr = getAdminUnmaskedPhone(u, 'father');
@@ -369,7 +373,11 @@ window.escapeHtml = escapeHtmlAdmin;
         const formatted = digits.length >= 10 && typeof formatPhoneNumber === 'function' ? formatPhoneNumber(pStr) : pStr;
         const telNum = digits.length === 10 ? '+91' + digits : (digits.startsWith('91') ? '+' + digits : digits);
         const callBtn = digits.length >= 10 ? `<a href="tel:${telNum}" style="margin-left:8px;font-size:11px;font-weight:700;color:#2e7d32;text-decoration:none;background:rgba(46,125,50,0.1);padding:3px 9px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;" title="Direct Call Father"><i class="fa-solid fa-phone"></i> Call</a>` : '';
-        return escapeHtmlAdmin(formatted) + callBtn;
+        let cleanFather = digits;
+        if (cleanFather.length === 11 && cleanFather.startsWith('0')) cleanFather = cleanFather.substring(1);
+        const waFatherNum = cleanFather.length === 10 ? '91' + cleanFather : cleanFather;
+        const waFatherBtn = digits.length >= 10 ? `<a href="https://wa.me/${waFatherNum}" target="_blank" rel="noopener noreferrer" style="margin-left:6px;font-size:11px;font-weight:700;color:#1d7a44;text-decoration:none;background:rgba(37,211,102,0.12);padding:3px 9px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;" title="Direct WhatsApp Father"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>` : '';
+        return escapeHtmlAdmin(formatted) + callBtn + waFatherBtn;
     })()}</strong><span class="privacy-tag" style="background:var(--success-bg);color:var(--success);"><i class="fa-solid fa-phone-volume"></i> Public Contact</span></div></div>
     <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-calendar-days"></i> Registered Date</div><div class="dval">${escapeHtmlAdmin(u.registered || '—')}</div></div>
 

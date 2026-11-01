@@ -560,6 +560,8 @@ function saveEditProfile() {
         myProfile.father = fatherNameVal;
         myProfile.fatherOcc = fatherOccVal;
         myProfile.fatherMobile = formatPhoneNumber(cleanFatherMobile);
+        myProfile.rawFatherMobile = cleanFatherMobile;
+        myProfile.father_mobile = cleanFatherMobile;
         myProfile.mother = motherNameVal;
         myProfile.motherOcc = motherOccVal;
         myProfile.sister = sisterVal;
@@ -575,6 +577,8 @@ function saveEditProfile() {
 
         myProfile.hobbies = updatedHobbies;
         myProfile.ownMobile = formatPhoneNumber(cleanOwnMobile);
+        myProfile.rawOwnMobile = cleanOwnMobile;
+        myProfile.mobile = formatPhoneNumber(cleanOwnMobile);
 
         if (photos.length > 0) {
             myProfile.photos = photos;
@@ -599,6 +603,8 @@ function saveEditProfile() {
         state.currentUser.fatherName = fatherNameVal;
         state.currentUser.fatherOcc = fatherOccVal;
         state.currentUser.fatherMobile = formatPhoneNumber(cleanFatherMobile);
+        state.currentUser.rawFatherMobile = cleanFatherMobile;
+        state.currentUser.father_mobile = cleanFatherMobile;
         state.currentUser.mother = motherNameVal;
         state.currentUser.motherName = motherNameVal;
         state.currentUser.motherOcc = motherOccVal;
@@ -614,6 +620,7 @@ function saveEditProfile() {
         state.currentUser.hobbies = updatedHobbies;
         state.currentUser.mobile = formatPhoneNumber(cleanOwnMobile);
         state.currentUser.ownMobile = formatPhoneNumber(cleanOwnMobile);
+        state.currentUser.rawOwnMobile = cleanOwnMobile;
         if (photos.length > 0) {
             state.currentUser.photos = photos;
             state.currentUser.img = photos[0];
@@ -653,6 +660,8 @@ function saveEditProfile() {
                 accounts[uIdx].fatherName = fatherNameVal;
                 accounts[uIdx].fatherOcc = fatherOccVal;
                 accounts[uIdx].fatherMobile = formatPhoneNumber(cleanFatherMobile);
+                accounts[uIdx].rawFatherMobile = cleanFatherMobile;
+                accounts[uIdx].father_mobile = cleanFatherMobile;
                 accounts[uIdx].mother = motherNameVal;
                 accounts[uIdx].motherName = motherNameVal;
                 accounts[uIdx].motherOcc = motherOccVal;
@@ -660,6 +669,7 @@ function saveEditProfile() {
                 accounts[uIdx].brother = brotherVal;
                 accounts[uIdx].mobile = formatPhoneNumber(cleanOwnMobile);
                 accounts[uIdx].ownMobile = formatPhoneNumber(cleanOwnMobile);
+                accounts[uIdx].rawOwnMobile = cleanOwnMobile;
                 accounts[uIdx].city = city;
                 accounts[uIdx].village = city;
                 accounts[uIdx].taluka = talukaVal;

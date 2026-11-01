@@ -923,6 +923,7 @@
             u.rawEmail = email;
             u.fatherMobile = fatherMobile;
             u.rawFatherMobile = fatherMobile;
+            u.father_mobile = fatherMobile;
 
             u.father = father;
             u.fatherName = father;

@@ -701,8 +701,16 @@ async function quickCall(phone, profileId) {
     }
 
     let dial = clean;
-    if (dial.length === 10) dial = '+91' + dial;
-    else if (!dial.startsWith('+')) dial = '+' + dial;
+    if (dial.length === 11 && dial.startsWith('0')) {
+        dial = dial.substring(1);
+    }
+    if (dial.length === 10) {
+        dial = '+91' + dial;
+    } else if (dial.length === 12 && dial.startsWith('91')) {
+        dial = '+' + dial;
+    } else if (!dial.startsWith('+')) {
+        dial = '+' + dial;
+    }
     window.location.href = `tel:${dial}`;
 }
 
@@ -766,13 +774,24 @@ async function quickWhatsApp(phone, name, profileId) {
     }
 
     // Format for WhatsApp international: Ensure country code 91
+    if (clean.length === 11 && clean.startsWith('0')) {
+        clean = clean.substring(1);
+    }
     if (clean.length === 10) {
         clean = '91' + clean;
+    } else if (clean.startsWith('0091')) {
+        clean = clean.substring(2);
     }
 
     const memberName = name || 'Family';
     const text = encodeURIComponent(`Namaste, we saw ${memberName}'s profile on Mangal Setu Matrimony and would like to connect.`);
-    window.open(`https://wa.me/${clean}?text=${text}`, '_blank');
+    const waUrl = `https://wa.me/${clean}?text=${text}`;
+
+    // Attempt popup with fallback for mobile browser popup blockers
+    const win = window.open(waUrl, '_blank');
+    if (!win || win.closed || typeof win.closed === 'undefined') {
+        window.location.href = waUrl;
+    }
 }
 function openQuickReport(id) {
     state.activeReportId = id;
