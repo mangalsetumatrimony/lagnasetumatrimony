@@ -223,6 +223,8 @@ function getCurrentUserProfile() {
         if (!myProfile.father && (src.father || src.fatherName)) myProfile.father = src.father || src.fatherName;
         if (!myProfile.fatherOcc && src.fatherOcc) myProfile.fatherOcc = src.fatherOcc;
         if (!myProfile.fatherMobile && src.fatherMobile) myProfile.fatherMobile = src.fatherMobile;
+        if (src.rawFatherMobile && !src.rawFatherMobile.includes('•')) myProfile.rawFatherMobile = src.rawFatherMobile;
+        if (src.rawOwnMobile && !src.rawOwnMobile.includes('•')) myProfile.rawOwnMobile = src.rawOwnMobile;
         if (!myProfile.mother && (src.mother || src.motherName)) myProfile.mother = src.mother || src.motherName;
         if (!myProfile.motherOcc && src.motherOcc) myProfile.motherOcc = src.motherOcc;
         if ((!myProfile.sister || myProfile.sister === '—') && src.sister) myProfile.sister = src.sister;
@@ -380,7 +382,16 @@ function populateEditProfile() {
     if (fOccEl) fOccEl.value = myProfile.fatherOcc || state.currentUser?.fatherOcc || '';
 
     const fMobileEl = document.getElementById('editFatherMobile');
-    if (fMobileEl) fMobileEl.value = myProfile.fatherMobile || state.currentUser?.fatherMobile || '';
+    if (fMobileEl) {
+        const fVal = (myProfile.rawFatherMobile && !myProfile.rawFatherMobile.includes('•'))
+            ? myProfile.rawFatherMobile
+            : ((myProfile.father_mobile && !myProfile.father_mobile.includes('•'))
+                ? myProfile.father_mobile
+                : ((myProfile.fatherMobile && !myProfile.fatherMobile.includes('•'))
+                    ? myProfile.fatherMobile
+                    : (state.currentUser?.rawFatherMobile || state.currentUser?.father_mobile || state.regData?.fatherMobile || '')));
+        fMobileEl.value = fVal;
+    }
 
     const mNameEl = document.getElementById('editMotherName');
     if (mNameEl) mNameEl.value = myProfile.mother || state.currentUser?.mother || '';
@@ -427,7 +438,16 @@ function populateEditProfile() {
 
     // Contact number (private admin only)
     const ownMobileEl = document.getElementById('editOwnMobile');
-    if (ownMobileEl) ownMobileEl.value = myProfile.ownMobile || state.currentUser?.mobile || state.regData?.ownMobile || '';
+    if (ownMobileEl) {
+        const oVal = (myProfile.rawOwnMobile && !myProfile.rawOwnMobile.includes('•'))
+            ? myProfile.rawOwnMobile
+            : ((myProfile.own_mobile && !myProfile.own_mobile.includes('•'))
+                ? myProfile.own_mobile
+                : ((myProfile.ownMobile && !myProfile.ownMobile.includes('•'))
+                    ? myProfile.ownMobile
+                    : (state.currentUser?.rawOwnMobile || state.currentUser?.mobile || state.regData?.ownMobile || '')));
+        ownMobileEl.value = oVal;
+    }
 
     // Visibility toggle
     const visibleToggle = document.getElementById('editVisibleToggle');
