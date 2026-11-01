@@ -1,7 +1,7 @@
 /* ============================================================ HELP & FAQS CONTENT ============================================================ */
 const DEFAULT_HOW_IT_WORKS = [
     { title: '1-Click Google Sign In', desc: 'Fast, secure & 100% password-free login with your official Google account.' },
-    { title: 'Select community', desc: 'Choose your specific caste & community from 50+ verified Hindu Gujarati Samaj.' },
+    { title: 'Select community', desc: 'Choose your specific caste & community from 250+ verified Hindu Gujarati Samaj.' },
     { title: 'Personal & family biodata', desc: 'Add education, occupation, income, hobbies, and respectful family background.' },
     { title: 'Upload verified photos', desc: 'Upload up to 3 high-resolution photos (1 main verified photo + 2 gallery slots).' },
     { title: 'Native location & address', desc: 'Specify your native village, taluka, and district for localized matchmaking.' },
