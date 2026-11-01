@@ -5,7 +5,7 @@ const DEFAULT_HOW_IT_WORKS = [
     { title: 'Personal & family biodata', desc: 'Add education, occupation, income, hobbies, and respectful family background.' },
     { title: 'Upload verified photos', desc: 'Upload up to 3 high-resolution photos (1 main verified photo + 2 gallery slots).' },
     { title: 'Native location & address', desc: 'Specify your native village, taluka, and district for localized matchmaking.' },
-    { title: 'Membership & Instant Activation', desc: 'Community girls: 100% Lifetime Free · Boys: ₹99 for 30 Days Pass via secure Razorpay UPI / Cards.' },
+    { title: 'Membership & Instant Activation', desc: 'Community girls: 100% Lifetime Free · Boys: ₹199 for 30 Days Pass via secure Razorpay UPI / Cards.' },
     { title: 'Explore verified profiles', desc: 'Browse genuine eligible brides and grooms from your community.' },
     { title: 'Send interest (3 daily limit)', desc: 'Send up to 3 interest requests per day to maintain genuine, spam-free connections.' },
     { title: 'Direct family connect', desc: 'Once interest is accepted, unlock direct Father\'s Phone Call, WhatsApp, and in-app chat.' }
@@ -14,9 +14,9 @@ const DEFAULT_HOW_IT_WORKS = [
 const DEFAULT_FAQS = [
     ['How do I register?', 'Sign in with Google in 1 click (no passwords or manual registration forms required), select your community, complete your family details, and upload your photos. Your account is active immediately!'],
     ['Is membership free for girls?', 'Yes! 100% Lifetime Free access is guaranteed for all community girls.'],
-    ['How much is the membership pass for boys?', 'Boys get 30 Days Full Access for just ₹99, payable instantly via Razorpay UPI (Google Pay, PhonePe, Paytm), Debit/Credit Cards, or Net Banking.'],
+    ['How much is the membership pass for boys?', 'Boys get 30 Days Full Access for just ₹199, payable instantly via Razorpay UPI (Google Pay, PhonePe, Paytm), Debit/Credit Cards, or Net Banking.'],
     ['How many interest requests can I send per day?', 'To maintain privacy, prevent mass spamming, and ensure serious matrimonial connections, every member (both girls and boys) can send a maximum of 3 interest requests in a 24-hour period.'],
-    ['What happens after 30 days of membership?', 'After 30 days, your account remains active, but browsing candidate profiles is locked until you renew the ₹99 pass.'],
+    ['What happens after 30 days of membership?', 'After 30 days, your account remains active, but browsing candidate profiles is locked until you renew the ₹199 pass.'],
     ['How do members contact each other?', 'A member can send an in-app interest request. Once the candidate accepts, direct Phone Call and WhatsApp buttons for the girl\'s father are unlocked automatically, along with text chat.'],
     ['Is a member\'s phone number public?', 'No. A member\'s own personal mobile number is kept strictly private for Admin verification only. Only the father\'s verified contact number unlocks for accepted interest connections.'],
     ['How do multi-photo profiles work?', 'Members can upload up to 3 high-resolution photos. Verified members can view all photos in the photo gallery carousel.'],

@@ -125,7 +125,7 @@ window.escapeHtml = escapeHtmlAdmin;
             row.className = 'row-item';
             const checkGirl = typeof isGirlGender === 'function' ? isGirlGender : g => (g === 'girls' || g === 'Girl' || g === 'girl');
             const isGirl = checkGirl(u.gender);
-            const payBadge = isGirl ? '<span class="status-badge paid"><i class="fa-solid fa-heart"></i> Free</span>' : (u.paymentStatus === 'paid' ? '<span class="status-badge paid"><i class="fa-crown"></i> Paid ₹99</span>' : '<span class="status-badge pending">Unpaid</span>');
+            const payBadge = isGirl ? '<span class="status-badge paid"><i class="fa-solid fa-heart"></i> Free</span>' : (u.paymentStatus === 'paid' ? '<span class="status-badge paid"><i class="fa-crown"></i> Paid ₹199</span>' : '<span class="status-badge pending">Unpaid</span>');
             const isSuspended = (u.accountStatus || u.account_status || u.status || '').toLowerCase() === 'suspended';
             const statusBadge = isSuspended
                 ? '<span class="status-badge rejected"><i class="fa-solid fa-ban"></i> Suspended</span>'
@@ -219,7 +219,7 @@ window.escapeHtml = escapeHtmlAdmin;
             }
             if (!el) return;
             const isGirl = u.gender === 'girls' || u.gender === 'Girl';
-            const payText = isGirl ? '<span class="status-badge paid"><i class="fa-solid fa-heart"></i> 100% Free (Girls)</span>' : (u.paymentStatus === 'paid' ? '<span class="status-badge paid"><i class="fa-solid fa-crown"></i> Paid ₹99 / 30 Days</span>' : '<span class="status-badge pending">Unpaid</span>');
+            const payText = isGirl ? '<span class="status-badge paid"><i class="fa-solid fa-heart"></i> 100% Free (Girls)</span>' : (u.paymentStatus === 'paid' ? '<span class="status-badge paid"><i class="fa-solid fa-crown"></i> Paid ₹199 / 30 Days</span>' : '<span class="status-badge pending">Unpaid</span>');
             const isSuspended = (u.accountStatus || u.account_status || u.status || '').toLowerCase() === 'suspended';
             const statusBadge = isSuspended
                 ? '<span class="status-badge rejected"><i class="fa-solid fa-ban"></i> Suspended Account</span>'
@@ -1497,7 +1497,7 @@ async function savePlatformSettings() {
     const boysFeeInput = document.getElementById('settingsBoysFee');
 
     const emailNotifsOn = emailNotifsToggle ? emailNotifsToggle.classList.contains('on') : true;
-    const boysFee = boysFeeInput ? (parseInt(boysFeeInput.value) || 99) : 99;
+    const boysFee = boysFeeInput ? (parseInt(boysFeeInput.value) || 199) : 199;
 
     const platformSettings = {
         email_notifications: emailNotifsOn,

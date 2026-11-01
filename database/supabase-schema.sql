@@ -117,8 +117,8 @@ CREATE TABLE IF NOT EXISTS public.payments (
     id VARCHAR(100) PRIMARY KEY, -- e.g. TXN_xxxxx or pay_xxxxx
     user_id TEXT,
     user_name VARCHAR(150),
-    plan VARCHAR(100) NOT NULL DEFAULT 'Boys 30 Days Pass (₹99)',
-    amount NUMERIC(10, 2) NOT NULL DEFAULT 99.00,
+    plan VARCHAR(100) NOT NULL DEFAULT 'Boys 30 Days Pass (₹199)',
+    amount NUMERIC(10, 2) NOT NULL DEFAULT 199.00,
     currency VARCHAR(10) NOT NULL DEFAULT 'INR',
     method VARCHAR(50) NOT NULL DEFAULT 'UPI',
     razorpay_payment_id VARCHAR(100),

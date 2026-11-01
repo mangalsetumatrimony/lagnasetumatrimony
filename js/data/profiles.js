@@ -565,7 +565,7 @@ async function checkCurrentUserStatus() {
 const FAQS = [
     ['How do I register?', 'Tap "Create account" on the welcome screen and complete all 3 steps: community, personal & family details, and address.'],
     ['Is Mangal Setu free for girls?', 'Yes! 100% Lifetime Free access is guaranteed for all community girls.'],
-    ['How much is the membership pass for boys?', 'Boys get 30 Days Full Access for just ₹99, giving direct contact to verified community brides\' families.'],
+    ['How much is the membership pass for boys?', 'Boys get 30 Days Full Access for just ₹199, giving direct contact to verified community brides\' families.'],
     ['How do I contact a profile?', 'You can direct Call or WhatsApp the girl\'s father using the verified contact buttons, or send an in-app interest request.'],
     ['Is my personal phone number visible to everyone?', 'No. Your personal registration number is kept strictly private for Admin review only. Only your father\'s contact number is shown to verified members.'],
     ['How do multi-photo profiles work?', 'Profiles with 2 or 3 photos display a photo counter badge. Tap on the photo to open the high-resolution photo carousel.'],

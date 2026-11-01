@@ -776,7 +776,7 @@ async function supabaseUpsertProfile(profile) {
 }
 
 /**
- * Record a successful ₹99 UPI payment in Supabase and activate 30-day pass
+ * Record a successful ₹199 UPI payment in Supabase and activate 30-day pass
  * @param {Object} paymentData { id, userId, userName, amount, method, razorpayPaymentId }
  */
 async function supabaseRecordPayment(paymentData) {
@@ -793,8 +793,8 @@ async function supabaseRecordPayment(paymentData) {
             id: paymentData.id,
             user_id: String(paymentData.userId || ''),
             user_name: paymentData.userName || 'Registered Member',
-            plan: paymentData.plan || 'Boys 30 Days Pass (₹99)',
-            amount: Number(paymentData.amount) || 99.00,
+            plan: paymentData.plan || 'Boys 30 Days Pass (₹199)',
+            amount: Number(paymentData.amount) || 199.00,
             currency: 'INR',
             method: paymentData.method || 'UPI',
             razorpay_payment_id: paymentData.razorpayPaymentId || null,
@@ -1769,8 +1769,8 @@ async function supabaseFetchPaymentsForAdmin() {
             id: p.id,
             userId: p.user_id,
             userName: p.user_name || 'Member',
-            plan: p.plan || 'Boys 30 Days Pass (₹99)',
-            amount: p.amount || 99,
+            plan: p.plan || 'Boys 30 Days Pass (₹199)',
+            amount: p.amount || 199,
             date: p.date || new Date(p.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
             time: p.time || new Date(p.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
             method: p.method || 'UPI',

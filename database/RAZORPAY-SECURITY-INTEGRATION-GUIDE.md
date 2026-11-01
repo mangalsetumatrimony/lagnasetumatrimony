@@ -1,12 +1,12 @@
 # Mangal Setu — Production Razorpay Security Integration Guide
-**100% Tamper-Proof Payment Architecture for Boys 30 Days Pass (₹99)**
+**100% Tamper-Proof Payment Architecture for Boys 30 Days Pass (₹199)**
 
 ---
 
 ## 🛡️ ૧. સિક્યોરિટી શા માટે જરૂરી છે? (Why Client-Side Razorpay Fails)
 
 સામાન્ય રીતે જો કોઈ ડેવલપર Razorpay નું પેમેન્ટ ફક્ત Frontend JavaScript માં કરે, તો:
-1. **હેકર પેમેન્ટ અમાઉન્ટ બદલી શકે છે:** ₹99 ની જગ્યાએ બ્રાઉઝર કોન્સોલમાં `amount: 100` (₹1) મોકલી શકે છે.
+1. **હેકર પેમેન્ટ અમાઉન્ટ બદલી શકે છે:** ₹199 ની જગ્યાએ બ્રાઉઝર કોન્સોલમાં `amount: 100` (₹1) મોકલી શકે છે.
 2. **ફેક પેમેન્ટ રિસ્પોન્સ:** Razorpay નું પોપઅપ ખોલ્યા વગર જ કન્સોલમાંથી `processSuccessfulPayment()` ફંક્શન રન કરીને એકાઉન્ટ Paid કરી શકે છે.
 3. **Key Secret લીક:** જો `RAZORPAY_KEY_SECRET` જાવાસ્ક્રિપ્ટ ફાઈલમાં લખવામાં આવે તો હેકર તમારું આખું Razorpay એકાઉન્ટ કંટ્રોલ કરી શકે છે.
 
@@ -24,14 +24,14 @@ sequenceDiagram
     participant EdgeVerify as Edge Function (verify-razorpay-payment)
     participant DB as Supabase PostgreSQL
 
-    User->>Client: Clicks "Pay ₹99 via UPI"
+    User->>Client: Clicks "Pay ₹199 via UPI"
     Client->>EdgeCreate: POST /create-razorpay-order (userId, email)
-    Note over EdgeCreate: Fixed server amount: 9900 paise (₹99)
+    Note over EdgeCreate: Fixed server amount: 19900 paise (₹199)
     EdgeCreate->>RZP: POST /v1/orders with server Key Secret
     RZP-->>EdgeCreate: Returns official order_id
     EdgeCreate-->>Client: Returns order_id & public Key ID
     Client->>RZP: Opens Razorpay Checkout Modal
-    User->>RZP: Pays ₹99 via UPI / GPay / PhonePe
+    User->>RZP: Pays ₹199 via UPI / GPay / PhonePe
     RZP-->>Client: Returns payment_id, order_id & signature
     Client->>EdgeVerify: POST /verify-razorpay-payment (order_id, payment_id, signature)
     Note over EdgeVerify: HMAC-SHA256 Cryptographic Signature Verification
@@ -112,10 +112,10 @@ async function startSecureRazorpayPayment() {
         // 2. Razorpay Checkout Modal ખોલો
         const options = {
             key: orderData.keyId,
-            amount: orderData.amount, // 9900 paise
+            amount: orderData.amount, // 19900 paise
             currency: orderData.currency,
             name: 'Mangal Setu Matrimony',
-            description: 'Boys 30 Days Pass (₹99)',
+            description: 'Boys 30 Days Pass (₹199)',
             order_id: orderData.orderId,
             prefill: {
                 name: state.currentUser.name || '',
@@ -165,6 +165,6 @@ async function startSecureRazorpayPayment() {
 ---
 
 ## 🏆 પરિણામ (Why This is 100% Unhackable)
-1. **₹99 ફિક્સ:** રકમ સર્વર પર ફિક્સ છે, ક્લાયન્ટ તરફથી બદલી શકાતી નથી.
+1. **₹199 ફિક્સ:** રકમ સર્વર પર ફિક્સ છે, ક્લાયન્ટ તરફથી બદલી શકાતી નથી.
 2. **Signature Verification:** Razorpay તરફથી આવતી સહી HMAC-SHA256 અલ્ગોરિધમથી સુપાબેઝ સર્વર પર ચકાસાય છે, જેથી ફેક પેમેન્ટ અશક્ય બની જાય છે.
 3. **Database Security:** `payments` અને `profiles.payment_status` ટેબલને ફક્ત `service_role` (બેકએન્ડ) જ બદલી શકે છે, કોઈ પણ પબ્લિક કી તેને અપડેટ કરી શકતી નથી.

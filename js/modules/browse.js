@@ -1011,7 +1011,7 @@ function updateHomeStats() {
                 planEl.textContent = 'Free';
             } else {
                 const pass = (typeof checkBoyPassStatus === 'function') ? checkBoyPassStatus(state.currentUser) : { active: state.currentUser.paymentStatus === 'Active' };
-                planEl.textContent = pass.active ? '₹99 Pass' : 'Unpaid';
+                planEl.textContent = pass.active ? '₹199 Pass' : 'Unpaid';
             }
         } else {
             planEl.textContent = 'Free';

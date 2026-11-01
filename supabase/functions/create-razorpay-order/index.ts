@@ -41,7 +41,7 @@ serve(async (req) => {
       );
     }
 
-    const orderAmount = 9900; // ₹99.00 in paise (Fixed on server — CANNOT be tampered by client)
+    const orderAmount = 19900; // ₹199.00 in paise (Fixed on server — CANNOT be tampered by client)
     const receipt = `rcpt_${String(userId).slice(-8)}_${Date.now().toString().slice(-6)}`;
 
     // Create authentic Order via Razorpay REST API
@@ -60,7 +60,7 @@ serve(async (req) => {
           userId: String(userId),
           userEmail: String(userEmail),
           userName: String(userName || "Mangal Setu Member"),
-          plan: "Boys 30 Days Pass (₹99)"
+          plan: "Boys 30 Days Pass (₹199)"
         }
       })
     });

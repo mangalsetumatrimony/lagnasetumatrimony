@@ -23,3 +23,7 @@ credentials/
 # Database dumps & local backups
 *.backup
 *.dump
+
+# Scratch files
+scratch/
+

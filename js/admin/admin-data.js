@@ -11,7 +11,7 @@
         let FAQS = [
             ['How do I register?', 'Members create an account, verify their phone/email by OTP, select community, and complete personal, family, and address details.'],
             ['Is membership free for girls?', 'Yes! 100% Lifetime Free access is guaranteed for all community girls.'],
-            ['How much is the membership pass for boys?', 'Boys get 30 Days Full Access for just ₹99, giving direct contact to verified community brides\' families.'],
+            ['How much is the membership pass for boys?', 'Boys get 30 Days Full Access for just ₹199, giving direct contact to verified community brides\' families.'],
             ['How do members contact each other?', 'A member can direct Call or WhatsApp the girl\'s father using the verified contact buttons, or send an in-app interest request to unlock chat.'],
             ['Is a member\'s phone number public?', 'No. A member\'s own mobile number is kept strictly private for Admin review only. Only the father\'s contact number is shown on the public profile.'],
             ['How do multi-photo profiles work?', 'Members can upload up to 3 high-resolution photos. Admin and verified members can view all photos in the photo gallery carousel.'],
@@ -23,7 +23,7 @@
             { title: 'Personal & family biodata', desc: 'Add education, occupation, income, hobbies, and respectful family background.' },
             { title: 'Upload verified photos', desc: 'Upload up to 3 high-resolution photos (1 main verified photo + 2 gallery slots).' },
             { title: 'Native location & address', desc: 'Specify your native village, taluka, and district for localized matchmaking.' },
-            { title: 'Membership & Instant Activation', desc: 'Community girls: 100% Lifetime Free · Boys: ₹99 for 30 Days Pass via secure Razorpay UPI / Cards.' },
+            { title: 'Membership & Instant Activation', desc: 'Community girls: 100% Lifetime Free · Boys: ₹199 for 30 Days Pass via secure Razorpay UPI / Cards.' },
             { title: 'Explore verified profiles', desc: 'Browse genuine eligible brides and grooms from your community.' },
             { title: 'Send interest (3 daily limit)', desc: 'Send up to 3 interest requests per day to maintain genuine, spam-free connections.' },
             { title: 'Direct family connect', desc: 'Once interest is accepted, unlock direct Father\'s Phone Call, WhatsApp, and in-app chat.' }
@@ -260,7 +260,7 @@ function loadAdminData() {
         FAQS = [
             ['How do I register?', 'Members create an account, verify their phone/email by OTP, select community, and complete personal, family, and address details.'],
             ['Is membership free for girls?', 'Yes! 100% Lifetime Free access is guaranteed for all community girls.'],
-            ['How much is the membership pass for boys?', 'Boys get 30 Days Full Access for just ₹99, giving direct contact to verified community brides\' families.'],
+            ['How much is the membership pass for boys?', 'Boys get 30 Days Full Access for just ₹199, giving direct contact to verified community brides\' families.'],
             ['How do members contact each other?', 'A member can direct Call or WhatsApp the girl\'s father using the verified contact buttons, or send an in-app interest request to unlock chat.'],
             ['Is a member\'s phone number public?', 'No. A member\'s own mobile number is kept strictly private for Admin review only. Only the father\'s contact number is shown on the public profile.'],
             ['How do multi-photo profiles work?', 'Members can upload up to 3 high-resolution photos. Admin and verified members can view all photos in the photo gallery carousel.']
@@ -469,7 +469,7 @@ function syncAdminNotifsFromDatabase() {
                 generated.push({
                     id: k,
                     icon: 'fa-sack-dollar',
-                    txt: `₹${p.amount || 99} payment from ${p.userName || 'Member'}`,
+                    txt: `₹${p.amount || 199} payment from ${p.userName || 'Member'}`,
                     sub: `Pass activated · ${p.method || 'UPI'} · TXN: ${p.id}`,
                     time: p.date + (p.time ? ' ' + p.time : ''),
                     unread: false,
@@ -574,7 +574,7 @@ function setupAdminRealtime() {
                         NOTIFS.unshift({
                             id: `pay_${newPay.id}_${Date.now()}`,
                             icon: 'fa-sack-dollar',
-                            txt: `Payment received: ₹${newPay.amount || 99} from ${newPay.user_name || 'Member'}`,
+                            txt: `Payment received: ₹${newPay.amount || 199} from ${newPay.user_name || 'Member'}`,
                             sub: `Pass activated via ${newPay.method || 'UPI'} (TXN: ${newPay.id})`,
                             time: 'Just now',
                             unread: true,
@@ -584,7 +584,7 @@ function setupAdminRealtime() {
                         if (typeof updateAdminNotifBadge === 'function') updateAdminNotifBadge();
                         if (typeof renderNotifs === 'function') renderNotifs();
                         if (typeof renderDashboard === 'function') renderDashboard();
-                        if (typeof showToast === 'function') showToast(`💰 Payment received: ₹${newPay.amount || 99} from ${newPay.user_name || 'Member'}`);
+                        if (typeof showToast === 'function') showToast(`💰 Payment received: ₹${newPay.amount || 199} from ${newPay.user_name || 'Member'}`);
                     }
                 },
                 onProfilesChange: async (payload) => {

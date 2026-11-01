@@ -304,7 +304,7 @@ async function submitProfileCompletion() {
         renderHome();
         openModal('modalGirlComplete');
     } else {
-        // Boy MUST pay ₹99 to see any girl profiles — redirect directly to scr-membership
+        // Boy MUST pay ₹199 to see any girl profiles — redirect directly to scr-membership
         state.history = ['scr-membership'];
         go('scr-membership', true);
         openModal('modalBoyComplete');
@@ -352,10 +352,10 @@ function openRazorpayCheckout() {
 
             const options = {
                 key: window.RAZORPAY_KEY_ID,
-                amount: 9900, // ₹99 in paise
+                amount: 19900, // ₹199 in paise
                 currency: 'INR',
                 name: 'Mangal Setu',
-                description: 'Boys 30-Day Membership Pass (₹99)',
+                description: 'Boys 30-Day Membership Pass (₹199)',
                 image: 'images/mangal_setu_logo.png',
                 notes: {
                     service: '30-Day Matrimonial Directory Access Pass',
@@ -498,8 +498,8 @@ function processSuccessfulPayment(txnId, upiMethod) {
             id: txnId || ('RZP_UPI_' + Math.floor(10000 + Math.random() * 90000)),
             userId: state.currentUser.id,
             userName: state.currentUser.name || 'Registered Member',
-            plan: 'Boys 30 Days Pass (₹99)',
-            amount: 99,
+            plan: 'Boys 30 Days Pass (₹199)',
+            amount: 199,
             date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
             time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
             method: upiMethod || ('UPI (' + (selectedUpiApp || 'UPI') + ')'),
@@ -513,7 +513,7 @@ function processSuccessfulPayment(txnId, upiMethod) {
                 userId: state.currentUser.id,
                 userName: state.currentUser.name,
                 method: newTxn.method,
-                amount: 99
+                amount: 199
             }).catch(err => console.warn('[Supabase] Payment record notice:', err));
         }
 
@@ -576,7 +576,7 @@ function processSuccessfulPayment(txnId, upiMethod) {
 
     if (typeof updateMembershipScreen === 'function') updateMembershipScreen();
     openModal('modalPaySuccess');
-    showToast('₹99 Paid Successfully via UPI! Account Activated 🎉');
+    showToast('₹199 Paid Successfully via UPI! Account Activated 🎉');
 }
 
 function processMockPayment() {
@@ -676,22 +676,22 @@ function updateMembershipScreen() {
         if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-clock-rotate-left"></i> PASS EXPIRED';
         if (titleEl) titleEl.textContent = 'Membership Expired';
         if (subEl) {
-            subEl.textContent = `Your 30-Day Pass expired on ${state.currentUser.planExpiry || 'recently'}. Pay ₹99 via UPI to renew full access.`;
+            subEl.textContent = `Your 30-Day Pass expired on ${state.currentUser.planExpiry || 'recently'}. Pay ₹199 via UPI to renew full access.`;
         }
         if (payBtn) {
             payBtn.style.display = 'flex';
-            payBtn.innerHTML = '<i class="fa-solid fa-bolt"></i> Renew 30-Day Pass (₹99 via UPI)';
+            payBtn.innerHTML = '<i class="fa-solid fa-bolt"></i> Renew 30-Day Pass (₹199 via UPI)';
         }
         if (demoBtn) demoBtn.style.display = 'flex';
     } else {
-        if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-lock"></i> ₹99 PASS REQUIRED';
+        if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-lock"></i> ₹199 PASS REQUIRED';
         if (titleEl) titleEl.textContent = 'Payment Required';
         if (subEl) {
-            subEl.textContent = '₹99 access pass required to unlock full profile details and father contact';
+            subEl.textContent = '₹199 access pass required to unlock full profile details and father contact';
         }
         if (payBtn) {
             payBtn.style.display = 'flex';
-            payBtn.innerHTML = '<i class="fa-solid fa-bolt"></i> Pay ₹99 via UPI (30 Days Pass)';
+            payBtn.innerHTML = '<i class="fa-solid fa-bolt"></i> Pay ₹199 via UPI (30 Days Pass)';
         }
         if (demoBtn) demoBtn.style.display = 'flex';
     }
@@ -1137,7 +1137,7 @@ function openProfile(id) {
             if (!passCheck.active) {
                 go('scr-membership', true);
                 openModal('modalPaywall');
-                showToast('Boys ₹99 Pass required: Pay via UPI to view full profile details.');
+                showToast('Boys ₹199 Pass required: Pay via UPI to view full profile details.');
                 return;
             }
         }
@@ -1516,7 +1516,7 @@ function openPaymentHistoryModal() {
                     <i class="fa-solid fa-receipt" style="font-size:28px;color:var(--text-faint,#9ca3af);margin-bottom:8px;"></i>
                     <div style="font-weight:700;font-size:14px;color:var(--text,#333);margin-bottom:4px;">No Transactions Yet</div>
                     <p style="font-size:12px;color:var(--text-muted,#666);margin:0;line-height:1.5;">
-                        ${passCheck.active ? 'Your pass is currently active.' : 'Pay ₹99 via UPI to activate your 30-Day Full Access Pass.'}
+                        ${passCheck.active ? 'Your pass is currently active.' : 'Pay ₹199 via UPI to activate your 30-Day Full Access Pass.'}
                     </p>
                 </div>
             `;
@@ -1536,7 +1536,7 @@ function openPaymentHistoryModal() {
                         </div>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-weight:800;font-size:15px;color:var(--text,#111);">₹${p.amount || 99}</div>
+                        <div style="font-weight:800;font-size:15px;color:var(--text,#111);">₹${p.amount || 199}</div>
                         <span style="font-size:10.5px;font-weight:700;color:#059669;background:#ECFDF5;padding:2px 7px;border-radius:6px;display:inline-block;margin-top:2px;">PAID</span>
                     </div>
                 `;

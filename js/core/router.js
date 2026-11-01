@@ -146,9 +146,9 @@ function go(id, replace = false) {
                     go('scr-membership', true);
                     openModal('modalPaywall');
                     if (passCheck.reason === 'expired') {
-                        showToast('Your 30-Day Pass has expired! Pay ₹99 via UPI to renew.');
+                        showToast('Your 30-Day Pass has expired! Pay ₹199 via UPI to renew.');
                     } else {
-                        showToast('Boys ₹99 Pass required: Pay via UPI to explore community brides.');
+                        showToast('Boys ₹199 Pass required: Pay via UPI to explore community brides.');
                     }
                     return;
                 }

@@ -1451,7 +1451,7 @@ async function doLogin() {
             return;
         }
 
-        // RULE 3: If Boy -> Must have active 30-Day Pass (₹99)
+        // RULE 3: If Boy -> Must have active 30-Day Pass (₹199)
         matchedUser.gender = 'Boy';
         const pStatus = checkBoyPassStatus(matchedUser);
         if (pStatus.active) {
@@ -1467,9 +1467,9 @@ async function doLogin() {
             go('scr-membership');
             openModal('modalPaywall');
             if (pStatus.reason === 'expired') {
-                showToast('Your 30-Day Pass has expired! Pay ₹99 via UPI to renew.');
+                showToast('Your 30-Day Pass has expired! Pay ₹199 via UPI to renew.');
             } else {
-                showToast('Boys ₹99 Pass required: Pay via UPI to enter home.');
+                showToast('Boys ₹199 Pass required: Pay via UPI to enter home.');
             }
         }
         return;
@@ -1534,9 +1534,9 @@ function enterHome() {
             go('scr-membership', true);
             openModal('modalPaywall');
             if (passStatus.reason === 'expired') {
-                showToast('Your 30-Day Pass has expired! Pay ₹99 via UPI to enter.');
+                showToast('Your 30-Day Pass has expired! Pay ₹199 via UPI to enter.');
             } else {
-                showToast('Boys ₹99 Pass required: Pay via UPI to access community brides.');
+                showToast('Boys ₹199 Pass required: Pay via UPI to access community brides.');
             }
             return;
         }
