@@ -421,47 +421,9 @@
                         </svg>
                         <span>Continue with Google</span>
                     </button>
-
-                    <div style="display:flex;align-items:center;gap:10px;margin:18px 0 16px;">
-                        <div style="flex:1;height:1px;background:var(--border);"></div>
-                        <span
-                            style="font-size:11px;color:var(--text-muted);font-weight:700;letter-spacing:0.4px;text-transform:uppercase;">or
-                            sign in with password</span>
-                        <div style="flex:1;height:1px;background:var(--border);"></div>
+                    <div style="margin-top:20px;text-align:center;">
+                        <button class="btn btn-ghost btn-sm" onclick="go('scr-welcome')" style="font-size:12px;color:var(--text-muted);"><i class="fa-solid fa-arrow-left"></i> Back to Welcome</button>
                     </div>
-
-                    <div class="field">
-                        <label>Gmail or username</label>
-                        <div class="input-icon-wrap"><i class="fa-solid fa-envelope leading"></i>
-                            <input class="input" id="loginEmail" placeholder="you@gmail.com" value=""
-                                oninput="liveGmailValidate(this)" autocomplete="username">
-                        </div>
-                    </div>
-                    <div class="field">
-                        <label>Password</label>
-                        <div class="input-icon-wrap">
-                            <i class="fa-solid fa-lock leading"></i>
-                            <input class="input" id="loginPass" type="password" placeholder="••••••••" value=""
-                                autocomplete="current-password">
-                            <button class="trailing-btn" type="button" onclick="togglePw('loginPass',this)"
-                                aria-label="Show or hide password"><i class="fa-solid fa-eye"></i></button>
-                        </div>
-                    </div>
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin:-4px 0 20px;">
-                        <label
-                            style="display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;font-size:12.5px;color:var(--text-muted);font-weight:600;">
-                            <input type="checkbox" id="loginRememberMe"
-                                onchange="if(typeof onRememberMeToggle==='function')onRememberMeToggle(this);"
-                                style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;border-radius:4px;margin:0;">
-                            <span>Remember me</span>
-                        </label>
-                        <span class="link-txt" style="font-size:12.5px;" onclick="go('scr-forgot')">Forgot
-                            password?</span>
-                    </div>
-                    <button class="btn btn-primary" onclick="doLogin()"><i class="fa-solid fa-right-to-bracket"></i> Log
-                        in</button>
-                    <div class="center-txt p-muted" style="margin-top:20px;">Don't have an account? <span
-                            class="link-txt" onclick="go('scr-reg1')">Register</span></div>
                 </div>
             </div>
         </section>
@@ -548,57 +510,33 @@
             </div>
         </section>
 
-        <!-- ============================================================ REGISTER ACCOUNT (GMAIL + SINGLE PASSWORD) ============================================================ -->
+        <!-- ============================================================ REGISTER ACCOUNT ============================================================ -->
         <section class="screen auth-screen" id="scr-reg1">
             <div class="topbar"><button class="icon-btn" onclick="goBack()"><i
                         class="fa-solid fa-arrow-left"></i></button>
                 <h1>Create account</h1>
             </div>
             <div class="screen-pad no-tab">
-                <div class="h-display h-lg" style="margin-top:4px;">Account details</div>
-                <p class="p-muted" style="margin-top:4px;">Enter your Gmail and create a secure password.</p>
+                <div class="h-display h-lg" style="margin-top:4px;">Join Mangal Setu</div>
+                <p class="p-muted" style="margin-top:4px;">Continue with your Google account to get started.</p>
 
                 <div style="margin-top:22px;">
-                    <div class="field"><label>Gmail address <span style="color:var(--error);">*</span></label>
-                        <div class="input-icon-wrap"><i class="fa-solid fa-envelope leading"></i><input class="input"
-                                id="r1email" placeholder="you@gmail.com" value="" autocomplete="off"
-                                oninput="liveGmailValidate(this)">
-                        </div>
+                    <button type="button" class="btn-social" onclick="handleSocialLogin('google')">
+                        <svg width="20" height="20" viewBox="0 0 24 24" style="flex-shrink:0;">
+                            <path fill="#4285F4"
+                                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                            <path fill="#34A853"
+                                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                            <path fill="#FBBC05"
+                                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                            <path fill="#EA4335"
+                                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                        </svg>
+                        <span>Continue with Google</span>
+                    </button>
+                    <div style="margin-top:20px;text-align:center;">
+                        <button class="btn btn-ghost btn-sm" onclick="go('scr-welcome')" style="font-size:12px;color:var(--text-muted);"><i class="fa-solid fa-arrow-left"></i> Back to Welcome</button>
                     </div>
-                    <div class="field"><label>Password <span style="color:var(--error);">*</span></label>
-                        <div class="input-icon-wrap"><i class="fa-solid fa-lock leading"></i><input class="input"
-                                id="r1pass" type="password" placeholder="Create a password" value=""
-                                autocomplete="new-password">
-                            <button class="trailing-btn" type="button" onclick="togglePw('r1pass',this)"
-                                aria-label="Show or hide password"><i class="fa-solid fa-eye"></i></button>
-                        </div>
-                        <span class="hint"><i class="fa-solid fa-circle-check" style="color:var(--success);"></i>
-                            Single secure password (minimum 6 characters)</span>
-                    </div>
-                    <div class="field" style="margin-top:14px;margin-bottom:18px;">
-                        <label for="agreeTermsCheck"
-                            style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:12px;color:var(--text);line-height:1.5;user-select:none;">
-                            <input type="checkbox" id="agreeTermsCheck"
-                                style="width:18px;height:18px;margin-top:1px;accent-color:var(--primary);cursor:pointer;flex-shrink:0;"
-                                onchange="toggleRegSubmitButton()">
-                            <span>
-                                I have read and agree to the
-                                <a href="legal/terms.html" target="_blank" rel="noopener noreferrer" class="link-txt"
-                                    style="font-weight:700;text-decoration:underline;">Terms of Service</a>,
-                                <a href="legal/privacy-policy.html" target="_blank" rel="noopener noreferrer"
-                                    class="link-txt" style="font-weight:700;text-decoration:underline;">Privacy
-                                    Policy</a> &amp;
-                                <a href="legal/refund-policy.html" target="_blank" rel="noopener noreferrer"
-                                    class="link-txt" style="font-weight:700;text-decoration:underline;">Refund
-                                    Policy</a>.
-                            </span>
-                        </label>
-                    </div>
-                    <button class="btn btn-primary" id="btnVerifyEmail" onclick="handleSendSignupOtp()" disabled
-                        style="opacity:0.5;cursor:not-allowed;width:100%;">Verify Email <i
-                            class="fa-solid fa-arrow-right"></i></button>
-                    <div class="center-txt p-muted" style="margin-top:20px;">Already have an account? <span
-                            class="link-txt" onclick="go('scr-login')">Log in</span></div>
                 </div>
             </div>
         </section>
@@ -2889,32 +2827,32 @@
     <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Core & State -->
-    <script src="js/core/state.js?v=4.5"></script>
-    <script src="js/core/supabase-client.js?v=4.5"></script>
+    <script src="js/core/state.js?v=4.6"></script>
+    <script src="js/core/supabase-client.js?v=4.6"></script>
     <!-- EmailJS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script src="js/services/email-service.js?v=4.5"></script>
-    <script src="js/core/router.js?v=4.5"></script>
+    <script src="js/services/email-service.js?v=4.6"></script>
+    <script src="js/core/router.js?v=4.6"></script>
     <!-- Data Modules -->
-    <script src="js/data/castes.js?v=4.5"></script>
-    <script src="js/data/help-content.js?v=4.5"></script>
-    <script src="js/data/profiles.js?v=4.5"></script>
+    <script src="js/data/castes.js?v=4.6"></script>
+    <script src="js/data/help-content.js?v=4.6"></script>
+    <script src="js/data/profiles.js?v=4.6"></script>
     <!-- Utilities -->
-    <script src="js/utils/helpers.js?v=4.5"></script>
-    <script src="js/utils/pwa.js?v=4.5"></script>
-    <script src="js/utils/cloudinary.js?v=4.5"></script>
-    <script src="js/utils/cropper.js?v=4.5"></script>
-    <script src="js/utils/datepicker.js?v=4.5"></script>
+    <script src="js/utils/helpers.js?v=4.6"></script>
+    <script src="js/utils/pwa.js?v=4.6"></script>
+    <script src="js/utils/cloudinary.js?v=4.6"></script>
+    <script src="js/utils/cropper.js?v=4.6"></script>
+    <script src="js/utils/datepicker.js?v=4.6"></script>
     <!-- Application Modules -->
-    <script src="js/modules/auth.js?v=4.5"></script>
-    <script src="js/modules/browse.js?v=4.5"></script>
-    <script src="js/modules/chat.js?v=4.5"></script>
-    <script src="js/modules/profile.js?v=4.5"></script>
-    <script src="js/modules/notifications.js?v=4.5"></script>
+    <script src="js/modules/auth.js?v=4.6"></script>
+    <script src="js/modules/browse.js?v=4.6"></script>
+    <script src="js/modules/chat.js?v=4.6"></script>
+    <script src="js/modules/profile.js?v=4.6"></script>
+    <script src="js/modules/notifications.js?v=4.6"></script>
     <!-- Application Entrypoint -->
-    <script src="js/app.js?v=4.5"></script>
+    <script src="js/app.js?v=4.6"></script>
     <!-- Privacy & Anti-Inspect Security Guard -->
-    <script src="js/utils/security-guard.js?v=4.5"></script>
+    <script src="js/utils/security-guard.js?v=4.6"></script>
 
 </body>
 

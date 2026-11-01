@@ -87,14 +87,12 @@ function initApp() {
     const rawHash = (window.location.hash || '').replace('#/', '').replace('#', '');
 
     const PUBLIC_GUEST_SCREENS = new Set([
-        'scr-welcome', 'scr-login', 'scr-reg1', 'scr-otp-signup', 'scr-splash',
-        'scr-forgot', 'scr-forgot-otp', 'scr-newpass', 'scr-howitworks', 'scr-help'
+        'scr-welcome', 'scr-splash', 'scr-howitworks', 'scr-help'
     ]);
 
     const INCOMPLETE_ALLOWED = new Set([
-        'scr-reg1', 'scr-otp-signup', 'scr-reg-caste', 'scr-reg2', 'scr-reg3', 'scr-reg4',
-        'scr-welcome', 'scr-login', 'scr-splash', 'scr-forgot', 'scr-forgot-otp', 'scr-newpass',
-        'scr-howitworks', 'scr-help'
+        'scr-reg-caste', 'scr-reg2', 'scr-reg3', 'scr-reg4',
+        'scr-welcome', 'scr-splash', 'scr-howitworks', 'scr-help'
     ]);
 
     const hasExplicitHash = Boolean(rawHash && rawHash !== 'splash');

@@ -17,14 +17,12 @@ function updateDesktopNav(id) {
 
 /* ============================================================ NAVIGATION & ROUTE LOADER ============================================================ */
 const PUBLIC_GUEST_SCREENS = new Set([
-    'scr-welcome', 'scr-login', 'scr-reg1', 'scr-otp-signup', 'scr-splash',
-    'scr-forgot', 'scr-forgot-otp', 'scr-newpass', 'scr-howitworks', 'scr-help'
+    'scr-welcome', 'scr-splash', 'scr-howitworks', 'scr-help'
 ]);
 
 const INCOMPLETE_ALLOWED = new Set([
-    'scr-reg1', 'scr-otp-signup', 'scr-reg-caste', 'scr-reg2', 'scr-reg3', 'scr-reg4',
-    'scr-welcome', 'scr-login', 'scr-splash', 'scr-forgot', 'scr-forgot-otp', 'scr-newpass',
-    'scr-howitworks', 'scr-help'
+    'scr-reg-caste', 'scr-reg2', 'scr-reg3', 'scr-reg4',
+    'scr-welcome', 'scr-splash', 'scr-howitworks', 'scr-help'
 ]);
 
 function goToCompleteProfile() {
@@ -36,18 +34,9 @@ function goToCompleteProfile() {
 }
 
 function go(id, replace = false) {
-    // If entering registration screen, ensure fresh empty inputs
-    if (id === 'scr-reg1') {
-        if (typeof resetRegistrationStateAndInputs === 'function') {
-            resetRegistrationStateAndInputs();
-        }
-    }
-
-    // If entering login screen, pre-fill remembered credentials if enabled
-    if (id === 'scr-login') {
-        if (typeof restoreRememberedLogin === 'function') {
-            restoreRememberedLogin();
-        }
+    // Legacy password screens are redirected to 1-click Google Welcome screen
+    if (id === 'scr-login' || id === 'scr-reg1' || id === 'scr-otp-signup' || id === 'scr-forgot' || id === 'scr-forgot-otp' || id === 'scr-newpass') {
+        id = 'scr-welcome';
     }
 
     // If entering registration step screens, restore populated form fields
