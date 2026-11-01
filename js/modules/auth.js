@@ -375,10 +375,18 @@ function purgeUserAccountLocally(email, id) {
             localStorage.removeItem('lagnaSetu_profileComplete');
             localStorage.removeItem('lagnaSetu_membershipPaid');
             localStorage.removeItem('lagnaSetu_activeScreen');
+            localStorage.removeItem('mangalSetu_lastAuthProvider');
+            localStorage.removeItem('mangalSetu_last_auth_provider');
+            if (typeof clearLastAuthProvider === 'function') {
+                clearLastAuthProvider();
+            }
             state.history = ['scr-welcome'];
             resetRegistrationStateAndInputs();
             if (typeof closeAllModals === 'function') {
                 closeAllModals();
+            }
+            if (typeof renderSmartWelcomeScreen === 'function') {
+                renderSmartWelcomeScreen();
             }
             if (typeof go === 'function') go('scr-welcome', true);
         }
@@ -409,6 +417,15 @@ async function syncAndPruneDeletedAccounts() {
             if (pruned.length !== accounts.length) {
                 console.info(`[MangalSetu] Pruned ${accounts.length - pruned.length} deleted accounts from local storage.`);
                 saveStoredAccounts(pruned);
+            }
+        }
+
+        // Prune last auth provider if the account was deleted in Supabase
+        const lastAuth = (typeof getLastAuthProvider === 'function') ? getLastAuthProvider() : null;
+        if (lastAuth && lastAuth.email && !activeEmails.has(lastAuth.email.toLowerCase())) {
+            console.info('[MangalSetu] Clearing last auth provider for deleted account:', lastAuth.email);
+            if (typeof clearLastAuthProvider === 'function') {
+                clearLastAuthProvider();
             }
         }
 
@@ -1589,6 +1606,14 @@ function doLogout(isTimeout = false) {
     }
 
     // 2. Wipe all session storage and persistent local user session
+    if (state.currentUser && state.currentUser.email) {
+        saveLastAuthProvider({
+            provider: state.currentUser.authProvider || 'google',
+            email: state.currentUser.email,
+            name: state.currentUser.name || '',
+            avatar: state.currentUser.avatarUrl || state.currentUser.photo || state.currentUser.img || ''
+        });
+    }
     sessionStorage.clear();
     try {
         localStorage.removeItem('mangalSetu_activeUser');
@@ -1640,6 +1665,9 @@ function doLogout(isTimeout = false) {
     if (welcome) {
         welcome.classList.add('active');
         welcome.scrollTop = 0;
+        if (typeof renderSmartWelcomeScreen === 'function') {
+            renderSmartWelcomeScreen();
+        }
     }
 
     if (isTimeout) {
@@ -1984,3 +2012,363 @@ if (typeof enterHome !== 'undefined') window.enterHome = enterHome;
 if (typeof handleSendForgotOtp !== 'undefined') window.handleSendForgotOtp = handleSendForgotOtp;
 if (typeof verifyForgotOtp !== 'undefined') window.verifyForgotOtp = verifyForgotOtp;
 if (typeof handleResetPassword !== 'undefined') window.handleResetPassword = handleResetPassword;
+
+/* ============================================================
+   MODERN 1-CLICK SOCIAL AUTHENTICATION (GOOGLE, INSTA, SNAP)
+   & SMART "LAST USED" MEMORY
+   ============================================================ */
+
+var LS_LAST_AUTH_KEY = 'mangalSetu_lastAuthProvider';
+
+function saveLastAuthProvider(info) {
+    if (!info || !info.provider) return;
+    try {
+        const payload = {
+            provider: info.provider,
+            email: (info.email || '').toLowerCase().trim(),
+            name: info.name || '',
+            avatar: info.avatar || '',
+            timestamp: Date.now()
+        };
+        localStorage.setItem(LS_LAST_AUTH_KEY, JSON.stringify(payload));
+    } catch (_) {}
+}
+window.saveLastAuthProvider = saveLastAuthProvider;
+
+function clearLastAuthProvider() {
+    try {
+        localStorage.removeItem(LS_LAST_AUTH_KEY);
+        localStorage.removeItem('mangalSetu_last_auth_provider');
+        localStorage.removeItem('mangalSetu_lastAuthProvider');
+    } catch (_) {}
+    const banner = document.getElementById('returningUserBanner');
+    const badgeGoogle = document.getElementById('badgeGoogleLastUsed');
+    const switchWrap = document.getElementById('switchAccountWrap');
+    const btnGoogle = document.getElementById('btnAuthGoogle');
+
+    if (banner) banner.style.display = 'none';
+    if (badgeGoogle) badgeGoogle.style.display = 'none';
+    if (switchWrap) switchWrap.style.display = 'none';
+    if (btnGoogle) btnGoogle.classList.remove('is-highlighted', 'is-dimmed');
+}
+window.clearLastAuthProvider = clearLastAuthProvider;
+
+function getLastAuthProvider() {
+    try {
+        const raw = localStorage.getItem(LS_LAST_AUTH_KEY) || localStorage.getItem('mangalSetu_last_auth_provider');
+        if (raw) return JSON.parse(raw);
+    } catch (_) {}
+    return null;
+}
+window.getLastAuthProvider = getLastAuthProvider;
+
+/**
+ * Render smart highlight on the last-used auth provider and dim other options
+ */
+function renderSmartWelcomeScreen() {
+    const last = getLastAuthProvider();
+    const banner = document.getElementById('returningUserBanner');
+    const nameEl = document.getElementById('returningUserName');
+    const avatarEl = document.getElementById('returningUserAvatar');
+    const switchWrap = document.getElementById('switchAccountWrap');
+
+    const btnGoogle = document.getElementById('btnAuthGoogle');
+    const badgeGoogle = document.getElementById('badgeGoogleLastUsed');
+
+    // Reset initial state
+    if (btnGoogle) btnGoogle.classList.remove('is-highlighted', 'is-dimmed');
+    if (badgeGoogle) badgeGoogle.style.display = 'none';
+    if (banner) banner.style.display = 'none';
+    if (switchWrap) switchWrap.style.display = 'none';
+
+    if (!last || !last.provider || !last.email) {
+        return;
+    }
+
+    // Display Returning User Banner
+    if (banner) {
+        if (nameEl && last.name) nameEl.textContent = last.name;
+        else if (nameEl && last.email) nameEl.textContent = last.email.split('@')[0];
+        if (avatarEl && last.avatar) avatarEl.src = last.avatar;
+        banner.style.display = 'flex';
+    }
+
+    if (switchWrap) {
+        switchWrap.style.display = 'block';
+    }
+
+    // Highlight Google (only provider now)
+    if (last.provider === 'google') {
+        if (btnGoogle) btnGoogle.classList.add('is-highlighted');
+        if (badgeGoogle) badgeGoogle.style.display = 'inline-flex';
+    }
+}
+window.renderSmartWelcomeScreen = renderSmartWelcomeScreen;
+
+/**
+ * Switch account / clear saved memory
+ */
+function enableAllAuthProviders() {
+    clearLastAuthProvider();
+    if (typeof showToast === 'function') {
+        showToast('Choose your Google account to sign in');
+    }
+}
+window.enableAllAuthProviders = enableAllAuthProviders;
+
+function toggleTermsConsent(e) {
+    if (e && e.target && e.target.tagName === 'A') return;
+    const chk = document.getElementById('welcomeTermsCheck');
+    if (chk) {
+        chk.checked = !chk.checked;
+        updateTermsConsentUI();
+    }
+}
+window.toggleTermsConsent = toggleTermsConsent;
+
+function updateTermsConsentUI() {
+    const card = document.getElementById('welcomeTermsCard');
+    const chk = document.getElementById('welcomeTermsCheck');
+    if (card && chk) {
+        if (chk.checked) {
+            card.classList.remove('has-error');
+        }
+    }
+}
+window.updateTermsConsentUI = updateTermsConsentUI;
+
+
+/**
+ * Main 1-Click Social Login Handler
+ * @param {'google'} provider
+ */
+async function handleSocialLogin(provider = 'google') {
+    const termsCheck = document.getElementById('welcomeTermsCheck');
+    const termsCard = document.getElementById('welcomeTermsCard');
+    if (termsCheck && !termsCheck.checked) {
+        if (termsCard) {
+            termsCard.classList.add('has-error');
+            setTimeout(() => { termsCard.classList.remove('has-error'); }, 1800);
+        }
+        if (typeof showToast === 'function') {
+            showToast('Please agree to Terms of Service & Privacy Policy to continue.');
+        }
+        return;
+    }
+
+    if (provider === 'google') {
+        const client = (typeof getSupabaseClient === 'function') ? getSupabaseClient() : null;
+        if (!client || !client.auth) {
+            if (typeof showToast === 'function') showToast('Database connection is initializing, please try again.');
+            return;
+        }
+
+        try {
+            if (typeof showGlobalLoader === 'function') showGlobalLoader('Connecting to Google...');
+            try { sessionStorage.setItem('mangalSetu_oauth_pending', 'google'); } catch (_) {}
+            
+            const redirectUrl = window.location.origin + window.location.pathname;
+            const { data, error } = await client.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: redirectUrl,
+                    queryParams: {
+                        access_type: 'offline',
+                        prompt: 'select_account'
+                    }
+                }
+            });
+            if (error) {
+                if (typeof hideGlobalLoader === 'function') hideGlobalLoader();
+                console.warn('[Google Auth] Sign-in error:', error);
+                if (typeof showToast === 'function') showToast(error.message || 'Google sign-in could not be started');
+            }
+        } catch (err) {
+            if (typeof hideGlobalLoader === 'function') hideGlobalLoader();
+            console.error('[Google Auth] Exception:', err);
+            if (typeof showToast === 'function') showToast('Google sign-in error. Please try again.');
+        }
+    }
+}
+window.handleSocialLogin = handleSocialLogin;
+
+/**
+ * Handle successful authentication: Smart Routing (Existing Member -> Home, New Member -> Complete Profile)
+ */
+async function handleSocialUserAuthenticated(socialUser) {
+    if (!socialUser || !socialUser.email) return;
+
+    const normEmail = socialUser.email.toLowerCase().trim();
+    const client = (typeof getSupabaseClient === 'function') ? getSupabaseClient() : null;
+
+    if (typeof showGlobalLoader === 'function') showGlobalLoader('Signing you in...');
+
+    try {
+        // 1. Check if user already has an active profile in Supabase
+        let existingProfile = null;
+        if (client) {
+            try {
+                const { data, error } = await client
+                    .from('profiles')
+                    .select('*')
+                    .ilike('email', normEmail)
+                    .maybeSingle();
+                if (!error && data) {
+                    existingProfile = data;
+                }
+            } catch (_) {}
+        }
+
+        // Check local stored accounts fallback
+        if (!existingProfile && typeof getStoredAccounts === 'function') {
+            const accounts = getStoredAccounts();
+            existingProfile = accounts.find(a => a.email && a.email.toLowerCase() === normEmail);
+        }
+
+        // Check window.PROFILES in memory
+        if (!existingProfile && Array.isArray(window.PROFILES)) {
+            existingProfile = window.PROFILES.find(p => p.email && p.email.toLowerCase() === normEmail);
+        }
+
+        const isFullyComplete = existingProfile && (
+            existingProfile.profileComplete === true ||
+            (existingProfile.name && existingProfile.gender && (existingProfile.community || existingProfile.caste))
+        );
+
+        if (isFullyComplete) {
+            // EXISTING USER: Save returning user info, restore active session and navigate straight to Profiles feed!
+            saveLastAuthProvider({
+                provider: socialUser.provider || 'google',
+                email: normEmail,
+                name: (mappedUser && mappedUser.name) || socialUser.name,
+                avatar: (mappedUser && (mappedUser.img || mappedUser.photo)) || socialUser.avatar
+            });
+            const mappedUser = (typeof mapProfileFromSupabase === 'function')
+                ? mapProfileFromSupabase(existingProfile)
+                : existingProfile;
+
+            state.currentUser = createSafeUserSession(mappedUser);
+            state.profileComplete = true;
+            state.membershipPaid = (
+                existingProfile.payment_status === 'paid' ||
+                existingProfile.payment_status === 'Active' ||
+                existingProfile.paymentStatus === 'paid' ||
+                existingProfile.paymentStatus === 'Active' ||
+                (typeof isGirlGender === 'function' && isGirlGender(existingProfile.gender))
+            );
+
+            saveSessionState();
+            if (typeof hideGlobalLoader === 'function') hideGlobalLoader();
+
+            if (typeof initInactivityTimer === 'function') initInactivityTimer();
+            if (typeof syncUserChatAndInterests === 'function') syncUserChatAndInterests();
+
+            const displayName = mappedUser.name || socialUser.name || 'Member';
+            if (typeof showToast === 'function') showToast(`Welcome back, ${displayName}! 💍`);
+
+            if (typeof go === 'function') {
+                go('scr-profiles', true);
+            }
+        } else {
+            // NEW USER: Create account record and navigate directly to Step 1 of Profile Completion!
+            const newUser = {
+                id: Date.now(),
+                email: normEmail,
+                name: socialUser.name || '',
+                photo: socialUser.avatar || '',
+                avatarUrl: socialUser.avatar || '',
+                authProvider: socialUser.provider || 'google',
+                profileComplete: false,
+                paymentStatus: 'Unpaid',
+                status: 'Active',
+                agreedTerms: true,
+                agreedTermsAt: new Date().toISOString()
+            };
+
+            state.currentUser = createSafeUserSession(newUser);
+            state.profileComplete = false;
+            state.membershipPaid = false;
+
+            state.regData = {
+                email: normEmail,
+                name: socialUser.name || '',
+                photo: socialUser.avatar || '',
+                photos: socialUser.avatar ? [socialUser.avatar, '', ''] : ['', '', ''],
+                authProvider: socialUser.provider || 'google',
+                currentStep: 'scr-reg-caste'
+            };
+
+            saveSessionState();
+            if (typeof saveRegDraft === 'function') saveRegDraft('scr-reg-caste');
+
+            // Upsert in Supabase public.users
+            if (client && typeof supabaseUpsertUser === 'function') {
+                try { await supabaseUpsertUser(newUser); } catch (_) {}
+            }
+
+            if (typeof hideGlobalLoader === 'function') hideGlobalLoader();
+            if (typeof showToast === 'function') {
+                showToast(`Google account linked! Please complete your profile. ✨`);
+            }
+
+            if (typeof go === 'function') {
+                go('scr-reg-caste', true);
+            }
+        }
+    } catch (err) {
+        if (typeof hideGlobalLoader === 'function') hideGlobalLoader();
+        console.error('[Social Auth] User processing error:', err);
+        if (typeof showToast === 'function') showToast('Error linking account. Please try again.');
+    }
+}
+window.handleSocialUserAuthenticated = handleSocialUserAuthenticated;
+
+/**
+ * Check and process OAuth Callback on application startup (detects access_token or Supabase Session)
+ */
+async function checkAndProcessOAuthCallback() {
+    const client = (typeof getSupabaseClient === 'function') ? getSupabaseClient() : null;
+    if (!client || !client.auth) return false;
+
+    try {
+        const hasHashParams = window.location.hash && (
+            window.location.hash.includes('access_token=') ||
+            window.location.hash.includes('type=recovery') ||
+            window.location.hash.includes('error=')
+        );
+        const hasPendingOAuth = sessionStorage.getItem('mangalSetu_oauth_pending');
+
+        if (hasHashParams || hasPendingOAuth) {
+            try { sessionStorage.removeItem('mangalSetu_oauth_pending'); } catch (_) {}
+
+            const { data, error } = await client.auth.getSession();
+            if (!error && data && data.session && data.session.user) {
+                const u = data.session.user;
+                const email = (u.email || '').toLowerCase().trim();
+                const name = u.user_metadata?.full_name || u.user_metadata?.name || '';
+                const avatar = u.user_metadata?.avatar_url || u.user_metadata?.picture || '';
+                const prov = u.app_metadata?.provider || 'google';
+
+                // Clean URL hash without reloading page
+                if (window.location.hash && window.location.hash.includes('access_token=')) {
+                    try {
+                        history.replaceState(null, document.title, window.location.pathname + window.location.search);
+                    } catch (_) {}
+                }
+
+                await handleSocialUserAuthenticated({
+                    id: u.id,
+                    email: email,
+                    name: name,
+                    avatar: avatar,
+                    provider: prov
+                });
+                return true;
+            }
+        }
+    } catch (e) {
+        console.warn('[OAuth Callback] Check note:', e);
+    }
+    return false;
+}
+window.checkAndProcessOAuthCallback = checkAndProcessOAuthCallback;

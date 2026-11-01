@@ -230,6 +230,7 @@ function go(id, replace = false) {
     if (id === 'scr-howitworks') renderHowItWorks();
     if (id === 'scr-membership') updateMembershipScreen();
     if (id === 'scr-editprofile') populateEditProfile();
+    if (id === 'scr-welcome' && typeof renderSmartWelcomeScreen === 'function') renderSmartWelcomeScreen();
 
     updateDesktopNav(id);
     updateInboxBadge();

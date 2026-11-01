@@ -1489,79 +1489,9 @@ async function supabaseDeleteUserCompletely(id, email, extraId, options = {}) {
             console.warn('[Supabase] RPC purge exception:', rpcEx);
         }
 
-        // PRIORITY 1.5: Bulletproof Data-Purge Wipe (Immediate fail-safe against RLS)
-        // Wipes all personal information, contacts, documents, and sets account_status to 'deleted' and visible to false
-        const profilePurgePayload = {
-            name: '[Deleted Account]',
-            account_status: 'deleted',
-            verify_status: 'rejected',
-            visible: false,
-            featured: false,
-            img: null,
-            avatar_url: null,
-            photos: [],
-            doc_img: null,
-            doc_name: null,
-            doc_type: null,
-            email: null,
-            mobile: null,
-            own_mobile: null,
-            village: null,
-            taluka: null,
-            district: null,
-            address: null,
-            full_address: null,
-            father: null,
-            father_name: null,
-            father_occ: null,
-            father_mobile: null,
-            mother: null,
-            mother_name: null,
-            mother_occ: null,
-            sister: null,
-            brother: null,
-            hobbies: [],
-            raw_data: null,
-            updated_at: new Date().toISOString()
-        };
-
-        for (const eml of emailList) {
-            try {
-                await client.from('profiles').update(profilePurgePayload).ilike('email', eml);
-            } catch(e) {}
-        }
-        for (const uid of idList) {
-            const numUid = Number(uid);
-            if (!isNaN(numUid) && numUid > 0) {
-                try {
-                    await client.from('profiles').update(profilePurgePayload).eq('id', numUid);
-                } catch(e) {}
-            }
-            try {
-                await client.from('profiles').update(profilePurgePayload).eq('user_id', uid);
-            } catch(e) {}
-        }
-
-        const userPurgePayload = {
-            name: '[Deleted Account]',
-            status: 'Deleted',
-            role: 'deleted',
-            email: `deleted_${Date.now()}_${Math.floor(Math.random()*10000)}@deleted.local`,
-            mobile: null,
-            updated_at: new Date().toISOString()
-        };
-        for (const eml of emailList) {
-            try {
-                await client.from('users').update(userPurgePayload).ilike('email', eml);
-            } catch(e) {}
-        }
-        for (const uid of idList) {
-            try {
-                await client.from('users').update(userPurgePayload).eq('id', uid);
-            } catch(e) {}
-        }
-
-        // PRIORITY 2: Direct client-side cleanup across all public tables (Bulletproof fallback & verification)
+        // PRIORITY 1.5: Direct client-side cleanup across all tables if RPC was not available
+        if (!rpcExecuted) {
+            console.warn('[Supabase] RPC not executed or unavailable, performing direct table-by-table purges...');
 
         // 1. Delete all chat messages (sent or received)
         for (const eml of emailList) {
@@ -1654,7 +1584,12 @@ async function supabaseDeleteUserCompletely(id, email, extraId, options = {}) {
             } catch(e) {}
         }
 
-        // 7. Delete from payments (payments table stores user_id)
+        // 7. Delete from payments
+        for (const eml of emailList) {
+            try {
+                await client.from('payments').delete().ilike('user_id', eml);
+            } catch(e) {}
+        }
         for (const uid of idList) {
             try {
                 await client.from('payments').delete().eq('user_id', String(uid));
@@ -1665,6 +1600,7 @@ async function supabaseDeleteUserCompletely(id, email, extraId, options = {}) {
                 await client.from('payments').delete().eq('user_id', String(normId));
             } catch(e) {}
         }
+    }
 
         // 8. Broadcast Realtime deletion event so ALL connected users immediately remove profile from screen
         try {

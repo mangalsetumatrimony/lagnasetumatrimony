@@ -220,6 +220,10 @@ function initApp() {
             targetEl.scrollTop = 0;
         }
 
+        if (targetScreen === 'scr-welcome' && typeof renderSmartWelcomeScreen === 'function') {
+            renderSmartWelcomeScreen();
+        }
+
         if (targetScreen === 'scr-chat') {
             document.body.classList.add('in-chat-screen');
         } else {
@@ -279,9 +283,24 @@ window.addEventListener('storage', (e) => {
 });
 
 let appInitialized = false;
-function bootstrapApp() {
+async function bootstrapApp() {
     if (appInitialized) return;
     appInitialized = true;
+
+    // Check and process OAuth callback (e.g. returning from Google Sign-In)
+    if (typeof checkAndProcessOAuthCallback === 'function') {
+        try {
+            const oauthHandled = await checkAndProcessOAuthCallback();
+            if (oauthHandled) {
+                if (typeof initAppHelpers === 'function') initAppHelpers();
+                if (typeof syncHelpContentFromSupabase === 'function') syncHelpContentFromSupabase();
+                if (typeof syncCastesFromSupabase === 'function') syncCastesFromSupabase();
+                return;
+            }
+        } catch (e) {
+            console.warn('[Bootstrap] OAuth check note:', e);
+        }
+    }
 
     // One-time cleanup of stale localStorage configs so app always uses fresh Supabase data
     try {

@@ -1374,29 +1374,45 @@ function openDeleteAccountModal() {
             (state.regData && state.regData.email) || '';
         emailInput.value = userEmail;
     }
-    const pwInput = document.getElementById('deleteAccountPassword');
-    if (pwInput) {
-        pwInput.value = '';
-        pwInput.type = 'password';
+    const confirmInput = document.getElementById('deleteAccountConfirmInput');
+    if (confirmInput) {
+        confirmInput.value = '';
     }
-    const eyeIcon = document.querySelector('#modalDeleteAccount .pw-eye i');
-    if (eyeIcon) {
-        eyeIcon.className = 'fa-solid fa-eye';
+    const btn = document.getElementById('btnConfirmDeleteAccount');
+    if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.45';
+        btn.style.cursor = 'not-allowed';
     }
     openModal('modalDeleteAccount');
 }
+window.openDeleteAccountModal = openDeleteAccountModal;
+
+function handleDeleteAccountInput(el) {
+    const btn = document.getElementById('btnConfirmDeleteAccount');
+    const val = (el ? el.value : '').trim().toUpperCase();
+    if (val === 'DELETE') {
+        if (btn) {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+        }
+    } else {
+        if (btn) {
+            btn.disabled = true;
+            btn.style.opacity = '0.45';
+            btn.style.cursor = 'not-allowed';
+        }
+    }
+}
+window.handleDeleteAccountInput = handleDeleteAccountInput;
 
 async function confirmDeleteAccount() {
-    const pwInput = document.getElementById('deleteAccountPassword');
-    const pw = pwInput ? pwInput.value.trim() : '';
-    if (!pw) {
-        showToast('Please enter your password to confirm account deletion');
-        if (pwInput) pwInput.focus();
-        return;
-    }
-    if (pw.length < 4) {
-        showToast('Password is incorrect or too short');
-        if (pwInput) pwInput.focus();
+    const confirmInput = document.getElementById('deleteAccountConfirmInput');
+    const val = confirmInput ? confirmInput.value.trim().toUpperCase() : '';
+    if (val !== 'DELETE') {
+        showToast('Please type DELETE in capital letters to confirm');
+        if (confirmInput) confirmInput.focus();
         return;
     }
 
@@ -1407,29 +1423,9 @@ async function confirmDeleteAccount() {
         return;
     }
 
-    // Verify entered password against account hash
-    if (typeof hashPass === 'function' && typeof getStoredAccounts === 'function') {
-        const passHash = await hashPass(pw);
-        const legacyHash = (typeof hashPassLegacy === 'function') ? await hashPassLegacy(pw) : '';
-        const accounts = getStoredAccounts();
-        const acc = accounts.find(a => a.email && a.email.toLowerCase() === currentUser.email.toLowerCase());
-
-        if (acc && acc.passwordHash) {
-            const isValid = (acc.passwordHash === passHash) || (acc.passwordHash === legacyHash);
-            if (!isValid) {
-                showToast('Incorrect password! Please enter your valid password.');
-                if (pwInput) {
-                    pwInput.value = '';
-                    pwInput.focus();
-                }
-                return;
-            }
-        }
-    }
-
     closeModal('modalDeleteAccount');
-    if (pwInput) pwInput.value = '';
-    showGlobalLoader('Deleting account permanently from Supabase, Cloudinary & Cloud...');
+    if (confirmInput) confirmInput.value = '';
+    showGlobalLoader('Deleting account permanently from Supabase & Cloudinary...');
 
     const emailToDelete = currentUser.email || state.regData?.email || '';
     const idToDelete = currentUser.id || '';
@@ -1458,8 +1454,11 @@ async function confirmDeleteAccount() {
     if (state.favorites) state.favorites.clear();
     sessionStorage.clear();
     localStorage.removeItem('LS_ACTIVE_USER');
-    localStorage.removeItem('mangalSetu_user');
-    state.history = ['scr-welcome'];
+    localStorage.removeItem('mangalSetu_last_auth_provider');
+    localStorage.removeItem('mangalSetu_lastAuthProvider');
+    if (typeof clearLastAuthProvider === 'function') {
+        clearLastAuthProvider();
+    }
 
     if (typeof resetRegistrationStateAndInputs === 'function') {
         resetRegistrationStateAndInputs();
@@ -1469,9 +1468,13 @@ async function confirmDeleteAccount() {
     }
 
     if (typeof hideGlobalLoader === 'function') hideGlobalLoader();
-    showToast('Your account, chat, and profile details have been permanently deleted.');
+    showToast('Your account, photos, and messages have been permanently deleted.');
     go('scr-welcome', true);
+    if (typeof renderSmartWelcomeScreen === 'function') {
+        renderSmartWelcomeScreen();
+    }
 }
+window.confirmDeleteAccount = confirmDeleteAccount;
 
 function openPaymentHistoryModal() {
     const listEl = document.getElementById('paymentHistoryList');
