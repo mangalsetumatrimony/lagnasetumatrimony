@@ -18,17 +18,15 @@
         ];
 
         const DEFAULT_GUIDE_STEPS = [
-            { title: 'Create account', desc: 'Sign up using your Gmail and a secure password.' },
-            { title: 'Personal & family details', desc: 'Add your profile info, plus your family background and hobbies.' },
-            { title: 'Address & location', desc: 'Tell us where you\'re based so we can find nearby community matches.' },
-            { title: 'Select community', desc: 'Choose your specific caste & community from the verified directory.' },
-            { title: 'Upload photos', desc: 'Upload up to 3 high-resolution photos to complete your trusted profile.' },
-            { title: 'Mobile OTP verification', desc: 'Confirm your mobile number with a fast, secure 6-digit OTP code.' },
-            { title: 'Instant profile activation', desc: 'Your profile goes live immediately for community members to see.' },
-            { title: 'Membership pass', desc: 'Community girls: 100% Lifetime Free · Boys: ₹99 for 30 Days Pass.' },
-            { title: 'Explore profiles', desc: 'Browse verified eligible brides and grooms from your community.' },
-            { title: 'Send interest', desc: 'Send an interest request to profiles you like and start connecting.' },
-            { title: 'Connect & chat', desc: 'Once accepted, connect directly via phone call, WhatsApp, or in-app chat.' }
+            { title: '1-Click Google Sign In', desc: 'Fast, secure & 100% password-free login with your official Google account.' },
+            { title: 'Select community', desc: 'Choose your specific caste & community from 50+ verified Hindu Gujarati Samaj.' },
+            { title: 'Personal & family biodata', desc: 'Add education, occupation, income, hobbies, and respectful family background.' },
+            { title: 'Upload verified photos', desc: 'Upload up to 3 high-resolution photos (1 main verified photo + 2 gallery slots).' },
+            { title: 'Native location & address', desc: 'Specify your native village, taluka, and district for localized matchmaking.' },
+            { title: 'Membership & Instant Activation', desc: 'Community girls: 100% Lifetime Free · Boys: ₹99 for 30 Days Pass via secure Razorpay UPI / Cards.' },
+            { title: 'Explore verified profiles', desc: 'Browse genuine eligible brides and grooms from your community.' },
+            { title: 'Send interest (3 daily limit)', desc: 'Send up to 3 interest requests per day to maintain genuine, spam-free connections.' },
+            { title: 'Direct family connect', desc: 'Once interest is accepted, unlock direct Father\'s Phone Call, WhatsApp, and in-app chat.' }
         ];
 
         let GUIDE_STEPS = JSON.parse(JSON.stringify(DEFAULT_GUIDE_STEPS));

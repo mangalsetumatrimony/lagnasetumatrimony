@@ -1,27 +1,25 @@
 /* ============================================================ HELP & FAQS CONTENT ============================================================ */
 const DEFAULT_HOW_IT_WORKS = [
-    { title: 'Create account', desc: 'Sign up using your Gmail and a secure password.' },
-    { title: 'Personal & family details', desc: 'Add your profile info, plus your family background and hobbies.' },
-    { title: 'Address & location', desc: 'Tell us where you\'re based so we can find nearby community matches.' },
-    { title: 'Select community', desc: 'Choose your specific caste & community from the verified directory.' },
-    { title: 'Upload photos', desc: 'Upload up to 3 high-resolution photos to complete your trusted profile.' },
-    { title: 'Mobile OTP verification', desc: 'Confirm your mobile number with a fast, secure 6-digit OTP code.' },
-    { title: 'Instant profile activation', desc: 'Your profile goes live immediately for community members to see.' },
-    { title: 'Membership pass', desc: 'Community girls: 100% Lifetime Free · Boys: ₹99 for 30 Days Pass.' },
-    { title: 'Explore profiles', desc: 'Browse verified eligible brides and grooms from your community.' },
-    { title: 'Send interest (3 daily limit)', desc: 'Send up to 3 interest requests per day to profiles you like to keep interactions genuine, safe, and spam-free.' },
-    { title: 'Connect & chat', desc: 'Once accepted, connect directly via phone call, WhatsApp, or in-app chat.' }
+    { title: '1-Click Google Sign In', desc: 'Fast, secure & 100% password-free login with your official Google account.' },
+    { title: 'Select community', desc: 'Choose your specific caste & community from 50+ verified Hindu Gujarati Samaj.' },
+    { title: 'Personal & family biodata', desc: 'Add education, occupation, income, hobbies, and respectful family background.' },
+    { title: 'Upload verified photos', desc: 'Upload up to 3 high-resolution photos (1 main verified photo + 2 gallery slots).' },
+    { title: 'Native location & address', desc: 'Specify your native village, taluka, and district for localized matchmaking.' },
+    { title: 'Membership & Instant Activation', desc: 'Community girls: 100% Lifetime Free · Boys: ₹99 for 30 Days Pass via secure Razorpay UPI / Cards.' },
+    { title: 'Explore verified profiles', desc: 'Browse genuine eligible brides and grooms from your community.' },
+    { title: 'Send interest (3 daily limit)', desc: 'Send up to 3 interest requests per day to maintain genuine, spam-free connections.' },
+    { title: 'Direct family connect', desc: 'Once interest is accepted, unlock direct Father\'s Phone Call, WhatsApp, and in-app chat.' }
 ];
 
 const DEFAULT_FAQS = [
-    ['How do I register?', 'Members create an account, verify their phone/email by OTP, select community, and complete personal, family, and address details.'],
+    ['How do I register?', 'Sign in with Google in 1 click (no passwords or manual registration forms required), select your community, complete your family details, and upload your photos. Your account is active immediately!'],
     ['Is membership free for girls?', 'Yes! 100% Lifetime Free access is guaranteed for all community girls.'],
-    ['How much is the membership pass for boys?', 'Boys get 30 Days Full Access for just ₹99, giving direct contact to verified community brides\' families.'],
+    ['How much is the membership pass for boys?', 'Boys get 30 Days Full Access for just ₹99, payable instantly via Razorpay UPI (Google Pay, PhonePe, Paytm), Debit/Credit Cards, or Net Banking.'],
     ['How many interest requests can I send per day?', 'To maintain privacy, prevent mass spamming, and ensure serious matrimonial connections, every member (both girls and boys) can send a maximum of 3 interest requests in a 24-hour period.'],
     ['What happens after 30 days of membership?', 'After 30 days, your account remains active, but browsing candidate profiles is locked until you renew the ₹99 pass.'],
-    ['How do members contact each other?', 'A member can direct Call or WhatsApp the girl\'s father using the verified contact buttons, or send an in-app interest request to unlock chat.'],
-    ['Is a member\'s phone number public?', 'No. A member\'s own mobile number is kept strictly private for Admin review only. Only the father\'s contact number is shown on the public profile.'],
-    ['How do multi-photo profiles work?', 'Members can upload up to 3 high-resolution photos. Admin and verified members can view all photos in the photo gallery carousel.'],
+    ['How do members contact each other?', 'A member can send an in-app interest request. Once the candidate accepts, direct Phone Call and WhatsApp buttons for the girl\'s father are unlocked automatically, along with text chat.'],
+    ['Is a member\'s phone number public?', 'No. A member\'s own personal mobile number is kept strictly private for Admin verification only. Only the father\'s verified contact number unlocks for accepted interest connections.'],
+    ['How do multi-photo profiles work?', 'Members can upload up to 3 high-resolution photos. Verified members can view all photos in the photo gallery carousel.'],
     ['How can I contact official Admin support?', 'You can reach our Jasdan administrative cell via WhatsApp or Phone at +91 97263 62863 or email mangalsetu.in@gmail.com.']
 ];
 
