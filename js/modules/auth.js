@@ -2167,7 +2167,9 @@ async function handleSocialLogin(provider = 'google') {
             if (typeof showGlobalLoader === 'function') showGlobalLoader('Connecting to Google...');
             try { sessionStorage.setItem('mangalSetu_oauth_pending', 'google'); } catch (_) {}
             
-            const redirectUrl = window.location.origin + window.location.pathname;
+            const origin = window.location.origin;
+            const path = window.location.pathname;
+            const redirectUrl = path.includes('app.html') ? `${origin}${path}` : `${origin}/app.html`;
             const { data, error } = await client.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
