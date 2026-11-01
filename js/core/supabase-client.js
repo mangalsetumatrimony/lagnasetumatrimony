@@ -886,6 +886,13 @@ async function supabaseFetchAllProfilesForAdmin() {
                     mapped.email = uMatch.email;
                 }
                 if (!mapped.caste && uMatch.caste) mapped.community = uMatch.caste;
+                if (uMatch.payment_status) {
+                    const uPay = String(uMatch.payment_status).trim().toLowerCase();
+                    if (uPay === 'active' || uPay === 'paid') {
+                        mapped.paymentStatus = 'paid';
+                        mapped.payment_status = 'paid';
+                    }
+                }
             } else {
                 mapped.agreedTerms = (mapped.agreedTerms !== undefined) ? mapped.agreedTerms : true;
                 mapped.agreedTermsAt = mapped.agreedTermsAt || p.created_at || null;

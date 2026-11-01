@@ -120,12 +120,39 @@ window.escapeHtml = escapeHtmlAdmin;
         }
         window.getAdminUnmaskedPhone = getAdminUnmaskedPhone;
 
+        function isUserPaidInAdmin(u) {
+            if (!u) return false;
+            const checkGirl = typeof isGirlGender === 'function' ? isGirlGender : g => (g === 'girls' || g === 'Girl' || g === 'girl');
+            if (checkGirl(u.gender)) return true;
+            const st = String(u.paymentStatus || u.payment_status || '').trim().toLowerCase();
+            if (st === 'paid' || st === 'active') return true;
+
+            const paymentsList = (Array.isArray(window.PAYMENTS) && window.PAYMENTS.length > 0) ? window.PAYMENTS : (Array.isArray(PAYMENTS) ? PAYMENTS : []);
+            if (paymentsList.length > 0) {
+                const uId = String(u.id || u.userId || '');
+                const uName = String(u.name || '').trim().toLowerCase();
+                return paymentsList.some(p => {
+                    if (!p) return false;
+                    const pStatus = String(p.status || '').trim().toLowerCase();
+                    if (pStatus !== 'success' && pStatus !== 'paid') return false;
+                    const pUid = String(p.user_id || p.userId || '');
+                    if (pUid && uId && pUid === uId) return true;
+                    const pName = String(p.user_name || p.userName || '').trim().toLowerCase();
+                    if (pName && uName && pName === uName) return true;
+                    return false;
+                });
+            }
+            return false;
+        }
+        window.isUserPaidInAdmin = isUserPaidInAdmin;
+
         function userRow(u) {
             const row = document.createElement('div');
             row.className = 'row-item';
             const checkGirl = typeof isGirlGender === 'function' ? isGirlGender : g => (g === 'girls' || g === 'Girl' || g === 'girl');
             const isGirl = checkGirl(u.gender);
-            const payBadge = isGirl ? '<span class="status-badge paid"><i class="fa-solid fa-heart"></i> Free</span>' : (u.paymentStatus === 'paid' ? '<span class="status-badge paid"><i class="fa-crown"></i> Paid ₹199</span>' : '<span class="status-badge pending">Unpaid</span>');
+            const isPaid = isUserPaidInAdmin(u);
+            const payBadge = isGirl ? '<span class="status-badge paid"><i class="fa-solid fa-heart"></i> Free</span>' : (isPaid ? '<span class="status-badge paid"><i class="fa-solid fa-crown"></i> Paid ₹199</span>' : '<span class="status-badge pending">Unpaid</span>');
             const isSuspended = (u.accountStatus || u.account_status || u.status || '').toLowerCase() === 'suspended';
             const statusBadge = isSuspended
                 ? '<span class="status-badge rejected"><i class="fa-solid fa-ban"></i> Suspended</span>'
@@ -219,7 +246,8 @@ window.escapeHtml = escapeHtmlAdmin;
             }
             if (!el) return;
             const isGirl = u.gender === 'girls' || u.gender === 'Girl';
-            const payText = isGirl ? '<span class="status-badge paid"><i class="fa-solid fa-heart"></i> 100% Free (Girls)</span>' : (u.paymentStatus === 'paid' ? '<span class="status-badge paid"><i class="fa-solid fa-crown"></i> Paid ₹199 / 30 Days</span>' : '<span class="status-badge pending">Unpaid</span>');
+            const isPaid = isUserPaidInAdmin(u);
+            const payText = isGirl ? '<span class="status-badge paid"><i class="fa-solid fa-heart"></i> 100% Free (Girls)</span>' : (isPaid ? '<span class="status-badge paid"><i class="fa-solid fa-crown"></i> Paid ₹199 / 30 Days</span>' : '<span class="status-badge pending">Unpaid</span>');
             const isSuspended = (u.accountStatus || u.account_status || u.status || '').toLowerCase() === 'suspended';
             const statusBadge = isSuspended
                 ? '<span class="status-badge rejected"><i class="fa-solid fa-ban"></i> Suspended Account</span>'

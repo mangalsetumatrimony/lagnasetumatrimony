@@ -136,7 +136,24 @@ async function renderAnalyticsPage(isManualRefresh) {
         var totAll       = liveUsers.length;
         var totBoysAll   = liveUsers.filter(function(u){return _isBoy(u.gender);}).length;
         var totGirlsAll  = liveUsers.filter(function(u){return _isGirl(u.gender);}).length;
-        var totPaidAll   = liveUsers.filter(function(u){return u.paymentStatus==='paid'||u.paymentStatus==='Paid'||u.payment_status==='paid';}).length;
+        var _isPaid = function(u) {
+            if (!u) return false;
+            var s = String(u.paymentStatus || u.payment_status || '').toLowerCase();
+            if (s === 'paid' || s === 'active') return true;
+            var uId = String(u.id || u.userId || '');
+            var uName = String(u.name || u.fullName || '').trim().toLowerCase();
+            return livePayments.some(function(p){
+                if (!p) return false;
+                var ps = String(p.status || '').toLowerCase();
+                if (ps !== 'success' && ps !== 'paid') return false;
+                var pId = String(p.user_id || p.userId || '');
+                if (pId && uId && pId === uId) return true;
+                var pn = String(p.user_name || p.userName || '').trim().toLowerCase();
+                if (pn && uName && pn === uName) return true;
+                return false;
+            });
+        };
+        var totPaidAll   = liveUsers.filter(function(u){return _isPaid(u);}).length;
         var totRevAll    = livePayments.filter(function(p){return p.status==='success'||p.status==='paid';}).reduce(function(s,p){return s+(Number(p.amount)||0);},0);
 
         /* STEP 3: Community breakdown */
@@ -159,7 +176,7 @@ async function renderAnalyticsPage(isManualRefresh) {
                 var d=apParseDate(u.createdAt||u.created_at||u.regDate||u.registered||'');
                 var girl=_isGirl(u.gender), boy=_isBoy(u.gender);
                 var gb=girl?'<span class="ap-badge ap-badge-girl"><i class="fa-solid fa-venus"></i> Girl</span>':boy?'<span class="ap-badge ap-badge-boy"><i class="fa-solid fa-mars"></i> Boy</span>':'<span class="ap-badge">'+apEsc(u.gender||'')+'</span>';
-                var pb=girl?'<span class="ap-badge ap-badge-free"><i class="fa-solid fa-heart"></i> Free</span>':(u.paymentStatus==='paid'||u.paymentStatus==='Paid'||u.payment_status==='paid')?'<span class="ap-badge ap-badge-paid"><i class="fa-solid fa-crown"></i> Paid</span>':'<span class="ap-badge ap-badge-unpaid">Unpaid</span>';
+                var pb=girl?'<span class="ap-badge ap-badge-free"><i class="fa-solid fa-heart"></i> Free</span>':_isPaid(u)?'<span class="ap-badge ap-badge-paid"><i class="fa-solid fa-crown"></i> Paid</span>':'<span class="ap-badge ap-badge-unpaid">Unpaid</span>';
                 var st=u.accountStatus||u.account_status||u.status||'active';
                 var sb=(st==='suspended'||st==='Suspended')?'<span class="ap-badge ap-badge-suspended"><i class="fa-solid fa-ban"></i> Suspended</span>':'<span class="ap-badge ap-badge-active"><i class="fa-solid fa-check"></i> Active</span>';
                 var nm=u.name||u.fullName||'', uid=u.id||u.userId||'';
