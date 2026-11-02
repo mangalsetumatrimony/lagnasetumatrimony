@@ -1613,6 +1613,11 @@ function doLogout(isTimeout = false) {
     }
 
     // 2. Wipe all session storage and persistent local user session
+    const authClient = (typeof getSupabaseClient === 'function') ? getSupabaseClient() : null;
+    if (authClient && authClient.auth) {
+        try { authClient.auth.signOut({ scope: 'local' }); } catch (_) {}
+    }
+
     if (state.currentUser && state.currentUser.email) {
         saveLastAuthProvider({
             provider: state.currentUser.authProvider || 'google',
@@ -2177,14 +2182,21 @@ async function handleSocialLogin(provider = 'google') {
             const origin = window.location.origin;
             const path = window.location.pathname;
             const redirectUrl = path.includes('app.html') ? `${origin}${path}` : `${origin}/app.html`;
+            const lastAuth = (typeof getLastAuthProvider === 'function') ? getLastAuthProvider() : null;
+            const queryParams = {
+                access_type: 'offline'
+            };
+            if (lastAuth && lastAuth.email) {
+                queryParams.login_hint = lastAuth.email;
+            } else {
+                queryParams.prompt = 'select_account';
+            }
+
             const { data, error } = await client.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
                     redirectTo: redirectUrl,
-                    queryParams: {
-                        access_type: 'offline',
-                        prompt: 'select_account'
-                    }
+                    queryParams: queryParams
                 }
             });
             if (error) {
@@ -2217,15 +2229,44 @@ async function handleSocialUserAuthenticated(socialUser) {
         let existingProfile = null;
         if (client) {
             try {
-                const { data, error } = await client
+                // Priority A: Search profiles table by email or user_id (limit 1 avoids maybeSingle multi-row crash)
+                const uidFilter = socialUser.id ? `,user_id.eq.${socialUser.id}` : '';
+                const { data: profRows, error: profErr } = await client
                     .from('profiles')
                     .select('*')
-                    .ilike('email', normEmail)
-                    .maybeSingle();
-                if (!error && data) {
-                    existingProfile = data;
+                    .or(`email.ilike.${normEmail}${uidFilter}`)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                if (!profErr && Array.isArray(profRows) && profRows.length > 0) {
+                    existingProfile = profRows[0];
                 }
-            } catch (_) {}
+            } catch (_) {
+                try {
+                    const { data: fallbackRows } = await client
+                        .from('profiles')
+                        .select('*')
+                        .ilike('email', normEmail)
+                        .limit(1);
+                    if (Array.isArray(fallbackRows) && fallbackRows.length > 0) {
+                        existingProfile = fallbackRows[0];
+                    }
+                } catch (_) {}
+            }
+
+            // Priority B: Cross-check users table if not in profiles yet
+            if (!existingProfile) {
+                try {
+                    const uidFilter = socialUser.id ? `,id.eq.${socialUser.id}` : '';
+                    const { data: uRows } = await client
+                        .from('users')
+                        .select('*')
+                        .or(`email.ilike.${normEmail}${uidFilter}`)
+                        .limit(1);
+                    if (Array.isArray(uRows) && uRows.length > 0 && (uRows[0].caste || uRows[0].community || uRows[0].profile_complete)) {
+                        existingProfile = uRows[0];
+                    }
+                } catch (_) {}
+            }
         }
 
         // Check local stored accounts fallback
@@ -2394,9 +2435,13 @@ async function checkAndProcessOAuthCallback() {
             window.location.hash.includes('type=recovery') ||
             window.location.hash.includes('error=')
         );
+        const hasSearchParams = window.location.search && (
+            window.location.search.includes('code=') ||
+            window.location.search.includes('error=')
+        );
         const hasPendingOAuth = sessionStorage.getItem('mangalSetu_oauth_pending');
 
-        if (hasHashParams || hasPendingOAuth) {
+        if (hasHashParams || hasSearchParams || hasPendingOAuth) {
             try { sessionStorage.removeItem('mangalSetu_oauth_pending'); } catch (_) {}
 
             const { data, error } = await client.auth.getSession();
@@ -2407,10 +2452,15 @@ async function checkAndProcessOAuthCallback() {
                 const avatar = u.user_metadata?.avatar_url || u.user_metadata?.picture || '';
                 const prov = u.app_metadata?.provider || 'google';
 
-                // Clean URL hash without reloading page
+                // Clean URL hash and search params without reloading page
                 if (window.location.hash && window.location.hash.includes('access_token=')) {
                     try {
                         history.replaceState(null, document.title, window.location.pathname + window.location.search);
+                    } catch (_) {}
+                }
+                if (window.location.search && window.location.search.includes('code=')) {
+                    try {
+                        history.replaceState(null, document.title, window.location.pathname);
                     } catch (_) {}
                 }
 
