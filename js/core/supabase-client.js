@@ -210,6 +210,8 @@ function mapProfileForSupabase(p) {
                 '',
         verify_status: p.verifyStatus || p.verify_status || 'approved',
         payment_status: p.paymentStatus || p.payment_status || 'unpaid',
+        plan_start: p.planStart || p.plan_start || null,
+        plan_expiry: p.planExpiry || p.plan_expiry || null,
         account_status: p.accountStatus || p.account_status || 'active',
         suspension_reason: p.suspensionReason || p.suspension_reason || null,
         reject_reason: p.rejectReason || p.reject_reason || null,
@@ -264,6 +266,12 @@ function mapProfileForSupabase(p) {
                           (!p.mobile?.includes('•') && p.mobile) ||
                           '',
             visible: (p.visible !== false && p.visible !== 'false'),
+            paymentStatus: p.paymentStatus || p.payment_status || 'unpaid',
+            payment_status: p.paymentStatus || p.payment_status || 'unpaid',
+            planStart: p.planStart || p.plan_start || null,
+            plan_start: p.planStart || p.plan_start || null,
+            planExpiry: p.planExpiry || p.plan_expiry || null,
+            plan_expiry: p.planExpiry || p.plan_expiry || null,
             agreedTerms: p.agreedTerms !== undefined ? p.agreedTerms : true,
             agreedTermsAt: p.agreedTermsAt || new Date().toISOString()
         },
@@ -476,6 +484,8 @@ function mapProfileFromSupabase(row, forAdmin = false) {
         mobile: mobile,
         verifyStatus: row.verify_status || raw.verifyStatus || 'approved',
         paymentStatus: row.payment_status || raw.paymentStatus || 'unpaid',
+        planStart: row.plan_start || raw.planStart || raw.plan_start || null,
+        planExpiry: row.plan_expiry || raw.planExpiry || raw.plan_expiry || null,
         accountStatus: row.account_status || raw.accountStatus || 'active',
         suspensionReason: row.suspension_reason || raw.suspensionReason || null,
         rejectReason: row.reject_reason || raw.rejectReason || null,
@@ -833,6 +843,8 @@ async function supabaseRecordPayment(paymentData) {
             method: paymentData.method || 'UPI',
             razorpay_payment_id: paymentData.razorpayPaymentId || null,
             status: 'success',
+            plan_start: planStart,
+            plan_expiry: planExpiry,
             date: dateStr,
             time: timeStr
         };
@@ -905,12 +917,32 @@ async function supabaseFetchActiveUserPayment(userId, email) {
                 .select('*')
                 .or(filterOr.join(','))
                 .eq('status', 'success')
-                .gte('created_at', thirtyDaysAgo)
                 .order('created_at', { ascending: false })
-                .limit(1);
+                .limit(5);
 
             if (Array.isArray(pays) && pays.length > 0) {
-                return pays[0];
+                const now = Date.now();
+                for (const p of pays) {
+                    const startStr = p.plan_start || (p.created_at ? p.created_at.split('T')[0] : new Date().toISOString().split('T')[0]);
+                    const expTime = p.plan_expiry
+                        ? new Date(p.plan_expiry).getTime()
+                        : (new Date(p.created_at || Date.now()).getTime() + 30 * 24 * 60 * 60 * 1000);
+                    const expiryStr = p.plan_expiry || new Date(expTime).toISOString().split('T')[0];
+
+                    if (expTime > now) {
+                        const daysRemaining = Math.max(0, Math.ceil((expTime - now) / (1000 * 60 * 60 * 24)));
+                        return {
+                            ...p,
+                            active: true,
+                            status: 'success',
+                            txnId: p.id,
+                            amount: p.amount,
+                            planStart: startStr,
+                            planExpiry: expiryStr,
+                            daysLeft: daysRemaining
+                        };
+                    }
+                }
             }
         }
         return null;

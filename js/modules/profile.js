@@ -555,12 +555,21 @@ function processSuccessfulPayment(txnId, upiMethod) {
                 mobile: state.currentUser.mobile || (myExistingProf && myExistingProf.mobile) || '',
                 img: state.currentUser.img || state.currentUser.photo || (myExistingProf && (myExistingProf.img || myExistingProf.photo)) || '',
                 paymentStatus: 'paid',
+                payment_status: 'paid',
+                planStart: state.currentUser.planStart,
+                plan_start: state.currentUser.planStart,
+                planExpiry: state.currentUser.planExpiry,
+                plan_expiry: state.currentUser.planExpiry,
                 accountStatus: 'active',
+                account_status: 'active',
                 verifyStatus: 'approved',
+                verify_status: 'approved',
                 visible: true
             };
             if (myExistingProf) {
                 myExistingProf.paymentStatus = 'paid';
+                myExistingProf.planStart = state.currentUser.planStart;
+                myExistingProf.planExpiry = state.currentUser.planExpiry;
                 myExistingProf.accountStatus = 'active';
                 myExistingProf.visible = true;
             }
@@ -1624,11 +1633,11 @@ function refreshProfileContactState(profileId) {
             if (wrap && typeof renderFatherContactSection === 'function') {
                 wrap.outerHTML = renderFatherContactSection(p);
             }
-            // 5. Refresh Disconnect button visibility
-            const isUnlocked = (typeof isProfileDetailsUnlocked === 'function') ? isProfileDetailsUnlocked(p) : false;
+            // 5. Refresh Disconnect button visibility (ONLY visible if mutual connection is currently accepted)
+            const isConnAccepted = (typeof interestStatusFor === 'function') ? (interestStatusFor(p.id) === 'accepted') : false;
             const discWrap = document.getElementById('profileDisconnectActionWrap');
             if (discWrap) {
-                discWrap.style.display = isUnlocked ? 'block' : 'none';
+                discWrap.style.display = isConnAccepted ? 'block' : 'none';
             }
             if (isUnlocked && typeof supabaseFetchAuthorizedContact === 'function') {
                 supabaseFetchAuthorizedContact(p.id).then(contact => {

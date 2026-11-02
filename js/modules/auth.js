@@ -673,10 +673,17 @@ function checkBoyPassStatus(user) {
             const validPay = adminPayments.find(p =>
                 p && p.status === 'success' &&
                 (String(p.userId) === String(user.id) || (p.userEmail && p.userEmail.toLowerCase() === userEmail) || (p.email && p.email.toLowerCase() === userEmail)) &&
-                (p.id && (p.id.startsWith('RZP_') || p.id.startsWith('pay_') || p.id.startsWith('DEMO_')))
+                Boolean(p.id)
             );
             if (validPay) genuinePayment = true;
         } catch (_) {}
+
+        if (!genuinePayment && (user.paymentStatus === 'Active' || user.paymentStatus === 'paid') && user.planExpiry) {
+            const exp = new Date(user.planExpiry);
+            if (exp.getTime() > Date.now()) {
+                genuinePayment = true;
+            }
+        }
 
         if (genuinePayment && typeof computeSecureToken === 'function') {
             user.paymentToken = computeSecureToken('payment', user.id, user.email, user.planExpiry);
@@ -1337,11 +1344,15 @@ async function doLogin() {
             if (typeof supabaseFetchActiveUserPayment === 'function') {
                 try {
                     const sbPay = await supabaseFetchActiveUserPayment(matchedUser.id, userEmail);
-                    if (sbPay && sbPay.active) {
-                        activePaymentFound = true;
-                        if (sbPay.planExpiry) activePlanExpiry = sbPay.planExpiry;
-                        if (sbPay.planStart) activePlanStart = sbPay.planStart;
-                        matchedUser.lastTxnId = sbPay.txnId || matchedUser.lastTxnId;
+                    if (sbPay && (sbPay.active || sbPay.status === 'success')) {
+                        const exp = sbPay.planExpiry || sbPay.plan_expiry;
+                        const expDate = exp ? new Date(exp) : new Date(Date.now() + 30 * 86400000);
+                        if (expDate.getTime() > Date.now()) {
+                            activePaymentFound = true;
+                            activePlanExpiry = exp || expDate.toISOString().split('T')[0];
+                            activePlanStart = sbPay.planStart || sbPay.plan_start || new Date().toISOString().split('T')[0];
+                            matchedUser.lastTxnId = sbPay.txnId || sbPay.id || matchedUser.lastTxnId;
+                        }
                     }
                 } catch (e) {
                     console.warn('[Auth] Supabase payment fetch note:', e);
@@ -1351,15 +1362,34 @@ async function doLogin() {
             // Tier 2: Check Supabase profile / user object if loaded
             if (!activePaymentFound) {
                 if (prof && (prof.payment_status === 'paid' || prof.payment_status === 'Active' || prof.paymentStatus === 'paid' || prof.paymentStatus === 'Active')) {
-                    if (prof.plan_expiry || prof.planExpiry) {
-                        const expDate = new Date(prof.plan_expiry || prof.planExpiry);
+                    const exp = prof.plan_expiry || prof.planExpiry;
+                    if (exp) {
+                        const expDate = new Date(exp);
                         if (expDate.getTime() > Date.now()) {
                             activePaymentFound = true;
-                            activePlanExpiry = prof.plan_expiry || prof.planExpiry;
+                            activePlanExpiry = exp;
                             activePlanStart = prof.plan_start || prof.planStart;
                         }
                     } else {
                         activePaymentFound = true;
+                        const expDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                        activePlanExpiry = expDate.toISOString().split('T')[0];
+                        activePlanStart = new Date().toISOString().split('T')[0];
+                    }
+                } else if (usr && (usr.payment_status === 'Active' || usr.payment_status === 'paid')) {
+                    const exp = usr.plan_expiry || usr.planExpiry;
+                    if (exp) {
+                        const expDate = new Date(exp);
+                        if (expDate.getTime() > Date.now()) {
+                            activePaymentFound = true;
+                            activePlanExpiry = exp;
+                            activePlanStart = usr.plan_start || usr.planStart;
+                        }
+                    } else {
+                        activePaymentFound = true;
+                        const expDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                        activePlanExpiry = expDate.toISOString().split('T')[0];
+                        activePlanStart = new Date().toISOString().split('T')[0];
                     }
                 }
             }
@@ -1373,7 +1403,7 @@ async function doLogin() {
                         (String(p.userId) === String(matchedUser.id) || 
                          (p.userEmail && p.userEmail.toLowerCase() === userEmail) || 
                          (p.email && p.email.toLowerCase() === userEmail)) &&
-                        (p.id && (p.id.startsWith('RZP_') || p.id.startsWith('pay_') || p.id.startsWith('DEMO_')))
+                        Boolean(p.id)
                     );
                     if (validPay) {
                         const payDate = validPay.planStart ? new Date(validPay.planStart) : new Date(validPay.date || Date.now());
@@ -1394,7 +1424,7 @@ async function doLogin() {
                 if (expDate.getTime() > Date.now()) {
                     activePaymentFound = true;
                     activePlanExpiry = matchedUser.planExpiry;
-                    activePlanStart = matchedUser.planStart;
+                    activePlanStart = matchedUser.planStart || new Date().toISOString().split('T')[0];
                 }
             }
 
@@ -1408,6 +1438,10 @@ async function doLogin() {
                 }
                 matchedUser.planExpiry = activePlanExpiry;
                 matchedUser.planStart = activePlanStart || new Date().toISOString().split('T')[0];
+                if (typeof computeSecureToken === 'function') {
+                    matchedUser.paymentToken = computeSecureToken('payment', matchedUser.id, matchedUser.email, matchedUser.planExpiry);
+                    matchedUser.genderToken = computeSecureToken('gender', matchedUser.id, matchedUser.email, 'Boy');
+                }
             }
         }
 
@@ -2449,14 +2483,35 @@ async function handleSocialUserAuthenticated(socialUser) {
 
             state.currentUser = createSafeUserSession(mappedUser);
             state.profileComplete = true;
-            state.membershipPaid = (
+
+            const isBoySocial = (typeof isBoyGender === 'function' ? isBoyGender(mappedUser.gender) : mappedUser.gender === 'Boy');
+            const isPaidSocial = (
                 existingProfile.payment_status === 'paid' ||
                 existingProfile.payment_status === 'Active' ||
                 existingProfile.paymentStatus === 'paid' ||
-                existingProfile.paymentStatus === 'Active' ||
-                (typeof isGirlGender === 'function' && isGirlGender(mappedUser.gender)) ||
-                mappedUser.gender === 'Girl'
+                existingProfile.paymentStatus === 'Active'
             );
+
+            if (isBoySocial && isPaidSocial) {
+                mappedUser.paymentStatus = 'Active';
+                if (!mappedUser.planExpiry) {
+                    const exp = existingProfile.plan_expiry || existingProfile.planExpiry;
+                    mappedUser.planExpiry = exp || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+                    mappedUser.planStart = existingProfile.plan_start || existingProfile.planStart || new Date().toISOString().split('T')[0];
+                }
+                if (typeof computeSecureToken === 'function') {
+                    mappedUser.paymentToken = computeSecureToken('payment', mappedUser.id, mappedUser.email, mappedUser.planExpiry);
+                    mappedUser.genderToken = computeSecureToken('gender', mappedUser.id, mappedUser.email, 'Boy');
+                }
+                state.currentUser = createSafeUserSession(mappedUser);
+                state.membershipPaid = true;
+            } else {
+                state.membershipPaid = (
+                    isPaidSocial ||
+                    (typeof isGirlGender === 'function' && isGirlGender(mappedUser.gender)) ||
+                    mappedUser.gender === 'Girl'
+                );
+            }
 
             saveSessionState();
             if (typeof hideGlobalLoader === 'function') hideGlobalLoader();

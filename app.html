@@ -330,7 +330,8 @@
                                 style="font-size:14px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                                 Member</div>
                         </div>
-                        <div style="display:flex;align-items:center;gap:6px;color:var(--primary);font-size:12px;font-weight:700;padding:6px 10px;background:rgba(123,44,191,0.08);border-radius:10px;">
+                        <div
+                            style="display:flex;align-items:center;gap:6px;color:var(--primary);font-size:12px;font-weight:700;padding:6px 10px;background:rgba(123,44,191,0.08);border-radius:10px;">
                             <span>Sign in</span>
                             <i class="fa-solid fa-arrow-right" style="font-size:11px;"></i>
                         </div>
@@ -422,7 +423,9 @@
                         <span>Continue with Google</span>
                     </button>
                     <div style="margin-top:20px;text-align:center;">
-                        <button class="btn btn-ghost btn-sm" onclick="go('scr-welcome')" style="font-size:12px;color:var(--text-muted);"><i class="fa-solid fa-arrow-left"></i> Back to Welcome</button>
+                        <button class="btn btn-ghost btn-sm" onclick="go('scr-welcome')"
+                            style="font-size:12px;color:var(--text-muted);"><i class="fa-solid fa-arrow-left"></i> Back
+                            to Welcome</button>
                     </div>
                 </div>
             </div>
@@ -535,7 +538,9 @@
                         <span>Continue with Google</span>
                     </button>
                     <div style="margin-top:20px;text-align:center;">
-                        <button class="btn btn-ghost btn-sm" onclick="go('scr-welcome')" style="font-size:12px;color:var(--text-muted);"><i class="fa-solid fa-arrow-left"></i> Back to Welcome</button>
+                        <button class="btn btn-ghost btn-sm" onclick="go('scr-welcome')"
+                            style="font-size:12px;color:var(--text-muted);"><i class="fa-solid fa-arrow-left"></i> Back
+                            to Welcome</button>
                     </div>
                 </div>
             </div>
@@ -1128,11 +1133,13 @@
                         </div>
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-                        <button class="icon-btn" type="button" onclick="promptDisconnectConnection()" title="Disconnect Connection (વાતચીત સમાપ્ત કરો)"
+                        <button class="icon-btn" type="button" onclick="promptDisconnectConnection()"
+                            title="Disconnect Connection (વાતચીત સમાપ્ત કરો)"
                             style="background:rgba(239,68,68,0.1);color:var(--error,#ef4444);width:36px;height:36px;border-radius:10px;">
                             <i class="fa-solid fa-user-slash"></i>
                         </button>
-                        <button class="icon-btn" type="button" onclick="promptClearChatHistory()" title="Clear Chat History"
+                        <button class="icon-btn" type="button" onclick="promptClearChatHistory()"
+                            title="Clear Chat History"
                             style="background:rgba(100,116,139,0.08);color:var(--text-muted,#64748b);width:36px;height:36px;border-radius:10px;">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
@@ -2661,32 +2668,45 @@
         </div>
 
         <!-- ============================================================ PAYMENT & PASS HISTORY MODAL ============================================================ -->
-        
+
         <!-- ============================================================ DISCONNECT / REMOVE CONNECTION MODAL ============================================================ -->
         <div class="modal-backdrop modal-center" id="modalDisconnectMatch" style="z-index: 1055;">
             <div class="modal-card" style="max-width:380px;text-align:center;">
-                <div class="modal-icon-circle" style="background:rgba(239,68,68,0.12);color:var(--error);width:54px;height:54px;font-size:22px;margin:0 auto 12px;">
+                <div class="modal-icon-circle"
+                    style="background:rgba(239,68,68,0.12);color:var(--error);width:54px;height:54px;font-size:22px;margin:0 auto 12px;">
                     <i class="fa-solid fa-link-slash"></i>
                 </div>
-                <div class="h-display h-lg" id="disconnectModalTitle" style="margin-top:6px;">Disconnect Connection?</div>
-                <p class="p-muted" id="disconnectModalDesc" style="margin-top:8px;margin-bottom:16px;font-size:13px;line-height:1.55;">
+                <div class="h-display h-lg" id="disconnectModalTitle" style="margin-top:6px;">Disconnect Connection?
+                </div>
+                <p class="p-muted" id="disconnectModalDesc"
+                    style="margin-top:8px;margin-bottom:16px;font-size:13px;line-height:1.55;">
                     Are you sure you want to disconnect with this member?
                 </p>
-                <div style="background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:12px;margin-bottom:20px;text-align:left;font-size:12.5px;color:var(--text);line-height:1.5;">
-                    <div style="font-weight:700;color:var(--error);margin-bottom:6px;"><i class="fa-solid fa-shield-halved"></i> What happens when disconnected:</div>
-                    <div style="display:flex;gap:8px;margin-bottom:4px;"><i class="fa-solid fa-check" style="color:var(--error);font-size:11px;margin-top:3px;"></i> <span>Safe chat will be closed and cleared.</span></div>
-                    <div style="display:flex;gap:8px;margin-bottom:4px;"><i class="fa-solid fa-check" style="color:var(--error);font-size:11px;margin-top:3px;"></i> <span>Direct family contact details and address will be immediately locked again.</span></div>
-                    <div style="display:flex;gap:8px;"><i class="fa-solid fa-check" style="color:var(--error);font-size:11px;margin-top:3px;"></i> <span>Neither member will be able to message each other.</span></div>
+                <div
+                    style="background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:12px;margin-bottom:20px;text-align:left;font-size:12.5px;color:var(--text);line-height:1.5;">
+                    <div style="font-weight:700;color:var(--error);margin-bottom:6px;"><i
+                            class="fa-solid fa-shield-halved"></i> What happens when disconnected:</div>
+                    <div style="display:flex;gap:8px;margin-bottom:4px;"><i class="fa-solid fa-check"
+                            style="color:var(--error);font-size:11px;margin-top:3px;"></i> <span>Safe chat will be
+                            closed and cleared.</span></div>
+                    <div style="display:flex;gap:8px;margin-bottom:4px;"><i class="fa-solid fa-check"
+                            style="color:var(--error);font-size:11px;margin-top:3px;"></i> <span>Direct family contact
+                            details and address will be immediately locked again.</span></div>
+                    <div style="display:flex;gap:8px;"><i class="fa-solid fa-check"
+                            style="color:var(--error);font-size:11px;margin-top:3px;"></i> <span>Neither member will be
+                            able to message each other.</span></div>
                 </div>
                 <div class="btn-row">
-                    <button class="btn btn-outline" type="button" onclick="closeModal('modalDisconnectMatch')">Cancel</button>
-                    <button class="btn btn-danger" type="button" id="btnConfirmDisconnect" onclick="confirmDisconnectConnection()"><i
-                            class="fa-solid fa-link-slash"></i> Confirm Disconnect</button>
+                    <button class="btn btn-outline" type="button"
+                        onclick="closeModal('modalDisconnectMatch')">Cancel</button>
+                    <button class="btn btn-danger" type="button" id="btnConfirmDisconnect"
+                        onclick="confirmDisconnectConnection()"><i class="fa-solid fa-link-slash"></i> Confirm
+                        Disconnect</button>
                 </div>
             </div>
         </div>
 
-<div class="modal-backdrop modal-center" id="modalPaymentHistory" style="z-index: 1040;">
+        <div class="modal-backdrop modal-center" id="modalPaymentHistory" style="z-index: 1040;">
             <div class="modal-card" style="max-width:390px;width:92%;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
                     <div style="display:flex;align-items:center;gap:10px;">
@@ -2858,32 +2878,32 @@
     <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Core & State -->
-    <script src="js/core/state.js?v=5.9"></script>
-    <script src="js/core/supabase-client.js?v=5.9"></script>
+    <script src="js/core/state.js?v=6.0"></script>
+    <script src="js/core/supabase-client.js?v=6.0"></script>
     <!-- EmailJS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script src="js/services/email-service.js?v=5.9"></script>
-    <script src="js/core/router.js?v=5.9"></script>
+    <script src="js/services/email-service.js?v=6.0"></script>
+    <script src="js/core/router.js?v=6.0"></script>
     <!-- Data Modules -->
-    <script src="js/data/castes.js?v=5.9"></script>
-    <script src="js/data/help-content.js?v=5.9"></script>
-    <script src="js/data/profiles.js?v=5.9"></script>
+    <script src="js/data/castes.js?v=6.0"></script>
+    <script src="js/data/help-content.js?v=6.0"></script>
+    <script src="js/data/profiles.js?v=6.0"></script>
     <!-- Utilities -->
-    <script src="js/utils/helpers.js?v=5.9"></script>
-    <script src="js/utils/pwa.js?v=5.9"></script>
-    <script src="js/utils/cloudinary.js?v=5.9"></script>
-    <script src="js/utils/cropper.js?v=5.9"></script>
-    <script src="js/utils/datepicker.js?v=5.9"></script>
+    <script src="js/utils/helpers.js?v=6.0"></script>
+    <script src="js/utils/pwa.js?v=6.0"></script>
+    <script src="js/utils/cloudinary.js?v=6.0"></script>
+    <script src="js/utils/cropper.js?v=6.0"></script>
+    <script src="js/utils/datepicker.js?v=6.0"></script>
     <!-- Application Modules -->
-    <script src="js/modules/auth.js?v=5.9"></script>
-    <script src="js/modules/browse.js?v=5.9"></script>
-    <script src="js/modules/chat.js?v=5.9"></script>
-    <script src="js/modules/profile.js?v=5.9"></script>
-    <script src="js/modules/notifications.js?v=5.9"></script>
+    <script src="js/modules/auth.js?v=6.0"></script>
+    <script src="js/modules/browse.js?v=6.0"></script>
+    <script src="js/modules/chat.js?v=6.0"></script>
+    <script src="js/modules/profile.js?v=6.0"></script>
+    <script src="js/modules/notifications.js?v=6.0"></script>
     <!-- Application Entrypoint -->
-    <script src="js/app.js?v=5.9"></script>
+    <script src="js/app.js?v=6.0"></script>
     <!-- Privacy & Anti-Inspect Security Guard -->
-    <script src="js/utils/security-guard.js?v=5.9"></script>
+    <script src="js/utils/security-guard.js?v=6.0"></script>
 
 </body>
 
