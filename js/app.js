@@ -178,7 +178,8 @@ function initApp() {
                         ? determineRemainingRegStep(draft || state.regData, state.currentUser)
                         : 'scr-reg-caste';
                     targetScreen = pendingStep;
-                    setTimeout(() => { if (typeof openModal === 'function') openModal('modalCompleteProfile'); }, 350);
+                    // Do not pop up modal over the actual registration screen
+                    if (typeof closeModal === 'function') closeModal('modalCompleteProfile');
                 }
             }
             // Route Guard B: Boy 30-Day Pass Paywall Check (ONLY FOR BOYS, GIRLS ARE 100% FREE)

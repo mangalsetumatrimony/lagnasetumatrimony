@@ -26,8 +26,8 @@ function showToast(msg, duration = 3000) {
 function openModal(id) {
     if (id === 'modalCompleteProfile') {
         const activeScreen = document.querySelector('.screen.active')?.id || '';
-        // Strict UX Guard: Never pop up completion modal if user is already on registration screens
-        if (activeScreen.startsWith('scr-reg') || activeScreen.startsWith('scr-otp') || activeScreen === 'scr-welcome') {
+        // Strict UX Guard: Never pop up completion modal if user is already on registration screens, edit profile, or my profile
+        if (activeScreen.startsWith('scr-reg') || activeScreen.startsWith('scr-otp') || activeScreen === 'scr-welcome' || activeScreen.includes('editprofile') || activeScreen.includes('edit-profile') || activeScreen === 'scr-my-profile') {
             return;
         }
     }
