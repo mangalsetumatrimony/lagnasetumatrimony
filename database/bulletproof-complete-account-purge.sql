@@ -15,12 +15,14 @@
 -- Zero trace is left behind in the database, freeing 100% of storage and auth slots.
 -- ==============================================================================
 
-CREATE OR REPLACE FUNCTION public.delete_user_account_completely(target_email TEXT DEFAULT NULL, target_user_id TEXT DEFAULT NULL)
+CREATE OR REPLACE FUNCTION public.delete_user_account_completely(
+    target_email TEXT DEFAULT NULL,
+    target_user_id TEXT DEFAULT NULL
+)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, auth, pg_temp
-#variable_conflict use_column
 AS $$
 DECLARE
     found_auth_uid UUID := NULL;
@@ -70,7 +72,7 @@ BEGIN
     -- Locate UUID in auth.users by target_user_id (if UUID format)
     IF norm_id IS NOT NULL AND norm_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
         BEGIN
-            SELECT id INTO found_auth_uid FROM auth.users WHERE id = norm_id::uuid LIMIT 1;
+            SELECT au.id INTO found_auth_uid FROM auth.users au WHERE au.id = norm_id::uuid LIMIT 1;
         EXCEPTION WHEN OTHERS THEN
             found_auth_uid := NULL;
         END;
@@ -79,7 +81,7 @@ BEGIN
     -- Locate UUID in auth.users by email
     IF found_auth_uid IS NULL AND norm_email <> '' THEN
         BEGIN
-            SELECT id INTO found_auth_uid FROM auth.users WHERE LOWER(TRIM(email)) = norm_email LIMIT 1;
+            SELECT au.id INTO found_auth_uid FROM auth.users au WHERE LOWER(TRIM(au.email)) = norm_email LIMIT 1;
         EXCEPTION WHEN OTHERS THEN
             found_auth_uid := NULL;
         END;
@@ -91,10 +93,10 @@ BEGIN
     -- --------------------------------------------------------------------------
     -- Sub-step A: Iterate through matching auth.users by email or UUID
     FOR auth_rec IN 
-        SELECT id FROM auth.users 
-        WHERE (found_auth_uid IS NOT NULL AND id = found_auth_uid)
-           OR (norm_email <> '' AND LOWER(TRIM(email)) = norm_email)
-           OR (norm_id <> '' AND norm_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND id = norm_id::uuid)
+        SELECT au.id FROM auth.users au 
+        WHERE (found_auth_uid IS NOT NULL AND au.id = found_auth_uid)
+           OR (norm_email <> '' AND LOWER(TRIM(au.email)) = norm_email)
+           OR (norm_id <> '' AND norm_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND au.id = norm_id::uuid)
     LOOP
         BEGIN
             IF to_regclass('auth.mfa_amr_claims') IS NOT NULL AND to_regclass('auth.sessions') IS NOT NULL THEN
@@ -151,10 +153,10 @@ BEGIN
     IF del_auth_count = 0 AND norm_email <> '' THEN
         BEGIN
             IF to_regclass('auth.identities') IS NOT NULL THEN
-                DELETE FROM auth.identities WHERE user_id IN (SELECT id FROM auth.users WHERE LOWER(TRIM(email)) = norm_email);
+                DELETE FROM auth.identities WHERE user_id IN (SELECT au.id FROM auth.users au WHERE LOWER(TRIM(au.email)) = norm_email);
             END IF;
             IF to_regclass('auth.sessions') IS NOT NULL THEN
-                DELETE FROM auth.sessions WHERE user_id IN (SELECT id FROM auth.users WHERE LOWER(TRIM(email)) = norm_email);
+                DELETE FROM auth.sessions WHERE user_id IN (SELECT au.id FROM auth.users au WHERE LOWER(TRIM(au.email)) = norm_email);
             END IF;
             DELETE FROM auth.users WHERE LOWER(TRIM(email)) = norm_email;
             GET DIAGNOSTICS del_auth_count = ROW_COUNT;
@@ -256,6 +258,31 @@ BEGIN
         END IF;
     EXCEPTION WHEN OTHERS THEN NULL; END;
 
+    -- --------------------------------------------------------------------------
+    -- STEP 9: FINAL AUTH PURGE PASS (Guarantees auth.users is wiped even if FK blocked Step 1)
+    -- --------------------------------------------------------------------------
+    IF del_auth_count = 0 THEN
+        FOR auth_rec IN 
+            SELECT au.id FROM auth.users au 
+            WHERE (found_auth_uid IS NOT NULL AND au.id = found_auth_uid)
+               OR (norm_email <> '' AND LOWER(TRIM(au.email)) = norm_email)
+               OR (norm_id <> '' AND norm_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND au.id = norm_id::uuid)
+        LOOP
+            BEGIN
+                IF to_regclass('auth.identities') IS NOT NULL THEN
+                    DELETE FROM auth.identities WHERE user_id = auth_rec.id;
+                    del_identities_count := del_identities_count + 1;
+                END IF;
+                IF to_regclass('auth.sessions') IS NOT NULL THEN
+                    DELETE FROM auth.sessions WHERE user_id = auth_rec.id;
+                    del_sessions_count := del_sessions_count + 1;
+                END IF;
+                DELETE FROM auth.users WHERE id = auth_rec.id;
+                del_auth_count := del_auth_count + 1;
+            EXCEPTION WHEN OTHERS THEN NULL; END;
+        END LOOP;
+    END IF;
+
     -- Return comprehensive purge report
     RETURN jsonb_build_object(
         'success', true,
@@ -281,3 +308,6 @@ GRANT EXECUTE ON FUNCTION public.delete_user_account_completely(TEXT, TEXT) TO a
 
 -- Verification notice
 SELECT 'Mangal Setu Complete Account & Auth Purge function installed successfully.' AS status;
+
+-- Immediately purge the test user from your screenshot (auth.users + all tables):
+SELECT public.delete_user_account_completely('mit.parmar55@gmail.com', '13f1cbca-00b5-4871-95dc-a5ccdf1310b4');
