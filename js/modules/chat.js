@@ -1808,56 +1808,110 @@ async function confirmDisconnectConnection() {
     const myId = state.currentUser.id || state.currentUser.profileId;
     const myEmail = (state.currentUser.email || '').trim().toLowerCase();
     const p = (typeof findProfile === 'function') ? findProfile(pid) : null;
-    const peerEmail = p ? (p.rawEmail || p.email || '') : '';
     const peerName = p ? p.name : 'Member';
 
-    // 1. Update local state and requests
-    if (Array.isArray(state.interests)) {
-        state.interests.forEach(i => {
-            if (Number(i.profileId) === numPid || Number(i.senderId) === numPid || Number(i.receiverId) === numPid) {
-                i.status = 'disconnected';
-            }
-        });
+    // Helper to resolve clean, unmasked recipient email
+    const cleanEmailCheck = (em) => {
+        if (!em || typeof em !== 'string') return '';
+        const c = em.trim().toLowerCase();
+        if (c.includes('•') || c.includes('*') || c.includes('..') || c.includes(' ') || !c.includes('@')) return '';
+        return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(c) ? c : '';
+    };
+
+    let cleanPeerEmail = cleanEmailCheck(p?.rawEmail) || cleanEmailCheck(p?.email) || '';
+    if (!cleanPeerEmail) {
+        const allReqs = [...(typeof INCOMING_REQUESTS !== 'undefined' ? INCOMING_REQUESTS : []), ...(typeof OUTGOING_REQUESTS !== 'undefined' ? OUTGOING_REQUESTS : [])];
+        const match = allReqs.find(r => Number(r.profileId) === numPid || Number(r.senderId) === numPid || Number(r.receiverId) === numPid);
+        if (match) {
+            cleanPeerEmail = cleanEmailCheck(match.senderEmail) || cleanEmailCheck(match.receiverEmail) || '';
+        }
     }
-    if (Array.isArray(INCOMING_REQUESTS)) {
-        INCOMING_REQUESTS.forEach(i => {
-            if (Number(i.profileId) === numPid || Number(i.senderId) === numPid) {
-                i.status = 'disconnected';
-            }
-        });
-    }
-    if (Array.isArray(SENT_REQUESTS)) {
-        SENT_REQUESTS.forEach(i => {
-            if (Number(i.profileId) === numPid || Number(i.receiverId) === numPid) {
-                i.status = 'disconnected';
-            }
-        });
+    if (!cleanPeerEmail && Array.isArray(CHAT_THREADS)) {
+        const thread = CHAT_THREADS.find(t => Number(t.profileId) === numPid);
+        if (thread) cleanPeerEmail = cleanEmailCheck(thread.peerEmail) || '';
     }
 
-    // 2. Remove from active chat threads and clear cache
-    CHAT_THREADS = CHAT_THREADS.filter(t => Number(t.profileId) !== numPid && String(t.profileId) !== String(pid));
-    if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE) {
-        window.AUTHORIZED_CONTACT_CACHE.delete(numPid);
-    }
-    if (p) {
-        p.fatherMobile = '••••••';
-        p.ownMobile = '••••••';
-        p.rawFatherMobile = '••••••';
-        p.rawOwnMobile = '••••••';
+    try {
+        // 1. Update local state and requests
+        if (Array.isArray(state.interests)) {
+            state.interests.forEach(i => {
+                if (Number(i.profileId) === numPid || Number(i.senderId) === numPid || Number(i.receiverId) === numPid) {
+                    i.status = 'disconnected';
+                }
+            });
+        }
+        if (typeof INCOMING_REQUESTS !== 'undefined' && Array.isArray(INCOMING_REQUESTS)) {
+            INCOMING_REQUESTS.forEach(i => {
+                if (Number(i.profileId) === numPid || Number(i.senderId) === numPid) {
+                    i.status = 'disconnected';
+                }
+            });
+        }
+        if (typeof OUTGOING_REQUESTS !== 'undefined' && Array.isArray(OUTGOING_REQUESTS)) {
+            OUTGOING_REQUESTS.forEach(i => {
+                if (Number(i.profileId) === numPid || Number(i.receiverId) === numPid) {
+                    i.status = 'disconnected';
+                }
+            });
+        }
+
+        // 2. Remove from active chat threads and clear cache
+        CHAT_THREADS = CHAT_THREADS.filter(t => Number(t.profileId) !== numPid && String(t.profileId) !== String(pid));
+        if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE) {
+            window.AUTHORIZED_CONTACT_CACHE.delete(numPid);
+        }
+        if (p) {
+            p.fatherMobile = '••••••';
+            p.ownMobile = '••••••';
+            p.rawFatherMobile = '••••••';
+            p.rawOwnMobile = '••••••';
+        }
+
+        saveSessionState();
+
+        // 3. Persist to Supabase Database
+        if (typeof supabaseDisconnectConnection === 'function') {
+            supabaseDisconnectConnection(myId, pid, myEmail, cleanPeerEmail).catch(e => {
+                console.warn('[Chat] Supabase disconnect error:', e);
+            });
+        }
+
+        // 4. Dispatch warm, polite & respectful email notification to peer so they do not feel bad
+        if (cleanPeerEmail) {
+            const emailFn = (typeof sendMatrimonialEmailNotification === 'function')
+                ? sendMatrimonialEmailNotification
+                : ((typeof window !== 'undefined' && typeof window.sendMatrimonialEmailNotification === 'function') ? window.sendMatrimonialEmailNotification : null);
+
+            if (emailFn) {
+                const myObj = (typeof resolveFullUserProfile === 'function') ? resolveFullUserProfile(state.currentUser) : (state.currentUser || {});
+                emailFn({
+                    type: 'CONNECTION_DISCONNECTED',
+                    toEmail: cleanPeerEmail,
+                    toName: peerName,
+                    senderData: {
+                        name: myObj.name || 'Member',
+                        caste: myObj.community || myObj.caste || '',
+                        city: myObj.village || myObj.city || '',
+                        photo: (typeof getSafeProfilePhoto === 'function') ? getSafeProfilePhoto(myObj) : ''
+                    },
+                    receiverData: {
+                        name: peerName,
+                        email: cleanPeerEmail
+                    }
+                }).catch(e => console.warn('[Disconnect] Email dispatch note:', e));
+            }
+        }
+    } catch (err) {
+        console.error('[Disconnect] Error during disconnect execution:', err);
+    } finally {
+        // Always close modal and reset pending PID
+        closeModal('modalDisconnectMatch');
+        pendingDisconnectPid = null;
     }
 
-    saveSessionState();
-    closeModal('modalDisconnectMatch');
     showToast(`Connection with ${peerName} disconnected. Chat closed.`);
 
-    // 3. Persist to Supabase Database
-    if (typeof supabaseDisconnectConnection === 'function') {
-        supabaseDisconnectConnection(myId, pid, myEmail, peerEmail).catch(e => {
-            console.warn('[Chat] Supabase disconnect error:', e);
-        });
-    }
-
-    // 4. Update UI screens
+    // 5. Update UI screens
     const activeScreen = document.querySelector('.screen.active');
     if (activeScreen && activeScreen.id === 'scr-chat') {
         go('scr-inbox', true);
@@ -1870,8 +1924,6 @@ async function confirmDisconnectConnection() {
     }
     updateInboxBadge();
     if (typeof renderInbox === 'function') renderInbox();
-
-    pendingDisconnectPid = null;
 }
 
 function startEditChatMessage(msgId, event) {

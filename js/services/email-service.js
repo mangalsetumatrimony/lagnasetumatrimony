@@ -391,6 +391,80 @@ function getInterestDeclinedEmailHtml(sender, receiver) {
 }
 
 /**
+ * Connection Disconnected Email Template
+ * Dispatched when a member disconnects an active connection.
+ * Crafted with maximum respect, warmth, empathy, and dignity so the peer feels valued, respected, and encouraged.
+ * @param {object} disconnector - The member who initiated disconnect
+ * @param {object} peer - The recipient member
+ */
+function getConnectionDisconnectedEmailHtml(disconnector, peer) {
+  const disconnectorName = safeEmailText(disconnector?.name, 'Member');
+  const peerName = safeEmailText(peer?.name, 'Member');
+  const title = `A Respectful Update from Mangal Setu`;
+  const preheader = `A respectful note regarding your connection with ${disconnectorName} on Mangal Setu.`;
+  const appLink = EMAIL_CONFIG.appUrl;
+
+  const body = `
+      <div style="font-size:18px;font-weight:700;color:#202124;margin-bottom:8px;">
+        Pranam ${peerName},
+      </div>
+      
+      <p style="font-size:14.5px;line-height:1.65;color:#5F5B67;margin:0 0 18px 0;">
+        We hope you and your family are doing well. We are reaching out with a gentle and respectful update regarding your matrimonial connection with <b>${disconnectorName}</b> on Mangal Setu.
+      </p>
+
+      <p style="font-size:14.5px;line-height:1.65;color:#5F5B67;margin:0 0 20px 0;">
+        After thoughtful family deliberation, <b>${disconnectorName}</b> and their family have respectfully decided not to move forward with this alliance at this time.
+      </p>
+
+      <!-- Warm & Respectful Reassurance Box -->
+      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#FAF8FC;border:1px solid #ECE5F5;border-radius:16px;margin-bottom:22px;">
+        <tr>
+          <td style="padding:22px 20px;text-align:center;">
+            <div style="font-size:28px;margin-bottom:10px;">🕊️</div>
+            <h4 style="margin:0 0 8px 0;font-size:15px;font-weight:700;color:#202124;">A Gentle Note on the Matrimonial Journey</h4>
+            <p style="margin:0;font-size:13.5px;color:#5F5B67;line-height:1.65;max-width:440px;margin:0 auto;">
+              In the sacred journey of matrimony, finding the right life partner involves many unique personal, family, and astrological preferences aligning together. When an alliance does not move forward, it is purely a matter of individual compatibility and expectations. Please do not feel disheartened in the slightest!
+            </p>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Gujarati Cultural Reassurance Card -->
+      <div style="background:#F6F0FD;border:1px solid #E5D5F5;border-radius:12px;padding:16px 18px;margin-bottom:24px;">
+        <div style="font-size:13.5px;font-weight:700;color:#7B2CBF;margin-bottom:6px;">
+          🌸 મંગલ સેતુ તરફથી એક નમ્ર અને આદરપૂર્વક સંદેશ:
+        </div>
+        <div style="font-size:13px;line-height:1.65;color:#4A4553;">
+          લગ્નજીવનના પવિત્ર સંબંધમાં દરેક પરિવાર અને ઉમેદવારની પોતાની આગવી અપેક્ષાઓ, કૌટુંબિક રીતિ-રિવાજ અને જીવનશૈલીની અનુકૂળતા હોય છે. આ નિર્ણય માત્ર પારસ્પરિક સુસંગતતા (Compatibility) ને ધ્યાનમાં રાખીને સહજ રીતે લેવામાં આવ્યો છે. આપના માટે યોગ્ય અને સુયોગ્ય જીવનસાથી ખૂબ જ જલ્દી મળી રહે તેવી અમારી હૃદયપૂર્વકની પ્રાર્થના અને શુભકામનાઓ છે.
+        </div>
+      </div>
+
+      <!-- Privacy Protection Note -->
+      <div style="background:#F8F9FA;border-left:3px solid #28A745;border-radius:8px;padding:12px 16px;margin-bottom:24px;font-size:12.5px;color:#555;line-height:1.55;">
+        🔒 <b>Your Complete Privacy is Preserved:</b> For mutual confidentiality, direct contact details have been safely locked back and conversation history has been respectfully closed.
+      </div>
+
+      <!-- CTA Button -->
+      <div style="text-align:center;margin:26px 0;">
+        <a href="${appLink}" target="_blank" class="btn-action" style="display:inline-block;background:linear-gradient(135deg, #7B2CBF 0%, #9D4EDD 100%);color:#FFFFFF !important;text-decoration:none;padding:13px 34px;border-radius:12px;font-size:14.5px;font-weight:700;box-shadow:0 4px 14px rgba(123,44,191,0.25);">
+          Browse Compatible Community Profiles
+        </a>
+      </div>
+
+      <!-- Uplifting Encouragement Note -->
+      <div style="text-align:center;font-size:12.5px;color:#8E8998;margin-top:14px;line-height:1.5;">
+        ✨ New verified community profiles join Mangal Setu every day. May your destined match arrive soon!
+      </div>
+  `;
+
+  return {
+    subject: `🕊️ [Mangal Setu] A respectful update on your connection with ${disconnectorName}`,
+    html: wrapEmailTemplate(title, preheader, body)
+  };
+}
+
+/**
  * Account Deletion Notification Email
  * Sent by Admin to the member when their account is permanently deleted.
  * @param {string} toEmail
@@ -637,6 +711,8 @@ async function sendMatrimonialEmailNotification(params) {
     emailData = getInterestAcceptedEmailHtml(senderData, receiverData);
   } else if (type === 'INTEREST_DECLINED') {
     emailData = getInterestDeclinedEmailHtml(senderData, receiverData);
+  } else if (type === 'CONNECTION_DISCONNECTED') {
+    emailData = getConnectionDisconnectedEmailHtml(senderData, receiverData);
   } else {
     console.warn('[EmailService] Unknown notification type:', type);
     return { success: false, reason: 'unknown_type' };
