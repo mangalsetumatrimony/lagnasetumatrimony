@@ -835,6 +835,13 @@ function setInterestBtnState(btn, pid) {
         btn.disabled = true;
         return;
     }
+    if (status === 'disconnected') {
+        btn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Re-connect (ફરી રિક્વેસ્ટ મોકલો)';
+        btn.className = 'btn btn-gold btn-grow';
+        btn.disabled = false;
+        btn.onclick = () => openInterestModal(profileId);
+        return;
+    }
 
     btn.innerHTML = '<i class="fa-solid fa-heart-circle-check"></i> I\'m interested';
     btn.className = 'btn btn-gold btn-grow';

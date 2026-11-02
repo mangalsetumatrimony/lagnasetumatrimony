@@ -448,6 +448,11 @@ async function confirmSendInterest() {
         });
     }
 
+    // Clean up any old incoming disconnected reference for this peer to avoid stale status
+    if (Array.isArray(INCOMING_REQUESTS)) {
+        INCOMING_REQUESTS = INCOMING_REQUESTS.filter(r => Number(r.profileId) !== pid && Number(r.senderId) !== pid && (!realReceiverEmail || r.senderEmail?.toLowerCase() !== realReceiverEmail.toLowerCase()));
+    }
+
     // Record the sent request to update daily count
     recordDailyInterestSent(pid, nowTs);
     const newUsage = getDailyInterestUsage();
@@ -551,10 +556,10 @@ function setInterestBtnState(btn, pid) {
         btn.onclick = () => openChatFor(pid);
         btn.disabled = false;
     } else if (status === 'disconnected') {
-        btn.innerHTML = '<i class="fa-solid fa-link-slash"></i> Connection Disconnected';
-        btn.className = 'btn btn-outline';
-        btn.onclick = null;
-        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Re-connect (ફરી રિક્વેસ્ટ મોકલો)';
+        btn.className = 'btn btn-gold';
+        btn.onclick = () => openInterestModal(pid);
+        btn.disabled = false;
     } else if (status === 'pending') {
         btn.innerHTML = '<i class="fa-solid fa-clock"></i> Request sent';
         btn.className = 'btn btn-outline';
@@ -1033,6 +1038,8 @@ function requestCard(r, kind) {
             actionContent = `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openChatFor(${pid})" style="padding:6px 12px;font-size:11.5px;flex-shrink:0;"><i class="fa-solid fa-comment-dots"></i> Chat</button>`;
         } else if (r.status === 'declined') {
             actionContent = `<span style="font-size:11px;font-weight:700;color:var(--error);flex-shrink:0;"><i class="fa-solid fa-xmark"></i> Declined</span>`;
+        } else if (r.status === 'disconnected') {
+            actionContent = `<span style="font-size:11px;font-weight:700;color:var(--muted);flex-shrink:0;"><i class="fa-solid fa-link-slash"></i> Disconnected</span>`;
         } else {
             actionContent = `
                 <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -1045,6 +1052,8 @@ function requestCard(r, kind) {
             actionContent = `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openChatFor(${pid})" style="padding:6px 12px;font-size:11.5px;flex-shrink:0;"><i class="fa-solid fa-comment-dots"></i> Chat</button>`;
         } else if (r.status === 'declined') {
             actionContent = `<span style="font-size:11px;font-weight:700;color:var(--error);flex-shrink:0;"><i class="fa-solid fa-xmark"></i> Declined</span>`;
+        } else if (r.status === 'disconnected') {
+            actionContent = `<button class="btn btn-sm btn-gold" onclick="event.stopPropagation();openInterestModal(${pid})" style="padding:6px 12px;font-size:11.5px;flex-shrink:0;"><i class="fa-solid fa-rotate-left"></i> Re-connect</button>`;
         } else {
             actionContent = `<span class="p-muted" style="font-size:11px;font-weight:800;color:var(--pending);flex-shrink:0;"><i class="fa-solid fa-clock"></i> Pending</span>`;
         }
@@ -2520,9 +2529,20 @@ function handleRealtimeInterestUpdate(dbInterest) {
             });
         }
     } else {
-        let inc = INCOMING_REQUESTS.find(r => Number(r.profileId) === peerId);
+        let inc = INCOMING_REQUESTS.find(r => Number(r.profileId) === peerId || Number(r.senderId) === peerId);
         if (inc) {
             inc.status = dbInterest.status;
+        } else {
+            INCOMING_REQUESTS.push({
+                id: dbInterest.id,
+                profileId: peerId,
+                senderId: sendId,
+                senderEmail: dbInterest.sender_email,
+                senderName: dbInterest.sender_name,
+                senderPhoto: dbInterest.sender_photo,
+                status: dbInterest.status,
+                date: 'Just now'
+            });
         }
     }
 

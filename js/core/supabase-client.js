@@ -2047,6 +2047,16 @@ async function supabaseSendInterest(senderProfile, receiverProfile) {
                 throw new Error('DAILY_LIMIT_EXCEEDED');
             }
 
+            // If reconnecting and a reverse disconnected record exists, clean it up
+            try {
+                await client
+                    .from('interests')
+                    .delete()
+                    .eq('sender_id', receiverId)
+                    .eq('receiver_id', senderId)
+                    .eq('status', 'disconnected');
+            } catch (_) {}
+
             const { data, error } = await client
                 .from('interests')
                 .upsert(interestRow, { onConflict: 'id' });
