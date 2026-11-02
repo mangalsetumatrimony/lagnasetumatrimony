@@ -383,14 +383,26 @@ function populateEditProfile() {
 
     const fMobileEl = document.getElementById('editFatherMobile');
     if (fMobileEl) {
-        const fVal = (myProfile.rawFatherMobile && !myProfile.rawFatherMobile.includes('•'))
-            ? myProfile.rawFatherMobile
-            : ((myProfile.father_mobile && !myProfile.father_mobile.includes('•'))
-                ? myProfile.father_mobile
-                : ((myProfile.fatherMobile && !myProfile.fatherMobile.includes('•'))
-                    ? myProfile.fatherMobile
-                    : (state.currentUser?.rawFatherMobile || state.currentUser?.father_mobile || state.regData?.fatherMobile || '')));
-        fMobileEl.value = fVal;
+        let fVal = '';
+        const fCandidates = [
+            myProfile.rawFatherMobile,
+            myProfile.father_mobile,
+            myProfile.fatherMobile,
+            state.currentUser?.rawFatherMobile,
+            state.currentUser?.father_mobile,
+            state.currentUser?.fatherMobile,
+            state.regData?.fatherMobile
+        ];
+        for (const c of fCandidates) {
+            if (c && !String(c).includes('•') && !String(c).includes('*')) {
+                const ext = (typeof extract10DigitMobile === 'function') ? extract10DigitMobile(c) : String(c).replace(/\D/g, '').slice(-10);
+                if (ext && ext.length === 10) {
+                    fVal = (typeof formatPhoneNumber === 'function') ? formatPhoneNumber(ext) : ext;
+                    break;
+                }
+            }
+        }
+        fMobileEl.value = fVal || '';
     }
 
     const mNameEl = document.getElementById('editMotherName');
@@ -439,14 +451,28 @@ function populateEditProfile() {
     // Contact number (private admin only)
     const ownMobileEl = document.getElementById('editOwnMobile');
     if (ownMobileEl) {
-        const oVal = (myProfile.rawOwnMobile && !myProfile.rawOwnMobile.includes('•'))
-            ? myProfile.rawOwnMobile
-            : ((myProfile.own_mobile && !myProfile.own_mobile.includes('•'))
-                ? myProfile.own_mobile
-                : ((myProfile.ownMobile && !myProfile.ownMobile.includes('•'))
-                    ? myProfile.ownMobile
-                    : (state.currentUser?.rawOwnMobile || state.currentUser?.mobile || state.regData?.ownMobile || '')));
-        ownMobileEl.value = oVal;
+        let oVal = '';
+        const oCandidates = [
+            myProfile.rawOwnMobile,
+            myProfile.own_mobile,
+            myProfile.ownMobile,
+            myProfile.mobile,
+            state.currentUser?.rawOwnMobile,
+            state.currentUser?.own_mobile,
+            state.currentUser?.ownMobile,
+            state.currentUser?.mobile,
+            state.regData?.ownMobile
+        ];
+        for (const c of oCandidates) {
+            if (c && !String(c).includes('•') && !String(c).includes('*')) {
+                const ext = (typeof extract10DigitMobile === 'function') ? extract10DigitMobile(c) : String(c).replace(/\D/g, '').slice(-10);
+                if (ext && ext.length === 10) {
+                    oVal = (typeof formatPhoneNumber === 'function') ? formatPhoneNumber(ext) : ext;
+                    break;
+                }
+            }
+        }
+        ownMobileEl.value = oVal || '';
     }
 
     // Visibility toggle
@@ -479,20 +505,66 @@ function saveEditProfile() {
     }
 
     const rawFatherMobile = fMobileEl ? fMobileEl.value.trim() : '';
-    const cleanFatherMobile = extract10DigitMobile(rawFatherMobile);
+    let cleanFatherMobile = extract10DigitMobile(rawFatherMobile);
+    if (!cleanFatherMobile) {
+        // Fallback to any unmasked existing father mobile in profile, currentUser, or stored accounts
+        const fCandidates = [
+            myProfile?.rawFatherMobile,
+            myProfile?.father_mobile,
+            myProfile?.fatherMobile,
+            state.currentUser?.rawFatherMobile,
+            state.currentUser?.father_mobile,
+            state.currentUser?.fatherMobile,
+            state.regData?.fatherMobile
+        ];
+        for (const c of fCandidates) {
+            if (c && !String(c).includes('•') && !String(c).includes('*')) {
+                const ext = extract10DigitMobile(c);
+                if (ext && ext.length === 10) {
+                    cleanFatherMobile = ext;
+                    break;
+                }
+            }
+        }
+    }
     if (!cleanFatherMobile) {
         highlightFieldError(fMobileEl, "Please enter a valid 10-digit father's mobile number");
         showToast("Please enter a valid 10-digit father's mobile number");
         return;
     }
+    if (fMobileEl) fMobileEl.value = formatPhoneNumber(cleanFatherMobile);
 
     const rawOwnMobile = ownMobileEl ? ownMobileEl.value.trim() : '';
-    const cleanOwnMobile = extract10DigitMobile(rawOwnMobile);
+    let cleanOwnMobile = extract10DigitMobile(rawOwnMobile);
+    if (!cleanOwnMobile) {
+        // Fallback to any unmasked existing personal mobile in profile, currentUser, or stored accounts
+        const oCandidates = [
+            myProfile?.rawOwnMobile,
+            myProfile?.own_mobile,
+            myProfile?.ownMobile,
+            myProfile?.mobile,
+            state.currentUser?.rawOwnMobile,
+            state.currentUser?.own_mobile,
+            state.currentUser?.ownMobile,
+            state.currentUser?.mobile,
+            state.regData?.ownMobile
+        ];
+        for (const c of oCandidates) {
+            if (c && !String(c).includes('•') && !String(c).includes('*')) {
+                const ext = extract10DigitMobile(c);
+                if (ext && ext.length === 10) {
+                    cleanOwnMobile = ext;
+                    break;
+                }
+            }
+        }
+    }
     if (!cleanOwnMobile) {
         highlightFieldError(ownMobileEl, "Please enter your valid 10-digit personal mobile number");
         showToast("Please enter your valid 10-digit personal mobile number");
         return;
     }
+    if (ownMobileEl) ownMobileEl.value = formatPhoneNumber(cleanOwnMobile);
 
     const city = cityEl ? cityEl.value.trim() : '';
     if (!city) {

@@ -805,12 +805,42 @@ async function supabaseRecordPayment(paymentData) {
 
         if (payErr) console.warn('[Supabase] Payment upsert note:', payErr.message);
 
-        // 2. Also update profile payment_status in profiles table
-        if (paymentData.userId) {
-            await client.from('profiles').update({
-                payment_status: 'paid',
-                updated_at: new Date().toISOString()
-            }).eq('id', paymentData.userId);
+        // 2. Also update profile payment_status in profiles and users table
+        const uid = String(paymentData.userId || '');
+        const eml = String(paymentData.userEmail || paymentData.email || '').trim().toLowerCase();
+        if (uid) {
+            try {
+                await client.from('profiles').update({
+                    payment_status: 'paid',
+                    updated_at: new Date().toISOString()
+                }).eq('id', uid);
+            } catch (_) {}
+            try {
+                await client.from('profiles').update({
+                    payment_status: 'paid',
+                    updated_at: new Date().toISOString()
+                }).eq('user_id', uid);
+            } catch (_) {}
+            try {
+                await client.from('users').update({
+                    payment_status: 'Active',
+                    updated_at: new Date().toISOString()
+                }).eq('id', uid);
+            } catch (_) {}
+        }
+        if (eml) {
+            try {
+                await client.from('profiles').update({
+                    payment_status: 'paid',
+                    updated_at: new Date().toISOString()
+                }).ilike('email', eml);
+            } catch (_) {}
+            try {
+                await client.from('users').update({
+                    payment_status: 'Active',
+                    updated_at: new Date().toISOString()
+                }).ilike('email', eml);
+            } catch (_) {}
         }
 
         return { success: true };

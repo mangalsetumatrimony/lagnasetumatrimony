@@ -88,7 +88,13 @@ async function syncProfilesFromSupabase(force = false, silent = false) {
                         state.currentUser.fatherName = myProf.father || myProf.fatherName || '';
                     }
                     if (myProf.fatherOcc !== undefined) state.currentUser.fatherOcc = myProf.fatherOcc || '';
-                    if (myProf.fatherMobile !== undefined) state.currentUser.fatherMobile = myProf.fatherMobile || '';
+                    const cleanIncomingFM = (!String(myProf.rawFatherMobile || '').includes('•') && myProf.rawFatherMobile) ||
+                                            (!String(myProf.father_mobile || '').includes('•') && myProf.father_mobile) ||
+                                            (!String(myProf.fatherMobile || '').includes('•') && myProf.fatherMobile);
+                    if (cleanIncomingFM) {
+                        state.currentUser.fatherMobile = cleanIncomingFM;
+                        state.currentUser.rawFatherMobile = cleanIncomingFM;
+                    }
                     if (myProf.mother !== undefined || myProf.motherName !== undefined) {
                         state.currentUser.mother = myProf.mother || myProf.motherName || '';
                         state.currentUser.motherName = myProf.mother || myProf.motherName || '';
@@ -106,9 +112,14 @@ async function syncProfilesFromSupabase(force = false, silent = false) {
                         state.currentUser.address = myProf.fullAddress || myProf.address || '';
                         state.currentUser.fullAddress = myProf.fullAddress || myProf.address || '';
                     }
-                    if (myProf.ownMobile !== undefined || myProf.mobile !== undefined) {
-                        state.currentUser.ownMobile = myProf.ownMobile || myProf.mobile || '';
-                        state.currentUser.mobile = myProf.ownMobile || myProf.mobile || '';
+                    const cleanIncomingOM = (!String(myProf.rawOwnMobile || '').includes('•') && myProf.rawOwnMobile) ||
+                                            (!String(myProf.own_mobile || '').includes('•') && myProf.own_mobile) ||
+                                            (!String(myProf.ownMobile || '').includes('•') && myProf.ownMobile) ||
+                                            (!String(myProf.mobile || '').includes('•') && myProf.mobile);
+                    if (cleanIncomingOM) {
+                        state.currentUser.ownMobile = cleanIncomingOM;
+                        state.currentUser.rawOwnMobile = cleanIncomingOM;
+                        state.currentUser.mobile = cleanIncomingOM;
                     }
                     if (Array.isArray(myProf.photos) && myProf.photos.length > 0) {
                         state.currentUser.photos = myProf.photos;

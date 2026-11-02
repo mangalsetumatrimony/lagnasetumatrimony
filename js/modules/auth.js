@@ -1195,7 +1195,10 @@ async function doLogin() {
             matchedUser.fatherName = prof.father || prof.father_name || matchedUser.fatherName || '';
             matchedUser.fatherOcc = prof.father_occ || prof.fatherOcc || matchedUser.fatherOcc || '';
             const cleanProfFM = (!prof.rawFatherMobile?.includes('•') && prof.rawFatherMobile) || (!prof.father_mobile?.includes('•') && prof.father_mobile) || (!prof.fatherMobile?.includes('•') && prof.fatherMobile) || '';
-            if (cleanProfFM) matchedUser.fatherMobile = cleanProfFM;
+            if (cleanProfFM) {
+                matchedUser.fatherMobile = cleanProfFM;
+                matchedUser.rawFatherMobile = cleanProfFM;
+            }
             matchedUser.mother = prof.mother || prof.mother_name || matchedUser.mother || '';
             matchedUser.motherName = prof.mother || prof.mother_name || matchedUser.motherName || '';
             matchedUser.motherOcc = prof.mother_occ || prof.motherOcc || matchedUser.motherOcc || '';
@@ -1207,7 +1210,11 @@ async function doLogin() {
             matchedUser.fullAddress = prof.full_address || prof.address || matchedUser.fullAddress || '';
             matchedUser.full_address = prof.full_address || prof.address || matchedUser.full_address || '';
             const cleanProfOM = (!prof.rawOwnMobile?.includes('•') && prof.rawOwnMobile) || (!prof.own_mobile?.includes('•') && prof.own_mobile) || (!prof.mobile?.includes('•') && prof.mobile) || '';
-            if (cleanProfOM) matchedUser.ownMobile = cleanProfOM;
+            if (cleanProfOM) {
+                matchedUser.ownMobile = cleanProfOM;
+                matchedUser.rawOwnMobile = cleanProfOM;
+                matchedUser.mobile = cleanProfOM;
+            }
             matchedUser.photos = (Array.isArray(prof.photos) && prof.photos.length > 0) ? prof.photos : (prof.img ? [prof.img] : (matchedUser.photos || []));
         }
     }
@@ -2232,22 +2239,70 @@ async function handleSocialUserAuthenticated(socialUser) {
             existingProfile = window.PROFILES.find(p => p.email && p.email.toLowerCase() === normEmail);
         }
 
+        const rawData = (existingProfile && typeof existingProfile.raw_data === 'object') ? existingProfile.raw_data : {};
         const isFullyComplete = existingProfile && (
             existingProfile.profileComplete === true ||
-            (existingProfile.name && existingProfile.gender && (existingProfile.community || existingProfile.caste))
+            rawData.profileComplete === true ||
+            ((existingProfile.name || rawData.name) && (existingProfile.gender || rawData.gender) && (existingProfile.community || existingProfile.caste || rawData.community || rawData.caste))
         );
 
         if (isFullyComplete) {
-            // EXISTING USER: Save returning user info, restore active session and navigate straight to Profiles feed!
+            // Map profile as authorized self to preserve clean unmasked mobile, address, and email
+            const mappedUser = (typeof mapProfileFromSupabase === 'function')
+                ? mapProfileFromSupabase(existingProfile, true)
+                : existingProfile;
+
+            // Normalize gender to 'Boy' or 'Girl' if needed
+            if (mappedUser.gender) {
+                if (typeof isGirlGender === 'function' && isGirlGender(mappedUser.gender)) {
+                    mappedUser.gender = 'Girl';
+                } else if (typeof isBoyGender === 'function' && isBoyGender(mappedUser.gender)) {
+                    mappedUser.gender = 'Boy';
+                }
+            }
+            mappedUser.profileComplete = true;
+
+            // EXISTING USER: Save returning user info, restore active session and navigate straight to Home feed!
             saveLastAuthProvider({
                 provider: socialUser.provider || 'google',
                 email: normEmail,
-                name: (mappedUser && mappedUser.name) || socialUser.name,
-                avatar: (mappedUser && (mappedUser.img || mappedUser.photo)) || socialUser.avatar
+                name: mappedUser.name || socialUser.name,
+                avatar: mappedUser.img || mappedUser.photo || socialUser.avatar
             });
-            const mappedUser = (typeof mapProfileFromSupabase === 'function')
-                ? mapProfileFromSupabase(existingProfile)
-                : existingProfile;
+
+            // Hydrate local registered accounts cache so session persistence knows this account is complete
+            if (typeof getStoredAccounts === 'function' && typeof saveStoredAccounts === 'function') {
+                const accounts = getStoredAccounts();
+                const safeAcc = {
+                    ...mappedUser,
+                    email: normEmail,
+                    profileComplete: true,
+                    currentStep: 'scr-home'
+                };
+                const idx = accounts.findIndex(a => a && (
+                    (a.email && a.email.toLowerCase() === normEmail) ||
+                    (mappedUser.id && a.id == mappedUser.id)
+                ));
+                if (idx !== -1) {
+                    accounts[idx] = { ...accounts[idx], ...safeAcc };
+                } else {
+                    accounts.push(safeAcc);
+                }
+                saveStoredAccounts(accounts);
+            }
+
+            // Sync into window.PROFILES in memory
+            if (Array.isArray(window.PROFILES)) {
+                const pIdx = window.PROFILES.findIndex(p => p && (
+                    (p.email && p.email.toLowerCase() === normEmail) ||
+                    (mappedUser.id && p.id == mappedUser.id)
+                ));
+                if (pIdx !== -1) {
+                    window.PROFILES[pIdx] = { ...window.PROFILES[pIdx], ...mappedUser };
+                } else {
+                    window.PROFILES.unshift(mappedUser);
+                }
+            }
 
             state.currentUser = createSafeUserSession(mappedUser);
             state.profileComplete = true;
@@ -2256,7 +2311,8 @@ async function handleSocialUserAuthenticated(socialUser) {
                 existingProfile.payment_status === 'Active' ||
                 existingProfile.paymentStatus === 'paid' ||
                 existingProfile.paymentStatus === 'Active' ||
-                (typeof isGirlGender === 'function' && isGirlGender(existingProfile.gender))
+                (typeof isGirlGender === 'function' && isGirlGender(mappedUser.gender)) ||
+                mappedUser.gender === 'Girl'
             );
 
             saveSessionState();
@@ -2269,7 +2325,7 @@ async function handleSocialUserAuthenticated(socialUser) {
             if (typeof showToast === 'function') showToast(`Welcome back, ${displayName}! 💍`);
 
             if (typeof go === 'function') {
-                go('scr-profiles', true);
+                go('scr-home', true);
             }
         } else {
             // NEW USER: Create account record and navigate directly to Step 1 of Profile Completion!

@@ -139,15 +139,18 @@ async function renderAnalyticsPage(isManualRefresh) {
         var _isPaid = function(u) {
             if (!u) return false;
             var s = String(u.paymentStatus || u.payment_status || '').toLowerCase();
-            if (s === 'paid' || s === 'active') return true;
+            if (s === 'paid' || s === 'active' || s === 'free') return true;
             var uId = String(u.id || u.userId || '');
             var uName = String(u.name || u.fullName || '').trim().toLowerCase();
+            var uEmail = String(u.email || u.rawEmail || '').trim().toLowerCase();
             return livePayments.some(function(p){
                 if (!p) return false;
                 var ps = String(p.status || '').toLowerCase();
                 if (ps !== 'success' && ps !== 'paid') return false;
                 var pId = String(p.user_id || p.userId || '');
-                if (pId && uId && pId === uId) return true;
+                if (pId && uId && (pId === uId || pId === uEmail)) return true;
+                var pEmail = String(p.email || p.user_email || '').trim().toLowerCase();
+                if (pEmail && uEmail && pEmail === uEmail) return true;
                 var pn = String(p.user_name || p.userName || '').trim().toLowerCase();
                 if (pn && uName && pn === uName) return true;
                 return false;

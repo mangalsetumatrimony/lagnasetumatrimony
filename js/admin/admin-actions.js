@@ -125,18 +125,21 @@ window.escapeHtml = escapeHtmlAdmin;
             const checkGirl = typeof isGirlGender === 'function' ? isGirlGender : g => (g === 'girls' || g === 'Girl' || g === 'girl');
             if (checkGirl(u.gender)) return true;
             const st = String(u.paymentStatus || u.payment_status || '').trim().toLowerCase();
-            if (st === 'paid' || st === 'active') return true;
+            if (st === 'paid' || st === 'active' || st === 'free') return true;
 
             const paymentsList = (Array.isArray(window.PAYMENTS) && window.PAYMENTS.length > 0) ? window.PAYMENTS : (Array.isArray(PAYMENTS) ? PAYMENTS : []);
             if (paymentsList.length > 0) {
-                const uId = String(u.id || u.userId || '');
+                const uId = String(u.id || u.userId || u.profileId || '');
                 const uName = String(u.name || '').trim().toLowerCase();
+                const uEmail = String(u.email || u.rawEmail || '').trim().toLowerCase();
                 return paymentsList.some(p => {
                     if (!p) return false;
                     const pStatus = String(p.status || '').trim().toLowerCase();
                     if (pStatus !== 'success' && pStatus !== 'paid') return false;
                     const pUid = String(p.user_id || p.userId || '');
-                    if (pUid && uId && pUid === uId) return true;
+                    if (pUid && uId && (pUid === uId || pUid === uEmail)) return true;
+                    const pEmail = String(p.email || p.user_email || '').trim().toLowerCase();
+                    if (pEmail && uEmail && pEmail === uEmail) return true;
                     const pName = String(p.user_name || p.userName || '').trim().toLowerCase();
                     if (pName && uName && pName === uName) return true;
                     return false;
