@@ -1512,9 +1512,13 @@ async function supabaseDeleteUserCompletely(id, email, extraId, options = {}) {
         // PRIORITY 1: Call SECURITY DEFINER RPC to delete user completely from auth.users (Supabase Dashboard) + all tables
         let rpcExecuted = false;
         try {
+            const uuidInList = idList.find(i => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(i)));
+            const targetUid = uuidInList || normId || (idList[0] || '');
+            const targetEml = normEmail || (emailList[0] || '');
+
             const { data: rpcData, error: rpcErr } = await client.rpc('delete_user_account_completely', {
-                target_email: normEmail || (emailList[0] || ''),
-                target_user_id: normId || (idList[0] || '')
+                target_email: targetEml,
+                target_user_id: targetUid
             });
             if (!rpcErr && rpcData && rpcData.success) {
                 console.info('[Supabase] RPC delete_user_account_completely executed successfully:', rpcData);

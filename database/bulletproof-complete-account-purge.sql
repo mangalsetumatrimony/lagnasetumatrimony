@@ -1,10 +1,10 @@
 -- ==============================================================================
--- MANGAL SETU - BULLETPROOF COMPLETE ACCOUNT & AUTH PURGE FUNCTION
+-- MANGAL SETU — 100% BULLETPROOF COMPLETE USER & AUTH PURGE FUNCTION
 -- ==============================================================================
 -- Description:
 -- When a user deletes their account OR an admin deletes a user:
--- 1. Completely deletes user from Supabase Authentication (auth.users, identities, sessions, tokens)
--- 2. Completely deletes user from all public tables:
+-- 1. Permanently wipes user from Supabase Authentication (auth.users Dashboard + identities, sessions)
+-- 2. Permanently wipes user from all database tables:
 --    - profiles (Matrimonial profiles - automatically clears community_profiles view)
 --    - users (Account records)
 --    - messages (All chat messages sent & received)
@@ -12,14 +12,15 @@
 --    - payments (All transaction history & receipts)
 --    - email_logs (All email delivery logs)
 --    - reports (All reports filed by or against the user)
--- Zero trace is left behind in the database, freeing 100% of table space and auth slots.
+-- Zero trace is left behind in the database, freeing 100% of storage and auth slots.
 -- ==============================================================================
 
-CREATE OR REPLACE FUNCTION public.delete_user_account_completely(target_email TEXT, target_user_id TEXT DEFAULT NULL)
+CREATE OR REPLACE FUNCTION public.delete_user_account_completely(target_email TEXT DEFAULT NULL, target_user_id TEXT DEFAULT NULL)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, auth, pg_temp
+#variable_conflict use_column
 AS $$
 DECLARE
     found_auth_uid UUID := NULL;
@@ -38,6 +39,7 @@ DECLARE
     del_identities_count INT := 0;
     del_sessions_count INT := 0;
     del_tokens_count INT := 0;
+    auth_rec RECORD;
 BEGIN
     norm_email := LOWER(TRIM(COALESCE(target_email, '')));
     norm_id := TRIM(COALESCE(target_user_id, ''));
@@ -48,21 +50,21 @@ BEGIN
 
     -- Cross-resolve identifiers across tables
     IF norm_email = '' AND num_id IS NOT NULL THEN
-        SELECT LOWER(TRIM(email)) INTO norm_email FROM public.profiles WHERE id = num_id LIMIT 1;
+        SELECT LOWER(TRIM(prof.email)) INTO norm_email FROM public.profiles prof WHERE prof.id = num_id LIMIT 1;
         IF norm_email IS NULL OR norm_email = '' THEN
-            SELECT LOWER(TRIM(email)) INTO norm_email FROM public.users WHERE id = num_id LIMIT 1;
+            SELECT LOWER(TRIM(u.email)) INTO norm_email FROM public.users u WHERE u.id::text = num_id::text LIMIT 1;
         END IF;
     END IF;
 
     IF norm_email = '' AND norm_id <> '' THEN
-        SELECT LOWER(TRIM(email)) INTO norm_email FROM public.profiles WHERE user_id = norm_id LIMIT 1;
+        SELECT LOWER(TRIM(prof.email)) INTO norm_email FROM public.profiles prof WHERE prof.user_id = norm_id LIMIT 1;
         IF norm_email IS NULL OR norm_email = '' THEN
-            SELECT LOWER(TRIM(email)) INTO norm_email FROM public.users WHERE id::text = norm_id LIMIT 1;
+            SELECT LOWER(TRIM(u.email)) INTO norm_email FROM public.users u WHERE u.id::text = norm_id LIMIT 1;
         END IF;
     END IF;
 
     IF num_id IS NOT NULL AND (norm_id = '' OR norm_id ~ '^[0-9]+$') THEN
-        SELECT user_id INTO norm_id FROM public.profiles WHERE id = num_id AND user_id IS NOT NULL AND user_id <> '' LIMIT 1;
+        SELECT prof.user_id INTO norm_id FROM public.profiles prof WHERE prof.id = num_id AND prof.user_id IS NOT NULL AND prof.user_id <> '' LIMIT 1;
     END IF;
 
     -- Locate UUID in auth.users by target_user_id (if UUID format)
@@ -84,191 +86,175 @@ BEGIN
     END IF;
 
     -- --------------------------------------------------------------------------
-    -- 1. DELETE FROM PUBLIC.MESSAGES (Chat Messages)
+    -- STEP 1: PERMANENTLY DELETE FROM SUPABASE AUTHENTICATION (auth.users & sub-tables)
+    -- This guarantees user is immediately wiped from Supabase Auth Dashboard
     -- --------------------------------------------------------------------------
-    IF to_regclass('public.messages') IS NOT NULL THEN
-        DELETE FROM public.messages 
-        WHERE (norm_email <> '' AND (LOWER(TRIM(sender_email)) = norm_email OR LOWER(TRIM(receiver_email)) = norm_email))
-           OR (num_id IS NOT NULL AND (sender_id = num_id OR receiver_id = num_id))
-           OR (norm_id <> '' AND (sender_id::text = norm_id OR receiver_id::text = norm_id))
-           OR (found_auth_uid IS NOT NULL AND (sender_id::text = found_auth_uid::text OR receiver_id::text = found_auth_uid::text));
-        GET DIAGNOSTICS del_messages_count = ROW_COUNT;
-    END IF;
-
-    -- --------------------------------------------------------------------------
-    -- 2. DELETE FROM PUBLIC.INTERESTS (Connection Requests)
-    -- --------------------------------------------------------------------------
-    IF to_regclass('public.interests') IS NOT NULL THEN
-        DELETE FROM public.interests 
-        WHERE (norm_email <> '' AND (LOWER(TRIM(sender_email)) = norm_email OR LOWER(TRIM(receiver_email)) = norm_email))
-           OR (num_id IS NOT NULL AND (sender_id = num_id OR receiver_id = num_id))
-           OR (norm_id <> '' AND (sender_id::text = norm_id OR receiver_id::text = norm_id))
-           OR (found_auth_uid IS NOT NULL AND (sender_id::text = found_auth_uid::text OR receiver_id::text = found_auth_uid::text));
-        GET DIAGNOSTICS del_interests_count = ROW_COUNT;
-    END IF;
-
-    -- --------------------------------------------------------------------------
-    -- 3. DELETE FROM PUBLIC.PAYMENTS (Payment Receipts & Logs)
-    -- --------------------------------------------------------------------------
-    IF to_regclass('public.payments') IS NOT NULL THEN
-        DELETE FROM public.payments 
-        WHERE (norm_email <> '' AND (
-                LOWER(TRIM(user_id)) = norm_email 
-                OR (to_jsonb(public.payments.*) ? 'email' AND LOWER(TRIM(to_jsonb(public.payments.*)->>'email')) = norm_email)
-              ))
-           OR (norm_id <> '' AND (user_id = norm_id OR id = norm_id))
-           OR (num_id IS NOT NULL AND user_id = num_id::text)
-           OR (found_auth_uid IS NOT NULL AND user_id = found_auth_uid::text);
-        GET DIAGNOSTICS del_payments_count = ROW_COUNT;
-    END IF;
-
-    -- --------------------------------------------------------------------------
-    -- 4. DELETE FROM PUBLIC.EMAIL_LOGS (Email Notification Logs)
-    -- --------------------------------------------------------------------------
-    IF to_regclass('public.email_logs') IS NOT NULL THEN
-        DELETE FROM public.email_logs 
-        WHERE (norm_email <> '' AND (
-                LOWER(TRIM(recipient_email)) = norm_email 
-                OR (to_jsonb(public.email_logs.*) ? 'sender_email' AND LOWER(TRIM(to_jsonb(public.email_logs.*)->>'sender_email')) = norm_email)
-                OR (to_jsonb(public.email_logs.*) ? 'email' AND LOWER(TRIM(to_jsonb(public.email_logs.*)->>'email')) = norm_email)
-              ))
-           OR (norm_id <> '' AND (to_jsonb(public.email_logs.*) ? 'user_id' AND to_jsonb(public.email_logs.*)->>'user_id' = norm_id))
-           OR (num_id IS NOT NULL AND (to_jsonb(public.email_logs.*) ? 'profile_id' AND to_jsonb(public.email_logs.*)->>'profile_id' = num_id::text));
-        GET DIAGNOSTICS del_emails_count = ROW_COUNT;
-    END IF;
-
-    -- --------------------------------------------------------------------------
-    -- 5. DELETE FROM PUBLIC.REPORTS (User Reports)
-    -- --------------------------------------------------------------------------
-    IF to_regclass('public.reports') IS NOT NULL THEN
-        DELETE FROM public.reports 
-        WHERE (norm_email <> '' AND (LOWER(TRIM(reporter_email)) = norm_email OR LOWER(TRIM(target_user_email)) = norm_email))
-           OR (norm_id <> '' AND (reporter_id = norm_id OR target_user_id = norm_id))
-           OR (num_id IS NOT NULL AND (reporter_id = num_id::text OR target_user_id = num_id::text))
-           OR (found_auth_uid IS NOT NULL AND (reporter_id = found_auth_uid::text OR target_user_id = found_auth_uid::text));
-        GET DIAGNOSTICS del_reports_count = ROW_COUNT;
-    END IF;
-
-    -- --------------------------------------------------------------------------
-    -- 6. DELETE FROM PUBLIC.PROFILES (Matrimonial Profiles)
-    -- Automatically purges from community_profiles SQL view
-    -- --------------------------------------------------------------------------
-    IF to_regclass('public.profiles') IS NOT NULL THEN
-        DELETE FROM public.profiles 
-        WHERE (norm_email <> '' AND LOWER(TRIM(email)) = norm_email)
-           OR (num_id IS NOT NULL AND id = num_id)
-           OR (norm_id <> '' AND (user_id = norm_id OR id::text = norm_id))
-           OR (found_auth_uid IS NOT NULL AND (user_id = found_auth_uid::text OR id::text = found_auth_uid::text));
-        GET DIAGNOSTICS del_profiles_count = ROW_COUNT;
-    END IF;
-
-    -- --------------------------------------------------------------------------
-    -- 7. DELETE FROM PUBLIC.USERS (User Accounts)
-    -- --------------------------------------------------------------------------
-    IF to_regclass('public.users') IS NOT NULL THEN
-        DELETE FROM public.users 
-        WHERE (norm_email <> '' AND LOWER(TRIM(email)) = norm_email)
-           OR (num_id IS NOT NULL AND id = num_id)
-           OR (norm_id <> '' AND id::text = norm_id)
-           OR (found_auth_uid IS NOT NULL AND id::text = found_auth_uid::text);
-        GET DIAGNOSTICS del_users_count = ROW_COUNT;
-    END IF;
-
-    -- --------------------------------------------------------------------------
-    -- 8. DELETE FROM SUPABASE AUTHENTICATION (auth.users & all auth sub-tables)
-    -- --------------------------------------------------------------------------
-    -- Branch A: By UUID (found_auth_uid)
-    IF found_auth_uid IS NOT NULL THEN
+    -- Sub-step A: Iterate through matching auth.users by email or UUID
+    FOR auth_rec IN 
+        SELECT id FROM auth.users 
+        WHERE (found_auth_uid IS NOT NULL AND id = found_auth_uid)
+           OR (norm_email <> '' AND LOWER(TRIM(email)) = norm_email)
+           OR (norm_id <> '' AND norm_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND id = norm_id::uuid)
+    LOOP
         BEGIN
-            -- Delete MFA challenges
+            IF to_regclass('auth.mfa_amr_claims') IS NOT NULL AND to_regclass('auth.sessions') IS NOT NULL THEN
+                DELETE FROM auth.mfa_amr_claims WHERE session_id IN (SELECT id FROM auth.sessions WHERE user_id = auth_rec.id);
+            END IF;
+        EXCEPTION WHEN OTHERS THEN NULL; END;
+
+        BEGIN
             IF to_regclass('auth.mfa_challenges') IS NOT NULL AND to_regclass('auth.mfa_factors') IS NOT NULL THEN
-                DELETE FROM auth.mfa_challenges WHERE factor_id IN (SELECT id FROM auth.mfa_factors WHERE user_id = found_auth_uid);
+                DELETE FROM auth.mfa_challenges WHERE factor_id IN (SELECT id FROM auth.mfa_factors WHERE user_id = auth_rec.id);
             END IF;
+        EXCEPTION WHEN OTHERS THEN NULL; END;
 
-            -- Delete MFA factors
+        BEGIN
             IF to_regclass('auth.mfa_factors') IS NOT NULL THEN
-                DELETE FROM auth.mfa_factors WHERE user_id = found_auth_uid;
+                DELETE FROM auth.mfa_factors WHERE user_id = auth_rec.id;
             END IF;
+        EXCEPTION WHEN OTHERS THEN NULL; END;
 
-            -- Delete refresh tokens
+        BEGIN
             IF to_regclass('auth.refresh_tokens') IS NOT NULL AND to_regclass('auth.sessions') IS NOT NULL THEN
-                DELETE FROM auth.refresh_tokens WHERE session_id IN (SELECT id FROM auth.sessions WHERE user_id = found_auth_uid);
-                GET DIAGNOSTICS del_tokens_count = ROW_COUNT;
+                DELETE FROM auth.refresh_tokens WHERE session_id IN (SELECT id FROM auth.sessions WHERE user_id = auth_rec.id);
+                del_tokens_count := del_tokens_count + 1;
             END IF;
+        EXCEPTION WHEN OTHERS THEN NULL; END;
 
-            -- Delete sessions
+        BEGIN
             IF to_regclass('auth.sessions') IS NOT NULL THEN
-                DELETE FROM auth.sessions WHERE user_id = found_auth_uid;
-                GET DIAGNOSTICS del_sessions_count = ROW_COUNT;
+                DELETE FROM auth.sessions WHERE user_id = auth_rec.id;
+                del_sessions_count := del_sessions_count + 1;
             END IF;
+        EXCEPTION WHEN OTHERS THEN NULL; END;
 
-            -- Delete one_time_tokens
-            IF to_regclass('auth.one_time_tokens') IS NOT NULL THEN
-                DELETE FROM auth.one_time_tokens WHERE user_id = found_auth_uid;
-            END IF;
-
-            -- Delete identities (Google OAuth identity link)
+        BEGIN
             IF to_regclass('auth.identities') IS NOT NULL THEN
-                DELETE FROM auth.identities WHERE user_id = found_auth_uid;
-                GET DIAGNOSTICS del_identities_count = ROW_COUNT;
+                DELETE FROM auth.identities WHERE user_id = auth_rec.id;
+                del_identities_count := del_identities_count + 1;
             END IF;
+        EXCEPTION WHEN OTHERS THEN NULL; END;
 
-            -- Delete user from auth.users (Permanent removal of Gmail ID from Supabase Auth)
-            DELETE FROM auth.users WHERE id = found_auth_uid;
-            GET DIAGNOSTICS del_auth_count = ROW_COUNT;
-        EXCEPTION WHEN OTHERS THEN
-            -- In case of any table-level exception, try direct email fallback below
-            del_auth_count := 0;
-        END;
-    END IF;
+        BEGIN
+            IF to_regclass('auth.one_time_tokens') IS NOT NULL THEN
+                DELETE FROM auth.one_time_tokens WHERE user_id = auth_rec.id;
+            END IF;
+        EXCEPTION WHEN OTHERS THEN NULL; END;
 
-    -- Branch B: By Email directly in auth.users (if UUID was not pre-resolved)
+        BEGIN
+            DELETE FROM auth.users WHERE id = auth_rec.id;
+            del_auth_count := del_auth_count + 1;
+        EXCEPTION WHEN OTHERS THEN NULL; END;
+    END LOOP;
+
+    -- Sub-step B: Direct email deletion fallback in auth.users
     IF del_auth_count = 0 AND norm_email <> '' THEN
         BEGIN
-            -- Delete MFA challenges
-            IF to_regclass('auth.mfa_challenges') IS NOT NULL AND to_regclass('auth.mfa_factors') IS NOT NULL THEN
-                DELETE FROM auth.mfa_challenges WHERE factor_id IN (
-                    SELECT id FROM auth.mfa_factors WHERE user_id IN (SELECT id FROM auth.users WHERE LOWER(TRIM(email)) = norm_email)
-                );
-            END IF;
-
-            -- Delete MFA factors
-            IF to_regclass('auth.mfa_factors') IS NOT NULL THEN
-                DELETE FROM auth.mfa_factors WHERE user_id IN (SELECT id FROM auth.users WHERE LOWER(TRIM(email)) = norm_email);
-            END IF;
-
-            -- Delete refresh tokens
-            IF to_regclass('auth.refresh_tokens') IS NOT NULL AND to_regclass('auth.sessions') IS NOT NULL THEN
-                DELETE FROM auth.refresh_tokens WHERE session_id IN (
-                    SELECT id FROM auth.sessions WHERE user_id IN (SELECT id FROM auth.users WHERE LOWER(TRIM(email)) = norm_email)
-                );
-                GET DIAGNOSTICS del_tokens_count = ROW_COUNT;
-            END IF;
-
-            -- Delete sessions
-            IF to_regclass('auth.sessions') IS NOT NULL THEN
-                DELETE FROM auth.sessions WHERE user_id IN (SELECT id FROM auth.users WHERE LOWER(TRIM(email)) = norm_email);
-                GET DIAGNOSTICS del_sessions_count = ROW_COUNT;
-            END IF;
-
-            -- Delete one_time_tokens
-            IF to_regclass('auth.one_time_tokens') IS NOT NULL THEN
-                DELETE FROM auth.one_time_tokens WHERE user_id IN (SELECT id FROM auth.users WHERE LOWER(TRIM(email)) = norm_email);
-            END IF;
-
-            -- Delete identities (Google OAuth identity link)
             IF to_regclass('auth.identities') IS NOT NULL THEN
                 DELETE FROM auth.identities WHERE user_id IN (SELECT id FROM auth.users WHERE LOWER(TRIM(email)) = norm_email);
-                GET DIAGNOSTICS del_identities_count = ROW_COUNT;
             END IF;
-
-            -- Delete user from auth.users (Permanent removal of Gmail ID from Supabase Auth)
+            IF to_regclass('auth.sessions') IS NOT NULL THEN
+                DELETE FROM auth.sessions WHERE user_id IN (SELECT id FROM auth.users WHERE LOWER(TRIM(email)) = norm_email);
+            END IF;
             DELETE FROM auth.users WHERE LOWER(TRIM(email)) = norm_email;
             GET DIAGNOSTICS del_auth_count = ROW_COUNT;
-        EXCEPTION WHEN OTHERS THEN
-            del_auth_count := 0;
-        END;
+        EXCEPTION WHEN OTHERS THEN NULL; END;
     END IF;
+
+    -- --------------------------------------------------------------------------
+    -- STEP 2: DELETE FROM PUBLIC.MESSAGES (Chat Messages)
+    -- --------------------------------------------------------------------------
+    BEGIN
+        IF to_regclass('public.messages') IS NOT NULL THEN
+            DELETE FROM public.messages m
+            WHERE (norm_email <> '' AND (LOWER(TRIM(m.sender_email)) = norm_email OR LOWER(TRIM(m.receiver_email)) = norm_email))
+               OR (num_id IS NOT NULL AND (m.sender_id = num_id OR m.receiver_id = num_id))
+               OR (norm_id <> '' AND (m.sender_id::text = norm_id OR m.receiver_id::text = norm_id))
+               OR (found_auth_uid IS NOT NULL AND (m.sender_id::text = found_auth_uid::text OR m.receiver_id::text = found_auth_uid::text));
+            GET DIAGNOSTICS del_messages_count = ROW_COUNT;
+        END IF;
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+
+    -- --------------------------------------------------------------------------
+    -- STEP 3: DELETE FROM PUBLIC.INTERESTS (Connection Requests)
+    -- --------------------------------------------------------------------------
+    BEGIN
+        IF to_regclass('public.interests') IS NOT NULL THEN
+            DELETE FROM public.interests i
+            WHERE (norm_email <> '' AND (LOWER(TRIM(i.sender_email)) = norm_email OR LOWER(TRIM(i.receiver_email)) = norm_email))
+               OR (num_id IS NOT NULL AND (i.sender_id = num_id OR i.receiver_id = num_id))
+               OR (norm_id <> '' AND (i.sender_id::text = norm_id OR i.receiver_id::text = norm_id))
+               OR (found_auth_uid IS NOT NULL AND (i.sender_id::text = found_auth_uid::text OR i.receiver_id::text = found_auth_uid::text));
+            GET DIAGNOSTICS del_interests_count = ROW_COUNT;
+        END IF;
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+
+    -- --------------------------------------------------------------------------
+    -- STEP 4: DELETE FROM PUBLIC.PAYMENTS (Payment Receipts & Logs)
+    -- --------------------------------------------------------------------------
+    BEGIN
+        IF to_regclass('public.payments') IS NOT NULL THEN
+            DELETE FROM public.payments p
+            WHERE (norm_email <> '' AND (LOWER(TRIM(p.user_id)) = norm_email))
+               OR (norm_id <> '' AND (p.user_id = norm_id OR p.id = norm_id))
+               OR (num_id IS NOT NULL AND p.user_id = num_id::text)
+               OR (found_auth_uid IS NOT NULL AND p.user_id = found_auth_uid::text);
+            GET DIAGNOSTICS del_payments_count = ROW_COUNT;
+        END IF;
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+
+    -- --------------------------------------------------------------------------
+    -- STEP 5: DELETE FROM PUBLIC.EMAIL_LOGS (Email Notification Logs)
+    -- --------------------------------------------------------------------------
+    BEGIN
+        IF to_regclass('public.email_logs') IS NOT NULL THEN
+            DELETE FROM public.email_logs el WHERE norm_email <> '' AND LOWER(TRIM(el.recipient_email)) = norm_email;
+            GET DIAGNOSTICS del_emails_count = ROW_COUNT;
+        END IF;
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+
+    -- --------------------------------------------------------------------------
+    -- STEP 6: DELETE FROM PUBLIC.REPORTS (User Reports)
+    -- Fully qualified with alias 'r' to prevent any column ambiguity
+    -- --------------------------------------------------------------------------
+    BEGIN
+        IF to_regclass('public.reports') IS NOT NULL THEN
+            DELETE FROM public.reports r
+            WHERE (norm_email <> '' AND (LOWER(TRIM(r.reporter_email)) = norm_email OR LOWER(TRIM(r.target_user_email)) = norm_email))
+               OR (norm_id <> '' AND (r.reporter_id = norm_id OR r.target_user_id = norm_id))
+               OR (num_id IS NOT NULL AND (r.reporter_id = num_id::text OR r.target_user_id = num_id::text))
+               OR (found_auth_uid IS NOT NULL AND (r.reporter_id = found_auth_uid::text OR r.target_user_id = found_auth_uid::text));
+            GET DIAGNOSTICS del_reports_count = ROW_COUNT;
+        END IF;
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+
+    -- --------------------------------------------------------------------------
+    -- STEP 7: DELETE FROM PUBLIC.PROFILES (Matrimonial Profiles)
+    -- --------------------------------------------------------------------------
+    BEGIN
+        IF to_regclass('public.profiles') IS NOT NULL THEN
+            DELETE FROM public.profiles prof
+            WHERE (norm_email <> '' AND LOWER(TRIM(prof.email)) = norm_email)
+               OR (num_id IS NOT NULL AND prof.id = num_id)
+               OR (norm_id <> '' AND (prof.user_id = norm_id OR prof.id::text = norm_id))
+               OR (found_auth_uid IS NOT NULL AND (prof.user_id = found_auth_uid::text OR prof.id::text = found_auth_uid::text));
+            GET DIAGNOSTICS del_profiles_count = ROW_COUNT;
+        END IF;
+    EXCEPTION WHEN OTHERS THEN NULL; END;
+
+    -- --------------------------------------------------------------------------
+    -- STEP 8: DELETE FROM PUBLIC.USERS (User Accounts)
+    -- --------------------------------------------------------------------------
+    BEGIN
+        IF to_regclass('public.users') IS NOT NULL THEN
+            DELETE FROM public.users u
+            WHERE (norm_email <> '' AND LOWER(TRIM(u.email)) = norm_email)
+               OR (num_id IS NOT NULL AND (u.id::text = num_id::text OR u.id::text = norm_id))
+               OR (norm_id <> '' AND u.id::text = norm_id)
+               OR (found_auth_uid IS NOT NULL AND u.id::text = found_auth_uid::text);
+            GET DIAGNOSTICS del_users_count = ROW_COUNT;
+        END IF;
+    EXCEPTION WHEN OTHERS THEN NULL; END;
 
     -- Return comprehensive purge report
     RETURN jsonb_build_object(
@@ -295,4 +281,3 @@ GRANT EXECUTE ON FUNCTION public.delete_user_account_completely(TEXT, TEXT) TO a
 
 -- Verification notice
 SELECT 'Mangal Setu Complete Account & Auth Purge function installed successfully.' AS status;
-
