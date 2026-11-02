@@ -549,33 +549,58 @@ function refreshProfileButtons() {
 }
 
 function setInterestBtnState(btn, pid) {
-    const status = interestStatusFor(pid);
-    if (status === 'accepted') {
-        btn.innerHTML = '<i class="fa-solid fa-comment-dots"></i> Message (Text Only)';
-        btn.className = 'btn btn-primary';
-        btn.onclick = () => openChatFor(pid);
-        btn.disabled = false;
-    } else if (status === 'disconnected') {
-        btn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Re-connect (ફરી રિક્વેસ્ટ મોકલો)';
-        btn.className = 'btn btn-gold';
-        btn.onclick = () => openInterestModal(pid);
-        btn.disabled = false;
-    } else if (status === 'pending') {
-        btn.innerHTML = '<i class="fa-solid fa-clock"></i> Request sent';
-        btn.className = 'btn btn-outline';
-        btn.onclick = null;
-        btn.disabled = true;
-    } else if (status === 'declined') {
-        btn.innerHTML = '<i class="fa-solid fa-ban"></i> Request declined';
-        btn.className = 'btn btn-outline';
-        btn.onclick = null;
-        btn.disabled = true;
-    } else {
-        btn.innerHTML = '<i class="fa-solid fa-heart-circle-check"></i> I\'m interested';
-        btn.className = 'btn btn-gold';
-        btn.onclick = () => openInterestModal(pid);
-        btn.disabled = false;
+    if (!btn) return;
+    const profileId = Number(pid);
+    btn.dataset.pid = profileId;
+
+    const status = (typeof interestStatusFor === 'function') 
+        ? interestStatusFor(profileId) 
+        : (typeof getEffectiveInterestStatus === 'function' ? getEffectiveInterestStatus(profileId) : null);
+
+    btn.classList.remove('btn-sent', 'btn-accepted');
+    btn.removeAttribute('disabled');
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+
+    const discWrap = document.getElementById('profileDisconnectActionWrap');
+    if (discWrap) {
+        discWrap.style.display = (status === 'accepted') ? 'block' : 'none';
     }
+
+    if (status === 'accepted') {
+        btn.classList.add('btn-accepted');
+        btn.innerHTML = '<i class="fa-solid fa-comment-dots"></i> Message (Text Only)';
+        btn.className = 'btn btn-primary btn-grow';
+        btn.onclick = () => openChatFor(profileId);
+        return;
+    }
+    if (status === 'pending') {
+        btn.classList.add('btn-sent');
+        btn.innerHTML = '<i class="fa-solid fa-clock"></i> Request sent';
+        btn.className = 'btn btn-outline btn-grow';
+        btn.onclick = () => showToast('Interest request already sent. Waiting for acceptance.');
+        btn.disabled = true;
+        return;
+    }
+    if (status === 'declined') {
+        btn.innerHTML = '<i class="fa-solid fa-ban"></i> Request declined';
+        btn.className = 'btn btn-outline btn-grow';
+        btn.onclick = () => showToast('This request was declined.');
+        btn.disabled = true;
+        return;
+    }
+    if (status === 'disconnected') {
+        btn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Re-connect (ફરી રિક્વેસ્ટ મોકલો)';
+        btn.className = 'btn btn-gold btn-grow';
+        btn.disabled = false;
+        btn.onclick = () => openInterestModal(profileId);
+        return;
+    }
+
+    btn.innerHTML = '<i class="fa-solid fa-heart-circle-check"></i> I\'m interested';
+    btn.className = 'btn btn-gold btn-grow';
+    btn.disabled = false;
+    btn.onclick = () => openInterestModal(profileId);
 }
 
 /* ============================================================ INBOX & CHAT ============================================================ */
@@ -1327,6 +1352,8 @@ function openChatFor(profileId) {
             showToast(`🔒 Chat is locked. Messaging unlocks as soon as ${p ? p.name : 'member'} accepts your interest request.`);
         } else if (status === 'declined') {
             showToast(`🔒 Chat unavailable. This interest request was declined.`);
+        } else if (status === 'disconnected') {
+            showToast(`🔒 Chat is locked. Connection has ended. Send a re-connect request if you wish to talk again.`);
         } else {
             showToast(`🔒 Chat is locked. Please send an interest request first — chat unlocks once accepted.`);
             if (p && typeof openInterestModal === 'function') {
@@ -1784,7 +1811,16 @@ let pendingDisconnectPid = null;
 function promptDisconnectConnection(targetPid) {
     const pid = targetPid !== undefined ? targetPid : state.activeChatId;
     if (!pid) return;
+
+    // Security Gatekeeper: Only permit disconnect prompt if connection is currently accepted
+    const status = (typeof interestStatusFor === 'function') ? interestStatusFor(pid) : null;
+    if (status !== 'accepted') {
+        showToast('You are not currently connected with this member.');
+        return;
+    }
+
     pendingDisconnectPid = pid;
+    if (typeof window !== 'undefined') window.pendingDisconnectPid = pid;
 
     const p = (typeof findProfile === 'function') ? findProfile(pid) : null;
     const name = p ? p.name : 'this member';
@@ -1797,8 +1833,8 @@ function promptDisconnectConnection(targetPid) {
     openModal('modalDisconnectMatch');
 }
 
-async function confirmDisconnectConnection() {
-    const pid = pendingDisconnectPid || state.activeChatId;
+async function confirmDisconnectConnection(targetPid) {
+    const pid = targetPid || pendingDisconnectPid || (typeof window !== 'undefined' && window.pendingDisconnectPid) || state.activeChatId;
     if (!pid || !state.currentUser) {
         closeModal('modalDisconnectMatch');
         return;
@@ -1806,6 +1842,19 @@ async function confirmDisconnectConnection() {
 
     const numPid = Number(pid);
     const myId = state.currentUser.id || state.currentUser.profileId;
+    let resolvedMyNumericId = 0;
+    if (state.currentUser.profileId && !isNaN(Number(state.currentUser.profileId))) {
+        resolvedMyNumericId = Number(state.currentUser.profileId);
+    } else if (state.currentUser.id && !isNaN(Number(state.currentUser.id))) {
+        resolvedMyNumericId = Number(state.currentUser.id);
+    }
+    if (!resolvedMyNumericId && typeof getCurrentUserProfile === 'function') {
+        const prof = getCurrentUserProfile();
+        if (prof && prof.id && !isNaN(Number(prof.id))) {
+            resolvedMyNumericId = Number(prof.id);
+        }
+    }
+
     const myEmail = (state.currentUser.email || '').trim().toLowerCase();
     const p = (typeof findProfile === 'function') ? findProfile(pid) : null;
     const peerName = p ? p.name : 'Member';
@@ -1857,6 +1906,7 @@ async function confirmDisconnectConnection() {
 
         // 2. Remove from active chat threads and clear cache
         CHAT_THREADS = CHAT_THREADS.filter(t => Number(t.profileId) !== numPid && String(t.profileId) !== String(pid));
+        if (typeof window !== 'undefined') window.CHAT_THREADS = CHAT_THREADS;
         if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE) {
             window.AUTHORIZED_CONTACT_CACHE.delete(numPid);
         }
@@ -1869,9 +1919,9 @@ async function confirmDisconnectConnection() {
 
         saveSessionState();
 
-        // 3. Persist to Supabase Database
+        // 3. Persist to Supabase Database with parallel execution & realtime broadcast
         if (typeof supabaseDisconnectConnection === 'function') {
-            supabaseDisconnectConnection(myId, pid, myEmail, cleanPeerEmail).catch(e => {
+            supabaseDisconnectConnection(resolvedMyNumericId || myId, pid, myEmail, cleanPeerEmail).catch(e => {
                 console.warn('[Chat] Supabase disconnect error:', e);
             });
         }
@@ -1921,6 +1971,8 @@ async function confirmDisconnectConnection() {
         }
         const fullBtn = document.getElementById('fullInterestBtn');
         if (fullBtn) setInterestBtnState(fullBtn, pid);
+        const discWrap = document.getElementById('profileDisconnectActionWrap');
+        if (discWrap) discWrap.style.display = 'none';
     }
     updateInboxBadge();
     if (typeof renderInbox === 'function') renderInbox();
@@ -2042,6 +2094,13 @@ function sendChatMessage() {
         return;
     }
     if (!state.profileComplete) { openModal('modalCompleteProfile'); return; }
+    const activePid = state.activeChatId;
+    const connStatus = (typeof interestStatusFor === 'function') ? interestStatusFor(activePid) : null;
+    if (connStatus !== 'accepted') {
+        showToast('Connection ended. Messaging is no longer available.');
+        if (typeof go === 'function') go('scr-inbox', true);
+        return;
+    }
     const input = document.getElementById('chatInput');
     if (!input) return;
     const text = input.value.trim();
@@ -2639,6 +2698,17 @@ function handleRealtimeInterestUpdate(dbInterest) {
         if (activeScreen && activeScreen.id === 'scr-chat' && Number(state.activeChatId) === peerId) {
             showToast(`${resolvedName} ended the connection. Chat closed.`);
             go('scr-inbox', true);
+        } else if (activeScreen && activeScreen.id === 'scr-profile') {
+            const curViewId = window.currentViewingProfileId || state.activeProfileId;
+            if (Number(curViewId) === peerId) {
+                if (typeof refreshProfileContactState === 'function') {
+                    refreshProfileContactState(peerId);
+                }
+                const fullBtn = document.getElementById('fullInterestBtn');
+                if (fullBtn) setInterestBtnState(fullBtn, peerId);
+                const discWrap = document.getElementById('profileDisconnectActionWrap');
+                if (discWrap) discWrap.style.display = 'none';
+            }
         }
     }
 
@@ -2729,6 +2799,105 @@ function handleRealtimeInterestInsert(dbInterest) {
     }
 }
 
+/**
+ * Ultra-fast Realtime Peer Disconnect handler (<50ms):
+ * Dispatched instantly when a connection is severed by either member.
+ */
+function handleRealtimePeerDisconnect(data) {
+    if (!data || !state.currentUser) return;
+    const myId = Number(state.currentUser.id || 0);
+    const myProfId = Number(state.currentUser.profileId || 0);
+    const myEmail = (state.currentUser.email || '').trim().toLowerCase();
+
+    const dMyId = Number(data.disconnectorId || 0);
+    const dPeerId = Number(data.peerId || 0);
+    const dMyEmail = (data.disconnectorEmail || '').trim().toLowerCase();
+    const dPeerEmail = (data.peerEmail || '').trim().toLowerCase();
+
+    // Check if current user is the target peer or the disconnector
+    const isMeTarget = (myId && dPeerId === myId) ||
+                       (myProfId && dPeerId === myProfId) ||
+                       (myEmail && dPeerEmail === myEmail);
+    const isMeSender = (myId && dMyId === myId) ||
+                       (myProfId && dMyId === myProfId) ||
+                       (myEmail && dMyEmail === myEmail);
+
+    if (!isMeTarget && !isMeSender) return;
+
+    const targetPeerId = isMeTarget ? dMyId : dPeerId;
+    const targetPeerEmail = isMeTarget ? dMyEmail : dPeerEmail;
+
+    // 1. Update state.interests
+    if (Array.isArray(state.interests)) {
+        state.interests.forEach(i => {
+            if (Number(i.profileId) === targetPeerId || Number(i.senderId) === targetPeerId || Number(i.receiverId) === targetPeerId ||
+                (targetPeerEmail && (i.senderEmail?.toLowerCase() === targetPeerEmail || i.receiverEmail?.toLowerCase() === targetPeerEmail))) {
+                i.status = 'disconnected';
+            }
+        });
+    }
+
+    // 2. Update INCOMING_REQUESTS & OUTGOING_REQUESTS
+    if (typeof INCOMING_REQUESTS !== 'undefined' && Array.isArray(INCOMING_REQUESTS)) {
+        INCOMING_REQUESTS.forEach(i => {
+            if (Number(i.profileId) === targetPeerId || Number(i.senderId) === targetPeerId ||
+                (targetPeerEmail && i.senderEmail?.toLowerCase() === targetPeerEmail)) {
+                i.status = 'disconnected';
+            }
+        });
+    }
+    if (typeof OUTGOING_REQUESTS !== 'undefined' && Array.isArray(OUTGOING_REQUESTS)) {
+        OUTGOING_REQUESTS.forEach(i => {
+            if (Number(i.profileId) === targetPeerId || Number(i.receiverId) === targetPeerId ||
+                (targetPeerEmail && i.receiverEmail?.toLowerCase() === targetPeerEmail)) {
+                i.status = 'disconnected';
+            }
+        });
+    }
+
+    // 3. Remove from CHAT_THREADS
+    if (Array.isArray(CHAT_THREADS)) {
+        CHAT_THREADS = CHAT_THREADS.filter(t => Number(t.profileId) !== targetPeerId && (!targetPeerEmail || t.peerEmail?.toLowerCase() !== targetPeerEmail));
+        if (typeof window !== 'undefined') window.CHAT_THREADS = CHAT_THREADS;
+    }
+
+    // 4. Invalidate contact cache
+    if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE) {
+        window.AUTHORIZED_CONTACT_CACHE.delete(targetPeerId);
+    }
+    const peerProf = (typeof findProfile === 'function') ? findProfile(targetPeerId, targetPeerEmail) : null;
+    if (peerProf) {
+        peerProf.fatherMobile = '••••••';
+        peerProf.ownMobile = '••••••';
+        peerProf.rawFatherMobile = '••••••';
+        peerProf.rawOwnMobile = '••••••';
+    }
+
+    saveSessionState();
+    updateInboxBadge();
+    if (typeof renderInbox === 'function') renderInbox();
+
+    // 5. Active screen handling
+    const activeScreen = document.querySelector('.screen.active');
+    if (activeScreen && activeScreen.id === 'scr-chat' && Number(state.activeChatId) === targetPeerId) {
+        const peerName = (data.disconnectorName && isMeTarget) ? data.disconnectorName : (peerProf ? peerProf.name : 'Member');
+        showToast(`Connection ended with ${peerName}. Chat closed.`);
+        go('scr-inbox', true);
+    } else if (activeScreen && activeScreen.id === 'scr-profile') {
+        const curViewId = window.currentViewingProfileId || state.activeProfileId;
+        if (Number(curViewId) === targetPeerId) {
+            if (typeof refreshProfileContactState === 'function') {
+                refreshProfileContactState(targetPeerId);
+            }
+            const fullBtn = document.getElementById('fullInterestBtn');
+            if (fullBtn) setInterestBtnState(fullBtn, targetPeerId);
+            const discWrap = document.getElementById('profileDisconnectActionWrap');
+            if (discWrap) discWrap.style.display = 'none';
+        }
+    }
+}
+window.handleRealtimePeerDisconnect = handleRealtimePeerDisconnect;
+
 // Global Window Exports
 if (typeof updateInboxBadge !== 'undefined') window.updateInboxBadge = updateInboxBadge;
 if (typeof getInboxBadgeCount !== 'undefined') window.getInboxBadgeCount = getInboxBadgeCount;
@@ -2750,6 +2919,9 @@ if (typeof promptDeleteChatMessage !== 'undefined') window.promptDeleteChatMessa
 if (typeof confirmDeleteChatMessage !== 'undefined') window.confirmDeleteChatMessage = confirmDeleteChatMessage;
 if (typeof promptClearChatHistory !== 'undefined') window.promptClearChatHistory = promptClearChatHistory;
 if (typeof confirmClearChatHistory !== 'undefined') window.confirmClearChatHistory = confirmClearChatHistory;
+if (typeof promptDisconnectConnection !== 'undefined') window.promptDisconnectConnection = promptDisconnectConnection;
+if (typeof confirmDisconnectConnection !== 'undefined') window.confirmDisconnectConnection = confirmDisconnectConnection;
+if (typeof handleRealtimePeerDisconnect !== 'undefined') window.handleRealtimePeerDisconnect = handleRealtimePeerDisconnect;
 if (typeof promptDisconnectConnection !== 'undefined') window.promptDisconnectConnection = promptDisconnectConnection;
 if (typeof confirmDisconnectConnection !== 'undefined') window.confirmDisconnectConnection = confirmDisconnectConnection;
 if (typeof CHAT_THREADS !== 'undefined') window.CHAT_THREADS = CHAT_THREADS;

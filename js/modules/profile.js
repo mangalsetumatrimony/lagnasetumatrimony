@@ -813,6 +813,11 @@ function setInterestBtnState(btn, pid) {
     btn.style.opacity = '1';
     btn.style.cursor = 'pointer';
 
+    const discWrap = document.getElementById('profileDisconnectActionWrap');
+    if (discWrap) {
+        discWrap.style.display = (status === 'accepted') ? 'block' : 'none';
+    }
+
     if (status === 'accepted') {
         btn.classList.add('btn-accepted');
         btn.innerHTML = '<i class="fa-solid fa-comment-dots"></i> Message (Text Only)';
@@ -1241,11 +1246,11 @@ function openProfile(id) {
                 <div class="section-label">Interested?</div>
                 <p class="p-muted" style="margin-top:-8px;margin-bottom:12px;">Send an interest request — if accepted, chat, family details &amp; location unlock directly.</p>
                 <button class="btn btn-gold" id="fullInterestBtn" data-pid="${p.id}"><i class="fa-solid fa-heart-circle-check"></i> I'm interested</button>
-                ${unlocked ? `
-                    <button class="btn btn-outline" type="button" style="margin-top:10px;border-color:rgba(239,68,68,0.3);color:var(--error,#ef4444);font-size:13px;font-weight:700;" onclick="promptDisconnectConnection(${p.id})">
+                <div id="profileDisconnectActionWrap" style="display:${unlocked ? 'block' : 'none'};">
+                    <button class="btn btn-outline" type="button" style="width:100%;margin-top:10px;border-color:rgba(239,68,68,0.3);color:var(--error,#ef4444);font-size:13px;font-weight:700;" onclick="promptDisconnectConnection(${p.id})">
                         <i class="fa-solid fa-user-slash"></i> Disconnect Match (સંબંધ સમાપ્ત કરો)
                     </button>
-                ` : ''}
+                </div>
             `}
 
             ${!isSelf ? `<button class="btn btn-ghost" style="margin-top:22px;color:var(--error);" onclick="openQuickReport(${p.id})"><i class="fa-solid fa-flag"></i> Report this profile</button>` : ''}
@@ -1609,8 +1614,12 @@ function refreshProfileContactState(profileId) {
             if (wrap && typeof renderFatherContactSection === 'function') {
                 wrap.outerHTML = renderFatherContactSection(p);
             }
-            // 5. Authorized real contact reveal if unlocked
+            // 5. Refresh Disconnect button visibility
             const isUnlocked = (typeof isProfileDetailsUnlocked === 'function') ? isProfileDetailsUnlocked(p) : false;
+            const discWrap = document.getElementById('profileDisconnectActionWrap');
+            if (discWrap) {
+                discWrap.style.display = isUnlocked ? 'block' : 'none';
+            }
             if (isUnlocked && typeof supabaseFetchAuthorizedContact === 'function') {
                 supabaseFetchAuthorizedContact(p.id).then(contact => {
                     if (contact) {
