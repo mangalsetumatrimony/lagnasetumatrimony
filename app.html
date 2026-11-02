@@ -1127,10 +1127,16 @@
                             </div>
                         </div>
                     </div>
-                    <button class="icon-btn" onclick="promptClearChatHistory()" title="Clear Chat History"
-                        style="background:rgba(239,68,68,0.08);color:var(--error,#ef4444);flex-shrink:0;">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
+                    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                        <button class="icon-btn" type="button" onclick="promptDisconnectConnection()" title="Disconnect Connection (વાતચીત સમાપ્ત કરો)"
+                            style="background:rgba(239,68,68,0.1);color:var(--error,#ef4444);width:36px;height:36px;border-radius:10px;">
+                            <i class="fa-solid fa-user-slash"></i>
+                        </button>
+                        <button class="icon-btn" type="button" onclick="promptClearChatHistory()" title="Clear Chat History"
+                            style="background:rgba(100,116,139,0.08);color:var(--text-muted,#64748b);width:36px;height:36px;border-radius:10px;">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
                 </div>
             </header>
 
@@ -2655,7 +2661,32 @@
         </div>
 
         <!-- ============================================================ PAYMENT & PASS HISTORY MODAL ============================================================ -->
-        <div class="modal-backdrop modal-center" id="modalPaymentHistory" style="z-index: 1040;">
+        
+        <!-- ============================================================ DISCONNECT / REMOVE CONNECTION MODAL ============================================================ -->
+        <div class="modal-backdrop modal-center" id="modalDisconnectMatch" style="z-index: 1055;">
+            <div class="modal-card" style="max-width:380px;text-align:center;">
+                <div class="modal-icon-circle" style="background:rgba(239,68,68,0.12);color:var(--error);width:54px;height:54px;font-size:22px;margin:0 auto 12px;">
+                    <i class="fa-solid fa-link-slash"></i>
+                </div>
+                <div class="h-display h-lg" id="disconnectModalTitle" style="margin-top:6px;">Disconnect Connection?</div>
+                <p class="p-muted" id="disconnectModalDesc" style="margin-top:8px;margin-bottom:16px;font-size:13px;line-height:1.55;">
+                    Are you sure you want to disconnect with this member?
+                </p>
+                <div style="background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:12px;margin-bottom:20px;text-align:left;font-size:12.5px;color:var(--text);line-height:1.5;">
+                    <div style="font-weight:700;color:var(--error);margin-bottom:6px;"><i class="fa-solid fa-shield-halved"></i> What happens when disconnected:</div>
+                    <div style="display:flex;gap:8px;margin-bottom:4px;"><i class="fa-solid fa-check" style="color:var(--error);font-size:11px;margin-top:3px;"></i> <span>Safe chat will be closed and cleared.</span></div>
+                    <div style="display:flex;gap:8px;margin-bottom:4px;"><i class="fa-solid fa-check" style="color:var(--error);font-size:11px;margin-top:3px;"></i> <span>Direct family contact details and address will be immediately locked again.</span></div>
+                    <div style="display:flex;gap:8px;"><i class="fa-solid fa-check" style="color:var(--error);font-size:11px;margin-top:3px;"></i> <span>Neither member will be able to message each other.</span></div>
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-outline" type="button" onclick="closeModal('modalDisconnectMatch')">Cancel</button>
+                    <button class="btn btn-danger" type="button" id="btnConfirmDisconnect" onclick="confirmDisconnectConnection()"><i
+                            class="fa-solid fa-link-slash"></i> Confirm Disconnect</button>
+                </div>
+            </div>
+        </div>
+
+<div class="modal-backdrop modal-center" id="modalPaymentHistory" style="z-index: 1040;">
             <div class="modal-card" style="max-width:390px;width:92%;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
                     <div style="display:flex;align-items:center;gap:10px;">

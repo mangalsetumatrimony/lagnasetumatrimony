@@ -2931,6 +2931,58 @@ async function supabaseClearUserChat(myId, peerId, myEmail, peerEmail, options =
 }
 
 /**
+ * Disconnect an active connection / match
+ * Sets status = 'disconnected' in public.interests and permanently purges chat messages between them
+ * @param {string|number} myId
+ * @param {string|number} peerId
+ * @param {string} myEmail
+ * @param {string} peerEmail
+ */
+async function supabaseDisconnectConnection(myId, peerId, myEmail, peerEmail) {
+    const client = getSupabaseClient();
+    if (!client || !myId || !peerId) return { success: true };
+    try {
+        const numMyId = Number(myId);
+        const numPeerId = Number(peerId);
+        const normMyEmail = String(myEmail || (typeof state !== 'undefined' && state.currentUser?.email) || '').trim().toLowerCase();
+        let normPeerEmail = String(peerEmail || '').trim().toLowerCase();
+        if ((!normPeerEmail || normPeerEmail.includes('•')) && typeof findProfile === 'function') {
+            const p = findProfile(peerId);
+            if (p) normPeerEmail = String(p.rawEmail || p.email || '').trim().toLowerCase();
+        }
+
+        // 1. Update status to 'disconnected' in public.interests
+        let intQuery = client.from('interests').update({
+            status: 'disconnected',
+            updated_at: new Date().toISOString()
+        });
+
+        if (!isNaN(numMyId) && !isNaN(numPeerId) && numMyId > 0 && numPeerId > 0) {
+            intQuery = intQuery.or(`and(sender_id.eq.${numMyId},receiver_id.eq.${numPeerId}),and(sender_id.eq.${numPeerId},receiver_id.eq.${numMyId})`);
+        } else if (normMyEmail && normPeerEmail && !normPeerEmail.includes('•')) {
+            intQuery = intQuery.or(`and(sender_email.ilike.${normMyEmail},receiver_email.ilike.${normPeerEmail}),and(sender_email.ilike.${normPeerEmail},receiver_email.ilike.${normMyEmail})`);
+        }
+        await intQuery;
+
+        // 2. Permanently delete all chat messages between the two users
+        let msgQuery = client.from('messages').delete();
+        if (!isNaN(numMyId) && !isNaN(numPeerId) && numMyId > 0 && numPeerId > 0) {
+            msgQuery = msgQuery.or(`and(sender_id.eq.${numMyId},receiver_id.eq.${numPeerId}),and(sender_id.eq.${numPeerId},receiver_id.eq.${numMyId})`);
+        } else if (normMyEmail && normPeerEmail && !normPeerEmail.includes('•')) {
+            msgQuery = msgQuery.or(`and(sender_email.ilike.${normMyEmail},receiver_email.ilike.${normPeerEmail}),and(sender_email.ilike.${normPeerEmail},receiver_email.ilike.${normMyEmail})`);
+        }
+        await msgQuery;
+
+        console.info('[Supabase] Connection disconnected and chat cleared between', myId, 'and', peerId);
+        return { success: true };
+    } catch (e) {
+        console.warn('[Supabase] Disconnect connection error:', e);
+        return { success: false, error: e };
+    }
+}
+window.supabaseDisconnectConnection = supabaseDisconnectConnection;
+
+/**
  * Mark messages received from a specific sender as read
  * Production Universal Implementation:
  * 1. Supports direct primary key message IDs targeting (specificMsgIds) for 100% precision.

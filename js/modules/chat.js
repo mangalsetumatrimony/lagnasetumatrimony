@@ -550,6 +550,11 @@ function setInterestBtnState(btn, pid) {
         btn.className = 'btn btn-primary';
         btn.onclick = () => openChatFor(pid);
         btn.disabled = false;
+    } else if (status === 'disconnected') {
+        btn.innerHTML = '<i class="fa-solid fa-link-slash"></i> Connection Disconnected';
+        btn.className = 'btn btn-outline';
+        btn.onclick = null;
+        btn.disabled = true;
     } else if (status === 'pending') {
         btn.innerHTML = '<i class="fa-solid fa-clock"></i> Request sent';
         btn.className = 'btn btn-outline';
@@ -1765,6 +1770,101 @@ async function confirmClearChatHistory() {
     closeModal('modalClearChat');
 }
 
+let pendingDisconnectPid = null;
+
+function promptDisconnectConnection(targetPid) {
+    const pid = targetPid !== undefined ? targetPid : state.activeChatId;
+    if (!pid) return;
+    pendingDisconnectPid = pid;
+
+    const p = (typeof findProfile === 'function') ? findProfile(pid) : null;
+    const name = p ? p.name : 'this member';
+
+    const titleEl = document.getElementById('disconnectModalTitle');
+    const descEl = document.getElementById('disconnectModalDesc');
+    if (titleEl) titleEl.textContent = `Disconnect with ${name}?`;
+    if (descEl) descEl.textContent = `Are you sure you want to end connection with ${name}? Safe chat and contact details will be locked immediately.`;
+
+    openModal('modalDisconnectMatch');
+}
+
+async function confirmDisconnectConnection() {
+    const pid = pendingDisconnectPid || state.activeChatId;
+    if (!pid || !state.currentUser) {
+        closeModal('modalDisconnectMatch');
+        return;
+    }
+
+    const numPid = Number(pid);
+    const myId = state.currentUser.id || state.currentUser.profileId;
+    const myEmail = (state.currentUser.email || '').trim().toLowerCase();
+    const p = (typeof findProfile === 'function') ? findProfile(pid) : null;
+    const peerEmail = p ? (p.rawEmail || p.email || '') : '';
+    const peerName = p ? p.name : 'Member';
+
+    // 1. Update local state and requests
+    if (Array.isArray(state.interests)) {
+        state.interests.forEach(i => {
+            if (Number(i.profileId) === numPid || Number(i.senderId) === numPid || Number(i.receiverId) === numPid) {
+                i.status = 'disconnected';
+            }
+        });
+    }
+    if (Array.isArray(INCOMING_REQUESTS)) {
+        INCOMING_REQUESTS.forEach(i => {
+            if (Number(i.profileId) === numPid || Number(i.senderId) === numPid) {
+                i.status = 'disconnected';
+            }
+        });
+    }
+    if (Array.isArray(SENT_REQUESTS)) {
+        SENT_REQUESTS.forEach(i => {
+            if (Number(i.profileId) === numPid || Number(i.receiverId) === numPid) {
+                i.status = 'disconnected';
+            }
+        });
+    }
+
+    // 2. Remove from active chat threads and clear cache
+    CHAT_THREADS = CHAT_THREADS.filter(t => Number(t.profileId) !== numPid && String(t.profileId) !== String(pid));
+    if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE) {
+        window.AUTHORIZED_CONTACT_CACHE.delete(numPid);
+    }
+    if (p) {
+        p.fatherMobile = '••••••';
+        p.ownMobile = '••••••';
+        p.rawFatherMobile = '••••••';
+        p.rawOwnMobile = '••••••';
+    }
+
+    saveSessionState();
+    closeModal('modalDisconnectMatch');
+    showToast(`Connection with ${peerName} disconnected. Chat closed.`);
+
+    // 3. Persist to Supabase Database
+    if (typeof supabaseDisconnectConnection === 'function') {
+        supabaseDisconnectConnection(myId, pid, myEmail, peerEmail).catch(e => {
+            console.warn('[Chat] Supabase disconnect error:', e);
+        });
+    }
+
+    // 4. Update UI screens
+    const activeScreen = document.querySelector('.screen.active');
+    if (activeScreen && activeScreen.id === 'scr-chat') {
+        go('scr-inbox', true);
+    } else if (activeScreen && activeScreen.id === 'scr-profile') {
+        if (typeof refreshProfileContactState === 'function') {
+            refreshProfileContactState(pid);
+        }
+        const fullBtn = document.getElementById('fullInterestBtn');
+        if (fullBtn) setInterestBtnState(fullBtn, pid);
+    }
+    updateInboxBadge();
+    if (typeof renderInbox === 'function') renderInbox();
+
+    pendingDisconnectPid = null;
+}
+
 function startEditChatMessage(msgId, event) {
     if (event) event.stopPropagation();
     closeAllChatActions();
@@ -2453,6 +2553,21 @@ function handleRealtimeInterestUpdate(dbInterest) {
             if (!thread.img || thread.img.includes('default_avatar')) thread.img = resolvedImg;
             if (!thread.peerEmail && peerEmail) thread.peerEmail = peerEmail;
         }
+    } else if (dbInterest.status === 'disconnected') {
+        // Disconnected match handling in realtime
+        CHAT_THREADS = CHAT_THREADS.filter(t => Number(t.profileId) !== peerId && (!peerEmail || t.peerEmail?.toLowerCase() !== peerEmail.toLowerCase()));
+        if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE) {
+            window.AUTHORIZED_CONTACT_CACHE.delete(peerId);
+        }
+        if (peerProf) {
+            peerProf.fatherMobile = '••••••';
+            peerProf.ownMobile = '••••••';
+        }
+        const activeScreen = document.querySelector('.screen.active');
+        if (activeScreen && activeScreen.id === 'scr-chat' && Number(state.activeChatId) === peerId) {
+            showToast(`${resolvedName} ended the connection. Chat closed.`);
+            go('scr-inbox', true);
+        }
     }
 
     saveSessionState();
@@ -2563,6 +2678,8 @@ if (typeof promptDeleteChatMessage !== 'undefined') window.promptDeleteChatMessa
 if (typeof confirmDeleteChatMessage !== 'undefined') window.confirmDeleteChatMessage = confirmDeleteChatMessage;
 if (typeof promptClearChatHistory !== 'undefined') window.promptClearChatHistory = promptClearChatHistory;
 if (typeof confirmClearChatHistory !== 'undefined') window.confirmClearChatHistory = confirmClearChatHistory;
+if (typeof promptDisconnectConnection !== 'undefined') window.promptDisconnectConnection = promptDisconnectConnection;
+if (typeof confirmDisconnectConnection !== 'undefined') window.confirmDisconnectConnection = confirmDisconnectConnection;
 if (typeof CHAT_THREADS !== 'undefined') window.CHAT_THREADS = CHAT_THREADS;
 if (typeof OUTGOING_REQUESTS !== 'undefined') window.OUTGOING_REQUESTS = OUTGOING_REQUESTS;
 if (typeof INCOMING_REQUESTS !== 'undefined') window.INCOMING_REQUESTS = INCOMING_REQUESTS;
