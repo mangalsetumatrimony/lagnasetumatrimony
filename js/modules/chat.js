@@ -369,6 +369,23 @@ function openInterestModal(id) {
     const p = findProfile(id);
     if (!p) return;
 
+    // Security Gatekeeper 1: Prevent sending interest to own profile
+    if (typeof isSelfProfile === 'function' && isSelfProfile(p)) {
+        showToast('You cannot send an interest request to your own profile.');
+        return;
+    }
+
+    // Security Gatekeeper 2: Prevent resending interest if already accepted
+    const curStatus = (typeof interestStatusFor === 'function') ? interestStatusFor(id) : null;
+    if (curStatus === 'accepted') {
+        showToast('You are already connected with this member. Safe chat and details are unlocked.');
+        return;
+    }
+    if (curStatus === 'pending') {
+        showToast('An interest request has already been sent to this member. Please wait for acceptance.');
+        return;
+    }
+
     // Strict Anti-Spam: Daily Limit of 3 Requests (for both girls and boys)
     const usage = getDailyInterestUsage();
     if (usage.isLimitReached) {
@@ -402,6 +419,27 @@ async function confirmSendInterest() {
         if (typeof go === 'function') go('scr-welcome', true);
         return;
     }
+
+    // Security Gatekeeper 1: Prevent sending interest to own profile
+    if (typeof isSelfProfile === 'function' && isSelfProfile(p)) {
+        closeModal('modalInterest');
+        showToast('You cannot send an interest request to your own profile.');
+        return;
+    }
+
+    // Security Gatekeeper 2: Prevent tamper / resend if already accepted or pending
+    const curStatus = (typeof interestStatusFor === 'function') ? interestStatusFor(id) : null;
+    if (curStatus === 'accepted') {
+        closeModal('modalInterest');
+        showToast('You are already connected with this member. Safe chat is unlocked.');
+        return;
+    }
+    if (curStatus === 'pending') {
+        closeModal('modalInterest');
+        showToast('An interest request is already pending for this member.');
+        return;
+    }
+
     if (!state.profileComplete) {
         closeModal('modalInterest');
         if (typeof openModal === 'function') openModal('modalCompleteProfile');
@@ -483,6 +521,12 @@ async function confirmSendInterest() {
             console.info('[Interest] Successfully persisted to Supabase for:', p.name);
         } catch (err) {
             if (err && err.message === 'DAILY_LIMIT_EXCEEDED') {
+                // Rollback local state because server confirmed daily limit was exceeded
+                OUTGOING_REQUESTS = OUTGOING_REQUESTS.filter(r => Number(r.profileId) !== pid);
+                if (typeof window !== 'undefined') window.OUTGOING_REQUESTS = OUTGOING_REQUESTS;
+                saveSessionState();
+                refreshProfileButtons();
+                updateInboxBadge();
                 const curUsage = getDailyInterestUsage();
                 showToast(getDailyInterestLimitMessage(curUsage), 3500);
             } else {
@@ -1200,7 +1244,11 @@ function chatThreadCard(t) {
 async function acceptRequest(profileId) {
     const pid = Number(profileId);
     const r = INCOMING_REQUESTS.find(x => Number(x.profileId) === pid || Number(x.senderId) === pid);
-    if (r) r.status = 'accepted';
+    if (!r || r.status === 'accepted') {
+        if (!r) showToast('No pending request found for this member.');
+        return;
+    }
+    r.status = 'accepted';
     
     const p = findProfile(pid, r ? r.senderEmail : '');
     const peerName = (p && p.name && p.name !== 'Community Match' && p.name !== 'Community Member')
@@ -1266,7 +1314,11 @@ async function acceptRequest(profileId) {
 async function declineRequest(profileId) {
     const pid = Number(profileId);
     const r = INCOMING_REQUESTS.find(x => Number(x.profileId) === pid || Number(x.senderId) === pid);
-    if (r) r.status = 'declined';
+    if (!r || r.status === 'declined') {
+        if (!r) showToast('No pending request found for this member.');
+        return;
+    }
+    r.status = 'declined';
     const p = findProfile(pid, r ? r.senderEmail : '');
     const peerName = (p && p.name && p.name !== 'Community Match' && p.name !== 'Community Member')
         ? p.name
@@ -1940,6 +1992,14 @@ async function confirmDisconnectConnection(targetPid) {
     const pid = targetPid || pendingDisconnectPid || (typeof window !== 'undefined' && window.pendingDisconnectPid) || state.activeChatId;
     if (!pid || !state.currentUser) {
         closeModal('modalDisconnectMatch');
+        return;
+    }
+
+    // Security Gatekeeper: Strictly verify that connection is currently accepted before permitting disconnect
+    const curConnStatus = (typeof interestStatusFor === 'function') ? interestStatusFor(pid) : null;
+    if (curConnStatus !== 'accepted') {
+        closeModal('modalDisconnectMatch');
+        showToast('You are not currently connected with this member.');
         return;
     }
 

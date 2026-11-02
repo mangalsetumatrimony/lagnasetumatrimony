@@ -585,24 +585,45 @@ async function supabaseFetchAuthorizedContact(profileId) {
         (myEmail && local && local.email && myEmail === local.email.trim().toLowerCase())
     ));
 
-    // Check in-memory interest status first
-    let isAccepted = (typeof interestStatusFor === 'function') && interestStatusFor(numId) === 'accepted';
-
     const client = getSupabaseClient();
 
-    // If not self, not admin, and not accepted locally, verify in Supabase 'interests' table
-    if (!isSelf && !isAdmin && !isAccepted && client && myEmail) {
-        try {
-            const { data: intRow } = await client
-                .from('interests')
-                .select('id, status')
-                .eq('status', 'accepted')
-                .or(`and(sender_email.ilike.${myEmail},receiver_id.eq.${numId}),and(receiver_email.ilike.${myEmail},sender_id.eq.${numId})`)
-                .maybeSingle();
-            if (intRow && intRow.status === 'accepted') {
-                isAccepted = true;
+    // STRICT ANTI-TAMPER GATEKEEPER:
+    // When requesting private contact details, NEVER blindly trust client-side in-memory arrays.
+    // An attacker in DevTools console could modify in-memory arrays; Supabase PostgreSQL live table is the absolute source of truth!
+    let isAccepted = false;
+    if (!isSelf && !isAdmin) {
+        if (client && (myEmail || myId)) {
+            try {
+                const myNumericId = Number(curUser?.profileId || (!isNaN(Number(myId)) ? Number(myId) : 0));
+                const filterOrs = [];
+                if (myEmail && numId > 0) {
+                    filterOrs.push(`and(sender_email.ilike.${myEmail},receiver_id.eq.${numId})`);
+                    filterOrs.push(`and(receiver_email.ilike.${myEmail},sender_id.eq.${numId})`);
+                }
+                if (myNumericId > 0 && numId > 0) {
+                    filterOrs.push(`and(sender_id.eq.${myNumericId},receiver_id.eq.${numId})`);
+                    filterOrs.push(`and(receiver_id.eq.${myNumericId},sender_id.eq.${numId})`);
+                }
+                if (filterOrs.length > 0) {
+                    const { data: intRow } = await client
+                        .from('interests')
+                        .select('id, status')
+                        .eq('status', 'accepted')
+                        .or(filterOrs.join(','))
+                        .limit(1)
+                        .maybeSingle();
+
+                    if (intRow && intRow.status === 'accepted') {
+                        isAccepted = true;
+                    }
+                }
+            } catch (e) {
+                console.warn('[Contact Security] Database verification error:', e);
             }
-        } catch (_) {}
+        } else {
+            // Offline fallback: only permitted if database client is unavailable
+            isAccepted = (typeof interestStatusFor === 'function') && interestStatusFor(numId) === 'accepted';
+        }
     }
 
     // STRICT GATEKEEPER: Direct father contact reveals ONLY if Interest is accepted, self, or admin
@@ -2005,6 +2026,12 @@ async function supabaseSendInterest(senderProfile, receiverProfile) {
 
     const interestId = `int_${senderId}_${receiverId}`;
 
+    // Anti-Tampering Security Gatekeeper 1: Prevent sending interest to oneself
+    if (senderId === receiverId || (senderEmail && receiverEmail && senderEmail.toLowerCase() === receiverEmail.toLowerCase())) {
+        console.warn('[Supabase Security] Self-interest blocked.');
+        return { success: false, reason: 'self_interest_forbidden' };
+    }
+
     // Production Fallback: Ensure receiver email is fetched from Supabase if absent or masked in current profile object
     if (!isCleanRealEmail(receiverEmail) && client && receiverId) {
         try {
@@ -2095,6 +2122,22 @@ async function supabaseSendInterest(senderProfile, receiverProfile) {
             if (!countErr && typeof recentSentCount === 'number' && recentSentCount >= 3) {
                 console.warn('[Supabase] Daily limit exceeded on database:', recentSentCount);
                 throw new Error('DAILY_LIMIT_EXCEEDED');
+            }
+
+            // Anti-Tampering Security Gatekeeper 2: Prevent overwriting accepted or pending connections
+            const { data: existingInt } = await client
+                .from('interests')
+                .select('id, status')
+                .or(`and(sender_id.eq.${senderId},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${senderId})`)
+                .maybeSingle();
+
+            if (existingInt && existingInt.status === 'accepted') {
+                console.warn('[Supabase Security] Connection already accepted. Resend blocked.');
+                return { success: false, reason: 'already_accepted' };
+            }
+            if (existingInt && existingInt.status === 'pending') {
+                console.warn('[Supabase Security] Request already pending. Duplicate blocked.');
+                return { success: true, reason: 'already_pending' };
             }
 
             // If reconnecting and a reverse disconnected record exists, clean it up
@@ -2723,6 +2766,23 @@ async function supabaseSaveChatMessage(msgData) {
             created_at: msgData.createdAt || new Date().toISOString(),
             updated_at: new Date().toISOString()
         };
+
+        // Anti-Tampering Security Gatekeeper:
+        // Reject message insertion if the connection between the two users is not currently 'accepted' in Supabase
+        const sId = Number(msgData.senderId);
+        const rId = Number(msgData.receiverId);
+        if (sId > 0 && rId > 0) {
+            const { data: intRow } = await client
+                .from('interests')
+                .select('status')
+                .or(`and(sender_id.eq.${sId},receiver_id.eq.${rId}),and(sender_id.eq.${rId},receiver_id.eq.${sId})`)
+                .maybeSingle();
+
+            if (!intRow || intRow.status !== 'accepted') {
+                console.warn('[Chat Security] Blocked unauthorized message insertion: Connection not accepted in database.');
+                return { success: false, error: 'CONNECTION_NOT_ACCEPTED' };
+            }
+        }
 
         const { data, error } = await client.from('messages').insert(payload).select().single();
         if (error) {
