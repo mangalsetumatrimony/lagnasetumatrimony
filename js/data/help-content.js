@@ -20,7 +20,10 @@ const DEFAULT_FAQS = [
     ['How do members contact each other?', 'A member can send an in-app interest request. Once the candidate accepts, direct Phone Call and WhatsApp buttons for the girl\'s father are unlocked automatically, along with text chat.'],
     ['Is a member\'s phone number public?', 'No. A member\'s own personal mobile number is kept strictly private for Admin verification only. Only the father\'s verified contact number unlocks for accepted interest connections.'],
     ['How do multi-photo profiles work?', 'Members can upload up to 3 high-resolution photos. Verified members can view all photos in the photo gallery carousel.'],
-    ['How can I contact official Admin support?', 'You can reach our Jasdan administrative cell via WhatsApp or Phone at +91 97263 62863 or email mangalsetu.in@gmail.com.']
+    ['How can I contact official Admin support?', 'You can reach our Jasdan administrative cell via WhatsApp or Phone at +91 97263 62863 or email mangalsetu.in@gmail.com.'],
+    ['Can I disconnect or end a match if I don\'t wish to proceed?', 'Yes, absolutely. Either member can tap "Disconnect Match" at any time. This instantly locks contact details back to private (••••••) and permanently deletes all chat messages between the two members from database servers for complete privacy.'],
+    ['Can I send an interest again after disconnecting?', 'Yes. If families reconsider in the future, you can send an interest request again using the "Re-connect" button. It adheres to the 3 daily requests limit and requires fresh acceptance from the other party.'],
+    ['What happens when I delete my account?', 'Under our DPDP-compliant zero-trace policy, deleting your account permanently wipes your login credentials, profile, photos, chat history, and interests from our servers with 100% zero residual data left behind.']
 ];
 
 let REMOTE_GUIDE_STEPS = null;
