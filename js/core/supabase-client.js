@@ -779,6 +779,10 @@ async function supabaseUpsertProfile(profile) {
  * Record a successful ₹199 UPI payment in Supabase and activate 30-day pass
  * @param {Object} paymentData { id, userId, userName, amount, method, razorpayPaymentId }
  */
+/**
+ * Record successful Razorpay UPI payment in Supabase PostgreSQL live
+ * @param {Object} paymentData { id, userId, userName, userEmail, email, planStart, planExpiry, amount, method, razorpayPaymentId }
+ */
 async function supabaseRecordPayment(paymentData) {
     const client = getSupabaseClient();
     if (!client) return { success: true, localOnly: true };
@@ -787,11 +791,20 @@ async function supabaseRecordPayment(paymentData) {
         const now = new Date();
         const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
         const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        const planStart = paymentData.planStart || now.toISOString().split('T')[0];
+        const planExpiry = paymentData.planExpiry || (function() {
+            const exp = new Date(now);
+            exp.setDate(exp.getDate() + 30);
+            return exp.toISOString().split('T')[0];
+        })();
+        const eml = String(paymentData.userEmail || paymentData.email || '').trim().toLowerCase();
+        const uid = String(paymentData.userId || '');
+        const numProfId = Number(paymentData.profileId || (!isNaN(Number(uid)) ? Number(uid) : 0));
 
         // 1. Insert into payments table
-        const { error: payErr } = await client.from('payments').upsert({
+        const paymentRow = {
             id: paymentData.id,
-            user_id: String(paymentData.userId || ''),
+            user_id: uid,
             user_name: paymentData.userName || 'Registered Member',
             plan: paymentData.plan || 'Boys 30 Days Pass (₹199)',
             amount: Number(paymentData.amount) || 199.00,
@@ -801,54 +814,91 @@ async function supabaseRecordPayment(paymentData) {
             status: 'success',
             date: dateStr,
             time: timeStr
-        }, { onConflict: 'id' });
+        };
+        if (eml) paymentRow.user_email = eml;
 
+        const { error: payErr } = await client.from('payments').upsert(paymentRow, { onConflict: 'id' });
         if (payErr) console.warn('[Supabase] Payment upsert note:', payErr.message);
 
-        // 2. Also update profile payment_status in profiles and users table
-        const uid = String(paymentData.userId || '');
-        const eml = String(paymentData.userEmail || paymentData.email || '').trim().toLowerCase();
+        // 2. Also update profile payment_status, plan_start, plan_expiry in profiles and users table
+        const profUpdates = {
+            payment_status: 'paid',
+            plan_start: planStart,
+            plan_expiry: planExpiry,
+            updated_at: new Date().toISOString()
+        };
+        const userUpdates = {
+            payment_status: 'Active',
+            plan_start: planStart,
+            plan_expiry: planExpiry,
+            updated_at: new Date().toISOString()
+        };
+
+        if (numProfId > 0) {
+            try { await client.from('profiles').update(profUpdates).eq('id', numProfId); } catch (_) {}
+        }
         if (uid) {
-            try {
-                await client.from('profiles').update({
-                    payment_status: 'paid',
-                    updated_at: new Date().toISOString()
-                }).eq('id', uid);
-            } catch (_) {}
-            try {
-                await client.from('profiles').update({
-                    payment_status: 'paid',
-                    updated_at: new Date().toISOString()
-                }).eq('user_id', uid);
-            } catch (_) {}
-            try {
-                await client.from('users').update({
-                    payment_status: 'Active',
-                    updated_at: new Date().toISOString()
-                }).eq('id', uid);
-            } catch (_) {}
+            try { await client.from('profiles').update(profUpdates).eq('user_id', uid); } catch (_) {}
+            try { await client.from('users').update(userUpdates).eq('id', uid); } catch (_) {}
         }
         if (eml) {
-            try {
-                await client.from('profiles').update({
-                    payment_status: 'paid',
-                    updated_at: new Date().toISOString()
-                }).ilike('email', eml);
-            } catch (_) {}
-            try {
-                await client.from('users').update({
-                    payment_status: 'Active',
-                    updated_at: new Date().toISOString()
-                }).ilike('email', eml);
-            } catch (_) {}
+            try { await client.from('profiles').update(profUpdates).ilike('email', eml); } catch (_) {}
+            try { await client.from('users').update(userUpdates).ilike('email', eml); } catch (_) {}
         }
 
+        console.info('[Supabase] Successfully recorded live payment and activated 30-day pass for:', eml || uid);
         return { success: true };
     } catch (e) {
         console.warn('[Supabase] Payment record error:', e);
         return { success: false, error: e };
     }
 }
+window.supabaseRecordPayment = supabaseRecordPayment;
+
+/**
+ * Live Database Verification: Check if user has an active 30-day paid pass in Supabase
+ * @param {string|number} userId
+ * @param {string} email
+ * @returns {Promise<Object|null>} Returns the active payment row or null
+ */
+async function supabaseFetchActiveUserPayment(userId, email) {
+    const client = getSupabaseClient();
+    if (!client) return null;
+    try {
+        const normEmail = String(email || '').trim().toLowerCase();
+        const numId = Number(userId || 0);
+        const strId = String(userId || '');
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+        const filterOr = [];
+        if (strId) filterOr.push(`user_id.eq.${strId}`);
+        if (numId > 0) filterOr.push(`user_id.eq.${numId}`);
+        if (normEmail) {
+            filterOr.push(`user_email.ilike.${normEmail}`);
+            filterOr.push(`user_id.ilike.${normEmail}`);
+        }
+
+        if (filterOr.length > 0) {
+            const { data: pays } = await client
+                .from('payments')
+                .select('*')
+                .or(filterOr.join(','))
+                .eq('status', 'success')
+                .gte('created_at', thirtyDaysAgo)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (Array.isArray(pays) && pays.length > 0) {
+                return pays[0];
+            }
+        }
+        return null;
+    } catch (e) {
+        console.warn('[Supabase] Fetch active payment error:', e);
+        return null;
+    }
+}
+window.supabaseFetchActiveUserPayment = supabaseFetchActiveUserPayment;
 
 /**
  * Fetch all member profiles for Admin Panel moderation

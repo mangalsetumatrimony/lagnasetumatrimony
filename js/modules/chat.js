@@ -590,6 +590,7 @@ function setInterestBtnState(btn, pid) {
         return;
     }
     if (status === 'disconnected') {
+        if (discWrap) discWrap.style.display = 'none';
         btn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Re-connect (ફરી રિક્વેસ્ટ મોકલો)';
         btn.className = 'btn btn-gold btn-grow';
         btn.disabled = false;
@@ -1833,12 +1834,119 @@ function promptDisconnectConnection(targetPid) {
     openModal('modalDisconnectMatch');
 }
 
+// Resilient Multi-Tier Resolution of Peer Email for Disconnect & Notification Services
+async function resolvePeerUnmaskedEmail(targetPid, profileObj) {
+    const numPid = Number(targetPid);
+    const cleanCheck = (em) => {
+        if (!em || typeof em !== 'string') return '';
+        const c = em.trim().toLowerCase();
+        if (c.includes('•') || c.includes('*') || c.includes('..') || c.includes(' ') || !c.includes('@')) return '';
+        return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(c) ? c : '';
+    };
+
+    // Tier 1: Check provided profile object
+    let found = cleanCheck(profileObj?.rawEmail) || cleanCheck(profileObj?.raw_data?.rawEmail) || cleanCheck(profileObj?.email);
+    if (found) return found;
+
+    // Tier 2: Check window.AUTHORIZED_CONTACT_CACHE
+    if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE && window.AUTHORIZED_CONTACT_CACHE.has(numPid)) {
+        const cached = window.AUTHORIZED_CONTACT_CACHE.get(numPid);
+        found = cleanCheck(cached?.email) || cleanCheck(cached?.rawEmail);
+        if (found) return found;
+    }
+
+    // Tier 3: Check INCOMING_REQUESTS & OUTGOING_REQUESTS
+    const allReqs = [
+        ...(typeof INCOMING_REQUESTS !== 'undefined' && Array.isArray(INCOMING_REQUESTS) ? INCOMING_REQUESTS : []),
+        ...(typeof OUTGOING_REQUESTS !== 'undefined' && Array.isArray(OUTGOING_REQUESTS) ? OUTGOING_REQUESTS : [])
+    ];
+    for (const r of allReqs) {
+        if (Number(r.profileId) === numPid || Number(r.senderId) === numPid || Number(r.receiverId) === numPid || Number(r.sender_id) === numPid || Number(r.receiver_id) === numPid) {
+            found = cleanCheck(r.senderEmail) || cleanCheck(r.receiverEmail) || cleanCheck(r.sender_email) || cleanCheck(r.receiver_email);
+            if (found) return found;
+        }
+    }
+
+    // Tier 4: Check CHAT_THREADS
+    if (typeof CHAT_THREADS !== 'undefined' && Array.isArray(CHAT_THREADS)) {
+        const thread = CHAT_THREADS.find(t => Number(t.profileId) === numPid);
+        if (thread) {
+            found = cleanCheck(thread.peerEmail);
+            if (found) return found;
+        }
+    }
+
+    // Tier 5: Check state.interests
+    if (typeof state !== 'undefined' && Array.isArray(state.interests)) {
+        for (const i of state.interests) {
+            if (Number(i.profileId) === numPid || Number(i.senderId) === numPid || Number(i.receiverId) === numPid) {
+                found = cleanCheck(i.senderEmail) || cleanCheck(i.receiverEmail) || cleanCheck(i.sender_email) || cleanCheck(i.receiver_email);
+                if (found) return found;
+            }
+        }
+    }
+
+    // Tier 6: Check LS_STORED_ACCOUNTS
+    if (typeof getStoredAccounts === 'function') {
+        try {
+            const accounts = getStoredAccounts();
+            const pName = profileObj?.name?.trim().toLowerCase();
+            for (const acc of accounts) {
+                if (acc && cleanCheck(acc.email)) {
+                    if (Number(acc.id) === numPid || Number(acc.profileId) === numPid || (pName && acc.name && acc.name.trim().toLowerCase() === pName)) {
+                        return cleanCheck(acc.email);
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+
+    // Tier 7: Direct live Supabase fetch
+    if (typeof getSupabaseClient === 'function') {
+        try {
+            const client = getSupabaseClient();
+            if (client && numPid > 0) {
+                // A. Query profiles table
+                const { data: profRow } = await client.from('profiles').select('email, raw_data').eq('id', numPid).maybeSingle();
+                if (profRow) {
+                    found = cleanCheck(profRow.email) || cleanCheck(profRow.raw_data?.rawEmail) || cleanCheck(profRow.raw_data?.email);
+                    if (found) return found;
+                }
+                // B. Query users table
+                const { data: userRow } = await client.from('users').select('email').or(`id.eq.${numPid},id.eq.usr_${numPid}`).maybeSingle();
+                if (userRow) {
+                    found = cleanCheck(userRow.email);
+                    if (found) return found;
+                }
+                // C. Query interests table
+                const { data: intRows } = await client.from('interests').select('sender_email, receiver_email').or(`sender_id.eq.${numPid},receiver_id.eq.${numPid}`).limit(3);
+                if (Array.isArray(intRows)) {
+                    for (const ir of intRows) {
+                        found = cleanCheck(ir.sender_email) || cleanCheck(ir.receiver_email);
+                        if (found) return found;
+                    }
+                }
+            }
+        } catch (dbErr) {
+            console.warn('[Chat] Supabase email resolution fallback note:', dbErr);
+        }
+    }
+
+    return '';
+}
+window.resolvePeerUnmaskedEmail = resolvePeerUnmaskedEmail;
+
 async function confirmDisconnectConnection(targetPid) {
     const pid = targetPid || pendingDisconnectPid || (typeof window !== 'undefined' && window.pendingDisconnectPid) || state.activeChatId;
     if (!pid || !state.currentUser) {
         closeModal('modalDisconnectMatch');
         return;
     }
+
+    // Immediate UI Feedback: Close modal and hide disconnect button right away without waiting
+    closeModal('modalDisconnectMatch');
+    const discActionWrap = document.getElementById('profileDisconnectActionWrap');
+    if (discActionWrap) discActionWrap.style.display = 'none';
 
     const numPid = Number(pid);
     const myId = state.currentUser.id || state.currentUser.profileId;
@@ -1859,29 +1967,8 @@ async function confirmDisconnectConnection(targetPid) {
     const p = (typeof findProfile === 'function') ? findProfile(pid) : null;
     const peerName = p ? p.name : 'Member';
 
-    // Helper to resolve clean, unmasked recipient email
-    const cleanEmailCheck = (em) => {
-        if (!em || typeof em !== 'string') return '';
-        const c = em.trim().toLowerCase();
-        if (c.includes('•') || c.includes('*') || c.includes('..') || c.includes(' ') || !c.includes('@')) return '';
-        return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(c) ? c : '';
-    };
-
-    let cleanPeerEmail = cleanEmailCheck(p?.rawEmail) || cleanEmailCheck(p?.email) || '';
-    if (!cleanPeerEmail) {
-        const allReqs = [...(typeof INCOMING_REQUESTS !== 'undefined' ? INCOMING_REQUESTS : []), ...(typeof OUTGOING_REQUESTS !== 'undefined' ? OUTGOING_REQUESTS : [])];
-        const match = allReqs.find(r => Number(r.profileId) === numPid || Number(r.senderId) === numPid || Number(r.receiverId) === numPid);
-        if (match) {
-            cleanPeerEmail = cleanEmailCheck(match.senderEmail) || cleanEmailCheck(match.receiverEmail) || '';
-        }
-    }
-    if (!cleanPeerEmail && Array.isArray(CHAT_THREADS)) {
-        const thread = CHAT_THREADS.find(t => Number(t.profileId) === numPid);
-        if (thread) cleanPeerEmail = cleanEmailCheck(thread.peerEmail) || '';
-    }
-
     try {
-        // 1. Update local state and requests
+        // 1. Update local state and requests immediately
         if (Array.isArray(state.interests)) {
             state.interests.forEach(i => {
                 if (Number(i.profileId) === numPid || Number(i.senderId) === numPid || Number(i.receiverId) === numPid) {
@@ -1919,49 +2006,55 @@ async function confirmDisconnectConnection(targetPid) {
 
         saveSessionState();
 
-        // 3. Persist to Supabase Database with parallel execution & realtime broadcast
+        // 3. Resolve genuine peer unmasked email asynchronously
+        const cleanPeerEmail = await resolvePeerUnmaskedEmail(numPid, p);
+
+        // 4. Persist to Supabase Database with parallel execution & realtime broadcast
         if (typeof supabaseDisconnectConnection === 'function') {
             supabaseDisconnectConnection(resolvedMyNumericId || myId, pid, myEmail, cleanPeerEmail).catch(e => {
                 console.warn('[Chat] Supabase disconnect error:', e);
             });
         }
 
-        // 4. Dispatch warm, polite & respectful email notification to peer so they do not feel bad
-        if (cleanPeerEmail) {
-            const emailFn = (typeof sendMatrimonialEmailNotification === 'function')
-                ? sendMatrimonialEmailNotification
-                : ((typeof window !== 'undefined' && typeof window.sendMatrimonialEmailNotification === 'function') ? window.sendMatrimonialEmailNotification : null);
+        // 5. Dispatch respectful & polite email notification so peer does not feel bad
+        const emailFn = (typeof sendMatrimonialEmailNotification === 'function')
+            ? sendMatrimonialEmailNotification
+            : ((typeof window !== 'undefined' && typeof window.sendMatrimonialEmailNotification === 'function') ? window.sendMatrimonialEmailNotification : null);
 
-            if (emailFn) {
-                const myObj = (typeof resolveFullUserProfile === 'function') ? resolveFullUserProfile(state.currentUser) : (state.currentUser || {});
-                emailFn({
+        if (emailFn) {
+            const myObj = (typeof resolveFullUserProfile === 'function') ? resolveFullUserProfile(state.currentUser) : (state.currentUser || {});
+            try {
+                await emailFn({
                     type: 'CONNECTION_DISCONNECTED',
                     toEmail: cleanPeerEmail,
                     toName: peerName,
                     senderData: {
+                        id: resolvedMyNumericId || myId,
                         name: myObj.name || 'Member',
                         caste: myObj.community || myObj.caste || '',
                         city: myObj.village || myObj.city || '',
                         photo: (typeof getSafeProfilePhoto === 'function') ? getSafeProfilePhoto(myObj) : ''
                     },
                     receiverData: {
+                        id: numPid,
                         name: peerName,
                         email: cleanPeerEmail
                     }
-                }).catch(e => console.warn('[Disconnect] Email dispatch note:', e));
+                });
+            } catch (e) {
+                console.warn('[Disconnect] Email dispatch note:', e);
             }
         }
     } catch (err) {
         console.error('[Disconnect] Error during disconnect execution:', err);
     } finally {
-        // Always close modal and reset pending PID
         closeModal('modalDisconnectMatch');
         pendingDisconnectPid = null;
     }
 
     showToast(`Connection with ${peerName} disconnected. Chat closed.`);
 
-    // 5. Update UI screens
+    // 6. Update UI screens
     const activeScreen = document.querySelector('.screen.active');
     if (activeScreen && activeScreen.id === 'scr-chat') {
         go('scr-inbox', true);

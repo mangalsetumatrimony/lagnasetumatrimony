@@ -497,9 +497,13 @@ function processSuccessfulPayment(txnId, upiMethod) {
         const newTxn = {
             id: txnId || ('RZP_UPI_' + Math.floor(10000 + Math.random() * 90000)),
             userId: state.currentUser.id,
+            profileId: state.currentUser.profileId,
+            userEmail: state.currentUser.email,
             userName: state.currentUser.name || 'Registered Member',
             plan: 'Boys 30 Days Pass (₹199)',
             amount: 199,
+            planStart: state.currentUser.planStart,
+            planExpiry: state.currentUser.planExpiry,
             date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
             time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
             method: upiMethod || ('UPI (' + (selectedUpiApp || 'UPI') + ')'),
@@ -511,7 +515,12 @@ function processSuccessfulPayment(txnId, upiMethod) {
             supabaseRecordPayment({
                 id: newTxn.id,
                 userId: state.currentUser.id,
+                profileId: state.currentUser.profileId,
                 userName: state.currentUser.name,
+                userEmail: state.currentUser.email,
+                email: state.currentUser.email,
+                planStart: state.currentUser.planStart,
+                planExpiry: state.currentUser.planExpiry,
                 method: newTxn.method,
                 amount: 199
             }).catch(err => console.warn('[Supabase] Payment record notice:', err));
@@ -841,6 +850,7 @@ function setInterestBtnState(btn, pid) {
         return;
     }
     if (status === 'disconnected') {
+        if (discWrap) discWrap.style.display = 'none';
         btn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Re-connect (ફરી રિક્વેસ્ટ મોકલો)';
         btn.className = 'btn btn-gold btn-grow';
         btn.disabled = false;
@@ -1246,7 +1256,7 @@ function openProfile(id) {
                 <div class="section-label">Interested?</div>
                 <p class="p-muted" style="margin-top:-8px;margin-bottom:12px;">Send an interest request — if accepted, chat, family details &amp; location unlock directly.</p>
                 <button class="btn btn-gold" id="fullInterestBtn" data-pid="${p.id}"><i class="fa-solid fa-heart-circle-check"></i> I'm interested</button>
-                <div id="profileDisconnectActionWrap" style="display:${unlocked ? 'block' : 'none'};">
+                <div id="profileDisconnectActionWrap" style="display:${((typeof interestStatusFor === 'function' ? interestStatusFor(p.id) : null) === 'accepted') ? 'block' : 'none'};">
                     <button class="btn btn-outline" type="button" style="width:100%;margin-top:10px;border-color:rgba(239,68,68,0.3);color:var(--error,#ef4444);font-size:13px;font-weight:700;" onclick="promptDisconnectConnection(${p.id})">
                         <i class="fa-solid fa-user-slash"></i> Disconnect Match (સંબંધ સમાપ્ત કરો)
                     </button>

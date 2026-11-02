@@ -683,7 +683,7 @@ async function sendAccountDeletionEmail(toEmail, toName, reason, extraUserId) {
 
  */
 async function sendMatrimonialEmailNotification(params) {
-  const { type, toEmail, toName, senderData, receiverData } = params;
+  const { type, toEmail, toName, senderData, receiverData } = params || {};
 
   // STRICT EMAIL GUARD — Must pass before ANY dispatch or logging
   // Blocks masked emails (•, *, Ã, â, ..), malformed addresses, and empty values
@@ -699,12 +699,50 @@ async function sendMatrimonialEmailNotification(params) {
     return /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(c);
   };
 
-  if (!_guardEmail(toEmail)) {
+  let cleanEmail = toEmail;
+  if (!_guardEmail(cleanEmail)) {
+    // 1. Check candidate emails from receiverData and senderData
+    const candEmails = [
+      receiverData?.rawEmail, receiverData?.email, receiverData?.cleanEmail,
+      senderData?.rawEmail, senderData?.email, senderData?.cleanEmail
+    ];
+    for (const em of candEmails) {
+      if (_guardEmail(em)) {
+        cleanEmail = em;
+        break;
+      }
+    }
+
+    // 2. Self-healing from Supabase PostgreSQL live if email is still missing or masked
+    if (!_guardEmail(cleanEmail) && typeof getSupabaseClient === 'function') {
+      try {
+        const client = getSupabaseClient();
+        const peerCandidateId = receiverData?.id || receiverData?.profileId || senderData?.id;
+        if (client && peerCandidateId) {
+          const numId = Number(peerCandidateId);
+          if (!isNaN(numId) && numId > 0) {
+            const { data: p } = await client.from('profiles').select('email, raw_data').eq('id', numId).maybeSingle();
+            if (p && _guardEmail(p.email)) cleanEmail = p.email;
+            else if (p?.raw_data && _guardEmail(p.raw_data.rawEmail)) cleanEmail = p.raw_data.rawEmail;
+            else if (p?.raw_data && _guardEmail(p.raw_data.email)) cleanEmail = p.raw_data.email;
+          }
+          if (!_guardEmail(cleanEmail)) {
+            const { data: u } = await client.from('users').select('email').or(`id.eq.${peerCandidateId},id.eq.usr_${peerCandidateId}`).maybeSingle();
+            if (u && _guardEmail(u.email)) cleanEmail = u.email;
+          }
+        }
+      } catch (e) {
+        console.warn('[EmailService] Self-healing notification email note:', e);
+      }
+    }
+  }
+
+  if (!_guardEmail(cleanEmail)) {
     console.warn(`[EmailService] ⛔ Blocked invalid/masked recipient email: "${toEmail}". Notification type="${type}" skipped.`);
     return { success: false, reason: 'invalid_or_masked_recipient_email' };
   }
 
-  let emailData = null;
+  cleanEmail = String(cleanEmail).trim().toLowerCase();
   if (type === 'INTEREST_RECEIVED') {
     emailData = getInterestReceivedEmailHtml(senderData, receiverData);
   } else if (type === 'INTEREST_ACCEPTED') {
@@ -718,7 +756,6 @@ async function sendMatrimonialEmailNotification(params) {
     return { success: false, reason: 'unknown_type' };
   }
 
-  const cleanEmail = String(toEmail).trim().toLowerCase();
   const safeName = safeEmailText(toName, 'Member');
   const { subject, html } = emailData;
   const logId = 'eml_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
@@ -832,6 +869,8 @@ async function sendMatrimonialEmailNotification(params) {
       showToast(`Match confirmation email dispatched to ${cleanEmail}`);
     } else if (type === 'INTEREST_DECLINED') {
       showToast(`Status update notification sent`);
+    } else if (type === 'CONNECTION_DISCONNECTED') {
+      showToast(`A respectful update email has been sent to ${safeName}.`);
     }
   }
 
