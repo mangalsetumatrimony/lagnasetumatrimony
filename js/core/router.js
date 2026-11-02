@@ -39,8 +39,11 @@ function go(id, replace = false) {
         id = 'scr-welcome';
     }
 
-    // If entering registration step screens, restore populated form fields
+    // If entering registration step screens, dismiss complete-profile modal and restore populated form fields
     if (id === 'scr-reg-caste' || id === 'scr-reg2' || id === 'scr-reg3') {
+        if (typeof closeModal === 'function') {
+            closeModal('modalCompleteProfile');
+        }
         if (typeof restoreRegFormFields === 'function') {
             restoreRegFormFields(id, state.regData);
         }
@@ -96,9 +99,9 @@ function go(id, replace = false) {
             console.warn(`[Router] Profile incomplete. Blocking access to ${id}, strictly routing to ${targetStep}.`);
             id = targetStep;
             replace = true;
-            setTimeout(() => {
-                if (typeof openModal === 'function') openModal('modalCompleteProfile');
-            }, 100);
+            if (typeof closeModal === 'function') {
+                closeModal('modalCompleteProfile');
+            }
         }
     }
 
@@ -230,11 +233,11 @@ function go(id, replace = false) {
     if (id === 'scr-home' && state.currentUser) {
         const isComplete = typeof isProfileFullyComplete === 'function' ? isProfileFullyComplete(state.currentUser) : state.profileComplete;
         if (!isComplete) {
-            setTimeout(() => {
-                if (!state.profileComplete && (typeof isProfileFullyComplete === 'function' ? !isProfileFullyComplete(state.currentUser) : true)) {
-                    openModal('modalCompleteProfile');
-                }
-            }, 250);
+            const targetStep = (typeof determineRemainingRegStep === 'function')
+                ? determineRemainingRegStep(state.regData, state.currentUser)
+                : 'scr-reg-caste';
+            go(targetStep, true);
+            return;
         } else {
             state.profileComplete = true;
             if (typeof closeModal === 'function') closeModal('modalCompleteProfile');

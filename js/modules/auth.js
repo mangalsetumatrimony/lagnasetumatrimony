@@ -1519,7 +1519,6 @@ function enterHome() {
 
     if (!isComplete) {
         state.profileComplete = false;
-        openModal('modalCompleteProfile');
         showToast('Please complete your profile first');
         const targetStep = (typeof determineRemainingRegStep === 'function')
             ? determineRemainingRegStep(state.regData, state.currentUser)

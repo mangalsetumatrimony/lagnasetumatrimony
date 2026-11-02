@@ -24,6 +24,13 @@ function showToast(msg, duration = 3000) {
 
 /* ============================================================ MODALS ============================================================ */
 function openModal(id) {
+    if (id === 'modalCompleteProfile') {
+        const activeScreen = document.querySelector('.screen.active')?.id || '';
+        // Strict UX Guard: Never pop up completion modal if user is already on registration screens
+        if (activeScreen.startsWith('scr-reg') || activeScreen.startsWith('scr-otp') || activeScreen === 'scr-welcome') {
+            return;
+        }
+    }
     if (id === 'modalPaywall' || id === 'modalBoyComplete') {
         const u = (typeof state !== 'undefined') ? (state.currentUser || state.regData) : null;
         if (u && (typeof isGirlGender === 'function' ? isGirlGender(u.gender) : (u.gender === 'Girl' || u.gender === 'girls' || u.gender === 'girl' || u.gender === 'Female'))) {
@@ -629,6 +636,9 @@ function goToRegStep3() {
 
     // 19. Save remaining details & proceed
     state.regData.name = nameVal;
+    if (typeof closeModal === 'function') {
+        closeModal('modalCompleteProfile');
+    }
     if (typeof saveRegDraft === 'function') {
         saveRegDraft('scr-reg3');
     }

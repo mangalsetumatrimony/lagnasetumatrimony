@@ -107,6 +107,9 @@ function goToRegStep2() {
         highlightFieldError(input, 'Please search and select your caste/community to continue');
         return;
     }
+    if (typeof closeModal === 'function') {
+        closeModal('modalCompleteProfile');
+    }
     if (typeof saveRegDraft === 'function') {
         saveRegDraft('scr-reg2');
     }
