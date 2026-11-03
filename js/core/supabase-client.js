@@ -2405,9 +2405,23 @@ async function supabaseFetchUserInterests(userEmail, userId) {
  */
 async function supabaseUpdateInterestStatus(interestId, newStatus, senderProfile, receiverProfile) {
     const client = getSupabaseClient();
+    const cleanId = (v) => {
+        if (!v) return 0;
+        if (typeof v === 'number') return isNaN(v) ? 0 : v;
+        const n = Number(String(v).replace(/\D/g, ''));
+        return isNaN(n) ? 0 : n;
+    };
+    const sId = cleanId(senderProfile?.id || senderProfile?.senderId);
+    const rId = cleanId(receiverProfile?.id || receiverProfile?.receiverId);
+    const sEmail = (senderProfile?.email || senderProfile?.rawEmail || senderProfile?.senderEmail || '').trim().toLowerCase();
+    const rEmail = (receiverProfile?.email || receiverProfile?.rawEmail || receiverProfile?.receiverEmail || '').trim().toLowerCase();
+    const cleanInterestId = interestId ? String(interestId).replace(/usr_/g, '') : '';
+
     if (client) {
         try {
             let updated = false;
+
+            // 1. Direct match by provided interestId
             if (interestId) {
                 const { data: updData, error: updErr } = await client.from('interests').update({
                     status: newStatus,
@@ -2418,15 +2432,52 @@ async function supabaseUpdateInterestStatus(interestId, newStatus, senderProfile
                     console.info(`[Supabase] Interest ${interestId} updated to: ${newStatus}`);
                 }
             }
-            if (!updated && senderProfile?.id && receiverProfile?.id) {
-                const sId = Number(senderProfile.id);
-                const rId = Number(receiverProfile.id);
-                if (sId && rId) {
-                    await client.from('interests').update({
-                        status: newStatus,
-                        updated_at: new Date().toISOString()
-                    }).eq('sender_id', sId).eq('receiver_id', rId);
-                    console.info(`[Supabase] Interest (s:${sId}, r:${rId}) updated to: ${newStatus}`);
+
+            // 2. Cleaned interestId (strip usr_ prefix)
+            if (!updated && cleanInterestId && cleanInterestId !== interestId) {
+                const { data: updData2, error: updErr2 } = await client.from('interests').update({
+                    status: newStatus,
+                    updated_at: new Date().toISOString()
+                }).eq('id', cleanInterestId).select();
+                if (!updErr2 && Array.isArray(updData2) && updData2.length > 0) {
+                    updated = true;
+                    console.info(`[Supabase] Interest ${cleanInterestId} updated to: ${newStatus}`);
+                }
+            }
+
+            // 3. Bidirectional ID query: int_sId_rId or int_rId_sId
+            if (!updated && sId && rId) {
+                const { data: updData3, error: updErr3 } = await client.from('interests').update({
+                    status: newStatus,
+                    updated_at: new Date().toISOString()
+                }).or(`id.eq.int_${sId}_${rId},id.eq.int_${rId}_${sId}`).select();
+                if (!updErr3 && Array.isArray(updData3) && updData3.length > 0) {
+                    updated = true;
+                    console.info(`[Supabase] Interest bidirectional ID (int_${sId}_${rId} / int_${rId}_${sId}) updated to: ${newStatus}`);
+                }
+            }
+
+            // 4. Bidirectional column query: (sender_id = sId AND receiver_id = rId) OR (sender_id = rId AND receiver_id = sId)
+            if (!updated && sId && rId) {
+                const { data: updData4, error: updErr4 } = await client.from('interests').update({
+                    status: newStatus,
+                    updated_at: new Date().toISOString()
+                }).or(`and(sender_id.eq.${sId},receiver_id.eq.${rId}),and(sender_id.eq.${rId},receiver_id.eq.${sId})`).select();
+                if (!updErr4 && Array.isArray(updData4) && updData4.length > 0) {
+                    updated = true;
+                    console.info(`[Supabase] Interest (s:${sId}, r:${rId} bidirectional) updated to: ${newStatus}`);
+                }
+            }
+
+            // 5. Bidirectional email query fallback
+            if (!updated && sEmail && rEmail && !sEmail.includes('•') && !rEmail.includes('•')) {
+                const { data: updData5, error: updErr5 } = await client.from('interests').update({
+                    status: newStatus,
+                    updated_at: new Date().toISOString()
+                }).or(`and(sender_email.ilike.${sEmail},receiver_email.ilike.${rEmail}),and(sender_email.ilike.${rEmail},receiver_email.ilike.${sEmail})`).select();
+                if (!updErr5 && Array.isArray(updData5) && updData5.length > 0) {
+                    updated = true;
+                    console.info(`[Supabase] Interest bidirectional email (${sEmail} / ${rEmail}) updated to: ${newStatus}`);
                 }
             }
         } catch (e) {

@@ -841,7 +841,12 @@ function setInterestBtnState(btn, pid) {
         discWrap.style.display = (status === 'accepted') ? 'block' : 'none';
     }
 
+    const secTitle = document.getElementById('profileActionsSectionTitle');
+    const secDesc = document.getElementById('profileActionsSectionDesc');
+
     if (status === 'accepted') {
+        if (secTitle) secTitle.innerHTML = '<i class="fa-solid fa-shield-heart" style="color:var(--primary);margin-right:6px;"></i> Connected Match (જોડાયેલ સંબંધ)';
+        if (secDesc) secDesc.textContent = 'Interest accepted! Direct safe text messaging and verified details are unlocked below.';
         btn.classList.add('btn-accepted');
         btn.innerHTML = '<i class="fa-solid fa-comment-dots"></i> Message (Text Only)';
         btn.className = 'btn btn-primary btn-grow';
@@ -849,6 +854,8 @@ function setInterestBtnState(btn, pid) {
         return;
     }
     if (status === 'pending') {
+        if (secTitle) secTitle.textContent = 'Interested?';
+        if (secDesc) secDesc.textContent = 'Send an interest request — if accepted, chat, family details & location unlock directly.';
         btn.classList.add('btn-sent');
         btn.innerHTML = '<i class="fa-solid fa-clock"></i> Request sent';
         btn.className = 'btn btn-outline btn-grow';
@@ -857,6 +864,8 @@ function setInterestBtnState(btn, pid) {
         return;
     }
     if (status === 'declined') {
+        if (secTitle) secTitle.textContent = 'Interested?';
+        if (secDesc) secDesc.textContent = 'Send an interest request — if accepted, chat, family details & location unlock directly.';
         btn.innerHTML = '<i class="fa-solid fa-ban"></i> Request declined';
         btn.className = 'btn btn-outline btn-grow';
         btn.onclick = () => showToast('This request was declined.');
@@ -865,6 +874,8 @@ function setInterestBtnState(btn, pid) {
     }
     if (status === 'disconnected') {
         if (discWrap) discWrap.style.display = 'none';
+        if (secTitle) secTitle.textContent = 'Interested?';
+        if (secDesc) secDesc.textContent = 'Send an interest request — if accepted, chat, family details & location unlock directly.';
         btn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Re-connect (ફરી રિક્વેસ્ટ મોકલો)';
         btn.className = 'btn btn-gold btn-grow';
         btn.disabled = false;
@@ -1137,44 +1148,19 @@ function renderFatherContactSection(p) {
                 <div class="contact-unlocked-banner">
                     <i class="fa-solid fa-shield-heart" style="font-size:18px;color:#1D7A44;flex-shrink:0;"></i>
                     <div style="font-size:12.5px;color:#065F46;line-height:1.45;">
-                        <b>Interest Accepted!</b> Connection with ${escapeHtml(p.name)}'s family is verified. Direct WhatsApp, Call &amp; In-App Chat options are unlocked below.
+                        <b>Interest Accepted!</b> Connection with ${escapeHtml(p.name)}'s family is verified. Direct WhatsApp &amp; Call options are unlocked below.
                     </div>
                 </div>
                 <div class="contact-btn-row">
                     <button class="contact-btn wa" onclick="quickWhatsApp('${escapeHtml(phone)}','${escapeHtml(p.name)}',${p.id})"><i class="fa-brands fa-whatsapp"></i> WhatsApp Father</button>
                     <button class="contact-btn call" onclick="quickCall('${escapeHtml(phone)}',${p.id})"><i class="fa-solid fa-phone"></i> Call Father</button>
                 </div>
-                <div style="margin-top:10px;">
-                    <button class="btn btn-outline" style="width:100%;padding:10px;font-size:13px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="openChatFor(${p.id})">
-                        <i class="fa-solid fa-comments" style="color:var(--primary);"></i> Chat on Mangal Setu (ચેટ કરો)
-                    </button>
-                </div>
             </div>`;
         }
 
         // Phone is empty (Candidate Self Profile who skipped family details)
-        return `
-        <div id="profileFatherContactWrap">
-            <div class="section-label" style="display:flex;align-items:center;gap:8px;">
-                <i class="fa-solid fa-circle-check" style="color:var(--success);"></i>
-                <span>Direct In-App Chat (સુરક્ષિત ચેટ અનલોક)</span>
-            </div>
-            <div class="contact-unlocked-banner" style="background:#F0FDF4;border:1.5px solid #86EFAC;">
-                <i class="fa-solid fa-comments" style="font-size:20px;color:#16A34A;flex-shrink:0;"></i>
-                <div style="font-size:12.5px;color:#166534;line-height:1.5;">
-                    <b>Interest Accepted! (રિકવેસ્ટ સ્વીકારાઈ ગઈ છે)</b><br>
-                    ચેટિંગમાં પરસ્પર અનુકૂળતા લાગ્યા બાદ તમે દીકરીને પરિવાર વિશે પૂછી શકો છો અથવા દીકરી તમને જણાવી શકે છે.
-                    <div style="font-size:11px;color:#15803D;margin-top:3px;">
-                        In chat, after mutual comfort, you can ask the candidate about family or candidate can share details with you.
-                    </div>
-                </div>
-            </div>
-            <div style="margin-top:12px;">
-                <button class="btn btn-primary" style="width:100%;padding:12px;font-size:14px;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 14px rgba(123,44,191,0.25);" onclick="openChatFor(${p.id})">
-                    <i class="fa-solid fa-comment-dots" style="font-size:17px;"></i> Start In-App Chat (ચેટ શરૂ કરો)
-                </button>
-            </div>
-        </div>`;
+        // Upper duplicate chat section removed as requested by user - chat is handled by Message (Text Only) button below
+        return '';
     }
 
     // LOCKED STATE (Interest not sent or pending or declined)
@@ -1347,8 +1333,8 @@ function openProfile(id) {
                 <p class="p-muted" style="margin-top:-8px;margin-bottom:12px;">This is how eligible community members see your matrimony profile.</p>
                 <button class="btn btn-primary" onclick="go('scr-editprofile')"><i class="fa-solid fa-user-pen"></i> Edit My Profile</button>
             ` : `
-                <div class="section-label">Interested?</div>
-                <p class="p-muted" style="margin-top:-8px;margin-bottom:12px;">Send an interest request — if accepted, chat, family details &amp; location unlock directly.</p>
+                <div class="section-label" id="profileActionsSectionTitle">Interested?</div>
+                <p class="p-muted" id="profileActionsSectionDesc" style="margin-top:-8px;margin-bottom:12px;">Send an interest request — if accepted, chat, family details &amp; location unlock directly.</p>
                 <button class="btn btn-gold" id="fullInterestBtn" data-pid="${p.id}"><i class="fa-solid fa-heart-circle-check"></i> I'm interested</button>
                 <div id="profileDisconnectActionWrap" style="display:${((typeof interestStatusFor === 'function' ? interestStatusFor(p.id) : null) === 'accepted') ? 'block' : 'none'};">
                     <button class="btn btn-outline" type="button" style="width:100%;margin-top:10px;border-color:rgba(239,68,68,0.3);color:var(--error,#ef4444);font-size:13px;font-weight:700;" onclick="promptDisconnectConnection(${p.id})">

@@ -59,13 +59,17 @@ function initApp() {
             }
         });
     }
-    renderHowItWorks();
-    renderFaqs();
-    initHobbies();
-    updateInboxBadge();
-    updateHeaderUserDisplay();
-    if (typeof syncUserNotificationsFromData === 'function') syncUserNotificationsFromData();
-    if (typeof updateUserNotifBadge === 'function') updateUserNotifBadge();
+    try { renderHowItWorks(); } catch (e) { console.warn('[Init] renderHowItWorks note:', e); }
+    try { renderFaqs(); } catch (e) { console.warn('[Init] renderFaqs note:', e); }
+    try { initHobbies(); } catch (e) { console.warn('[Init] initHobbies note:', e); }
+    try { updateInboxBadge(); } catch (e) { console.warn('[Init] updateInboxBadge note:', e); }
+    try { updateHeaderUserDisplay(); } catch (e) { console.warn('[Init] updateHeaderUserDisplay note:', e); }
+    if (typeof syncUserNotificationsFromData === 'function') {
+        try { syncUserNotificationsFromData(); } catch (e) {}
+    }
+    if (typeof updateUserNotifBadge === 'function') {
+        try { updateUserNotifBadge(); } catch (e) {}
+    }
 
     // Start live sync, real-time chat listener, presence tracking & 10-min inactivity timer for active user session
     if (state.currentUser && state.currentUser.email) {
@@ -259,9 +263,9 @@ function initApp() {
             }
         }
 
-        if (targetScreen === 'scr-howitworks') renderHowItWorks();
-        if (targetScreen === 'scr-help') renderFaqs();
-        showGlobalLoader('Loading...', 240);
+        if (targetScreen === 'scr-howitworks') { try { renderHowItWorks(); } catch (_) {} }
+        if (targetScreen === 'scr-help') { try { renderFaqs(); } catch (_) {} }
+        if (typeof hideGlobalLoader === 'function') hideGlobalLoader(true);
         sessionStorage.setItem('mangalSetu_visited', 'true');
         saveSessionState();
     } else {
@@ -309,30 +313,34 @@ async function bootstrapApp() {
         localStorage.removeItem(LS_HOWITWORKS_KEY);
     } catch(e) {}
 
-    if (typeof initAppHelpers === 'function') initAppHelpers();
-    initApp();
+    try {
+        if (typeof initAppHelpers === 'function') initAppHelpers();
+        initApp();
 
-    // Live sync FAQs, How It Works, and Castes directly from Supabase app_settings
-    if (typeof syncHelpContentFromSupabase === 'function') syncHelpContentFromSupabase();
-    if (typeof syncCastesFromSupabase === 'function') syncCastesFromSupabase();
+        // Live sync FAQs, How It Works, and Castes directly from Supabase app_settings
+        if (typeof syncHelpContentFromSupabase === 'function') syncHelpContentFromSupabase();
+        if (typeof syncCastesFromSupabase === 'function') syncCastesFromSupabase();
 
-    // Subscribe to live Supabase updates so any admin edits reflect immediately
-    if (typeof supabaseSubscribeAppSettings === 'function') {
-        supabaseSubscribeAppSettings((key, value) => {
-            if (key === 'faqs' && Array.isArray(value)) {
-                window.REMOTE_FAQS = value;
-                if (typeof renderFaqs === 'function' && document.getElementById('faqList')) renderFaqs();
-            } else if (key === 'guide_steps' && Array.isArray(value)) {
-                window.REMOTE_GUIDE_STEPS = value.map(s => typeof s === 'string' ? { title: s, desc: '' } : s);
-                if (typeof renderHowItWorks === 'function') renderHowItWorks();
-            } else if (key === 'castes' && Array.isArray(value)) {
-                window.REMOTE_CASTES = value;
-                if (typeof renderFilterCasteOptions === 'function') renderFilterCasteOptions();
-            } else if (key === 'contact_details' && value) {
-                window.REMOTE_CONTACT = value;
-                try { localStorage.setItem('mangal_setu_contact_info', JSON.stringify(value)); } catch(e) {}
-            }
-        });
+        // Subscribe to live Supabase updates so any admin edits reflect immediately
+        if (typeof supabaseSubscribeAppSettings === 'function') {
+            supabaseSubscribeAppSettings((key, value) => {
+                if (key === 'faqs' && Array.isArray(value)) {
+                    window.REMOTE_FAQS = value;
+                    if (typeof renderFaqs === 'function' && document.getElementById('faqList')) renderFaqs();
+                } else if (key === 'guide_steps' && Array.isArray(value)) {
+                    window.REMOTE_GUIDE_STEPS = value.map(s => typeof s === 'string' ? { title: s, desc: '' } : s);
+                    if (typeof renderHowItWorks === 'function') renderHowItWorks();
+                } else if (key === 'castes' && Array.isArray(value)) {
+                    window.REMOTE_CASTES = value;
+                    if (typeof renderFilterCasteOptions === 'function') renderFilterCasteOptions();
+                } else if (key === 'contact_details' && value) {
+                    window.REMOTE_CONTACT = value;
+                    try { localStorage.setItem('mangal_setu_contact_info', JSON.stringify(value)); } catch(e) {}
+                }
+            });
+        }
+    } finally {
+        if (typeof hideGlobalLoader === 'function') hideGlobalLoader(true);
     }
 }
 

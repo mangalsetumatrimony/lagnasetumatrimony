@@ -860,6 +860,18 @@ async function syncUserChatAndInterests() {
                         if (myEmail && pEmail && pEmail === myEmail) return;
                         if (typeof isSelfProfile === 'function' && isSelfProfile(pid)) return;
                         if (typeof isUserPurged === 'function' && (isUserPurged(pid) || isUserPurged(pEmail))) return;
+
+                        // Security & Consistency Guard: If locally this connection was already accepted, NEVER downgrade to pending!
+                        const localAccepted = INCOMING_REQUESTS.find(lr => {
+                            if (!lr) return false;
+                            const lPid = Number(lr.profileId || lr.senderId);
+                            const lEmail = (lr.senderEmail || '').trim().toLowerCase();
+                            return ((pid && lPid === pid) || (pEmail && lEmail && pEmail === lEmail)) && lr.status === 'accepted';
+                        });
+                        if (localAccepted) {
+                            r.status = 'accepted';
+                        }
+
                         const key = pEmail || pid;
                         if (!seenIn.has(key)) {
                             seenIn.add(key);
@@ -891,6 +903,18 @@ async function syncUserChatAndInterests() {
                         if (myEmail && pEmail && pEmail === myEmail) return;
                         if (typeof isSelfProfile === 'function' && isSelfProfile(pid)) return;
                         if (typeof isUserPurged === 'function' && (isUserPurged(pid) || isUserPurged(pEmail))) return;
+
+                        // Security & Consistency Guard: If locally this connection was already accepted, NEVER downgrade to pending!
+                        const localAccepted = OUTGOING_REQUESTS.find(lr => {
+                            if (!lr) return false;
+                            const lPid = Number(lr.profileId || lr.receiverId);
+                            const lEmail = (lr.receiverEmail || '').trim().toLowerCase();
+                            return ((pid && lPid === pid) || (pEmail && lEmail && pEmail === lEmail)) && lr.status === 'accepted';
+                        });
+                        if (localAccepted) {
+                            r.status = 'accepted';
+                        }
+
                         const key = pEmail || pid;
                         if (!seenOut.has(key)) {
                             seenOut.add(key);
@@ -1344,6 +1368,12 @@ async function acceptRequest(profileId) {
     }
     r.status = 'accepted';
     
+    // Also update matching outgoing request if bidirectional record exists
+    if (Array.isArray(window.OUTGOING_REQUESTS)) {
+        const outReq = window.OUTGOING_REQUESTS.find(o => Number(o.profileId) === pid || Number(o.receiverId) === pid);
+        if (outReq) outReq.status = 'accepted';
+    }
+
     const p = findProfile(pid, r ? r.senderEmail : '');
     const peerName = (p && p.name && p.name !== 'Community Match' && p.name !== 'Community Member')
         ? p.name
@@ -1380,13 +1410,14 @@ async function acceptRequest(profileId) {
         window.refreshProfileContactState(pid);
     }
 
-    // Persist to Supabase and send congratulatory email to sender (Optimistic Background Sync)
+    // Persist to Supabase and send congratulatory email to sender
     const updateStatusFn = (typeof supabaseUpdateInterestStatus === 'function')
         ? supabaseUpdateInterestStatus
         : ((typeof window !== 'undefined' && typeof window.supabaseUpdateInterestStatus === 'function') ? window.supabaseUpdateInterestStatus : null);
 
     if (updateStatusFn) {
-        const interestId = (r && r.id) || `int_${pid}_${state.currentUser.id}`;
+        const cleanMyId = Number(String(state.currentUser?.id || state.currentUser?.profileId || 0).replace(/\D/g, '')) || 0;
+        const interestId = (r && r.id && !r.id.includes('usr_')) ? r.id : (r?.id ? r.id.replace(/usr_/g, '') : (cleanMyId ? `int_${pid}_${cleanMyId}` : ''));
         try {
             const receiverObj = resolveFullUserProfile(state.currentUser);
             const senderObj = {
@@ -1398,7 +1429,7 @@ async function acceptRequest(profileId) {
                 photo: peerImg,
                 img: peerImg
             };
-            updateStatusFn(interestId, 'accepted', senderObj, receiverObj).catch(e => {
+            await updateStatusFn(interestId, 'accepted', senderObj, receiverObj).catch(e => {
                 console.warn('[Interest] Background accept sync note:', e);
             });
         } catch (e) {
@@ -1431,13 +1462,14 @@ async function declineRequest(profileId) {
     updateInboxBadge();
     refreshProfileButtons();
 
-    // Persist to Supabase and send polite notification to sender (Optimistic Background Sync)
+    // Persist to Supabase and send polite notification to sender
     const updateStatusFn = (typeof supabaseUpdateInterestStatus === 'function')
         ? supabaseUpdateInterestStatus
         : ((typeof window !== 'undefined' && typeof window.supabaseUpdateInterestStatus === 'function') ? window.supabaseUpdateInterestStatus : null);
 
     if (updateStatusFn) {
-        const interestId = (r && r.id) || `int_${pid}_${state.currentUser.id}`;
+        const cleanMyId = Number(String(state.currentUser?.id || state.currentUser?.profileId || 0).replace(/\D/g, '')) || 0;
+        const interestId = (r && r.id && !r.id.includes('usr_')) ? r.id : (r?.id ? r.id.replace(/usr_/g, '') : (cleanMyId ? `int_${pid}_${cleanMyId}` : ''));
         try {
             const receiverObj = resolveFullUserProfile(state.currentUser);
             const senderObj = {
@@ -1447,7 +1479,7 @@ async function declineRequest(profileId) {
                 email: realSenderEmail,
                 rawEmail: realSenderEmail
             };
-            updateStatusFn(interestId, 'declined', senderObj, receiverObj).catch(e => {
+            await updateStatusFn(interestId, 'declined', senderObj, receiverObj).catch(e => {
                 console.warn('[Interest] Background decline sync note:', e);
             });
         } catch (e) {

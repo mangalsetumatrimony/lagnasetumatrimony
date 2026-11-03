@@ -212,6 +212,27 @@
             </div>
         </div>
     </div>
+    <script>
+        // Unbreakable safety timer: Ensures loader or splash is NEVER permanently stuck
+        setTimeout(function () {
+            try {
+                var g = document.getElementById('globalPageLoader');
+                if (g && (g.classList.contains('active') || g.style.display !== 'none')) {
+                    g.classList.remove('active');
+                    g.style.opacity = '0';
+                    g.style.visibility = 'hidden';
+                    g.style.pointerEvents = 'none';
+                    g.style.display = 'none';
+                }
+                var splash = document.getElementById('scr-splash');
+                var anyActiveScreen = document.querySelector('.screen.active:not(#scr-splash)');
+                if (splash && anyActiveScreen) {
+                    splash.classList.remove('active');
+                    splash.style.display = 'none';
+                }
+            } catch (_) { }
+        }, 1200);
+    </script>
 
 
     <!-- ============ DESKTOP LEFT ICON RAIL (dashboard nav, desktop only) ============ -->
@@ -2932,32 +2953,32 @@
     <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Core & State -->
-    <script src="js/core/state.js?v=7.0"></script>
-    <script src="js/core/supabase-client.js?v=7.0"></script>
+    <script src="js/core/state.js?v=7.1"></script>
+    <script src="js/core/supabase-client.js?v=7.1"></script>
     <!-- EmailJS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script src="js/services/email-service.js?v=7.0"></script>
-    <script src="js/core/router.js?v=7.0"></script>
+    <script src="js/services/email-service.js?v=7.1"></script>
+    <script src="js/core/router.js?v=7.1"></script>
+    <!-- Utilities (Loaded before Data Modules so escapeHtml & helpers are available globally) -->
+    <script src="js/utils/helpers.js?v=7.1"></script>
+    <script src="js/utils/pwa.js?v=7.1"></script>
+    <script src="js/utils/cloudinary.js?v=7.1"></script>
+    <script src="js/utils/cropper.js?v=7.1"></script>
+    <script src="js/utils/datepicker.js?v=7.1"></script>
     <!-- Data Modules -->
-    <script src="js/data/castes.js?v=7.0"></script>
-    <script src="js/data/help-content.js?v=7.0"></script>
-    <script src="js/data/profiles.js?v=7.0"></script>
-    <!-- Utilities -->
-    <script src="js/utils/helpers.js?v=7.0"></script>
-    <script src="js/utils/pwa.js?v=7.0"></script>
-    <script src="js/utils/cloudinary.js?v=7.0"></script>
-    <script src="js/utils/cropper.js?v=7.0"></script>
-    <script src="js/utils/datepicker.js?v=7.0"></script>
+    <script src="js/data/castes.js?v=7.1"></script>
+    <script src="js/data/help-content.js?v=7.1"></script>
+    <script src="js/data/profiles.js?v=7.1"></script>
     <!-- Application Modules -->
-    <script src="js/modules/auth.js?v=7.0"></script>
-    <script src="js/modules/browse.js?v=7.0"></script>
-    <script src="js/modules/chat.js?v=7.0"></script>
-    <script src="js/modules/profile.js?v=7.0"></script>
-    <script src="js/modules/notifications.js?v=7.0"></script>
+    <script src="js/modules/auth.js?v=7.1"></script>
+    <script src="js/modules/browse.js?v=7.1"></script>
+    <script src="js/modules/chat.js?v=7.1"></script>
+    <script src="js/modules/profile.js?v=7.1"></script>
+    <script src="js/modules/notifications.js?v=7.1"></script>
     <!-- Application Entrypoint -->
-    <script src="js/app.js?v=7.0"></script>
+    <script src="js/app.js?v=7.1"></script>
     <!-- Privacy & Anti-Inspect Security Guard -->
-    <script src="js/utils/security-guard.js?v=7.0"></script>
+    <script src="js/utils/security-guard.js?v=7.1"></script>
 
 </body>
 

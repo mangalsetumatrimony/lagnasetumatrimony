@@ -90,6 +90,7 @@ async function syncHelpContentFromSupabase() {
 
 /* ============================================================ HOW IT WORKS & FAQS DYNAMIC RENDER ============================================================ */
 function renderHowItWorks() {
+    const safeEsc = (s) => (typeof escapeHtml === "function" ? escapeHtml(s) : (typeof window !== "undefined" && window.escapeHtml ? window.escapeHtml(s) : String(s || "")));
     const steps = getHowItWorksSteps();
 
     // 1. Render inside the Welcome Screen popup modal (#modalGuideSteps)
@@ -99,8 +100,8 @@ function renderHowItWorks() {
             <div class="step-item">
                 <div class="snum">${i + 1}</div>
                 <div>
-                    <div class="stitle">${escapeHtml(step.title || '')}</div>
-                    <div class="sdesc">${escapeHtml(step.desc || '')}</div>
+                    <div class="stitle">${safeEsc(step.title || '')}</div>
+                    <div class="sdesc">${safeEsc(step.desc || '')}</div>
                 </div>
             </div>
         `).join('');
@@ -113,8 +114,8 @@ function renderHowItWorks() {
             <div class="step-item"${i === steps.length - 1 ? ' style="margin-bottom:0;"' : ''}>
                 <div class="snum">${i + 1}</div>
                 <div>
-                    <div class="stitle">${escapeHtml(step.title || '')}</div>
-                    <div class="sdesc">${escapeHtml(step.desc || '')}</div>
+                    <div class="stitle">${safeEsc(step.title || '')}</div>
+                    <div class="sdesc">${safeEsc(step.desc || '')}</div>
                 </div>
             </div>
         `).join('');
