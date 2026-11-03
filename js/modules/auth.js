@@ -638,9 +638,17 @@ function checkBoyPassStatus(user) {
             : (user.genderToken === computeSecureToken('gender', user.id, user.email, user.gender));
 
         if (!isGenderValid) {
-            const isAuthentic = (typeof isGirlGender === 'function' ? isGirlGender(user.gender) : false) || (user.gender === 'Boy');
-            if (isAuthentic && user.id && user.email) {
-                user.genderToken = computeSecureToken('gender', user.id, user.email, user.gender);
+            // Anti-Tamper: Never trust client-modified user.gender! Cross-check against authentic profile in PROFILES
+            const uEmail = (user.email || '').trim().toLowerCase();
+            const originalProf = (typeof window !== 'undefined' && Array.isArray(window.PROFILES))
+                ? window.PROFILES.find(p => p && p.email && p.email.toLowerCase() === uEmail)
+                : null;
+            const trueGender = originalProf ? originalProf.gender : null;
+            const isReallyGirl = trueGender && ((typeof isGirlGender === 'function' && isGirlGender(trueGender)) || String(trueGender).toLowerCase().includes('girl'));
+
+            if (isReallyGirl && user.id && user.email) {
+                user.gender = 'Girl';
+                user.genderToken = computeSecureToken('gender', user.id, user.email, 'Girl');
             } else {
                 console.warn('[Security Guard] Tampering detected: gender token signature mismatch.');
                 return { active: false, reason: 'tampered', daysLeft: 0 };
@@ -1842,253 +1850,22 @@ function payNow() {
     openRazorpayCheckout();
 }
 
-/* ============================================================ FORGOT PASSWORD & RESET FLOW ============================================================ */
-let forgotPasswordState = {
-    email: '',
-    otp: '',
-    otpExpiry: 0
-};
-
-let resendForgotOtpCountdownTimer = null;
-function startForgotResendCountdown(seconds = 30) {
-    const btn = document.getElementById('btnResendForgotOtp');
-    if (!btn) return;
-    clearInterval(resendForgotOtpCountdownTimer);
-    let remaining = seconds;
-    btn.style.pointerEvents = 'none';
-    btn.style.opacity = '0.5';
-    btn.textContent = `Resend OTP (${remaining}s)`;
-    resendForgotOtpCountdownTimer = setInterval(() => {
-        remaining--;
-        if (remaining <= 0) {
-            clearInterval(resendForgotOtpCountdownTimer);
-            btn.style.pointerEvents = 'auto';
-            btn.style.opacity = '1';
-            btn.textContent = 'Resend OTP';
-        } else {
-            btn.textContent = `Resend OTP (${remaining}s)`;
-        }
-    }, 1000);
+/* ============================================================ FORGOT PASSWORD (DISABLED - DIRECT GOOGLE AUTH) ============================================================ */
+function handleSendForgotOtp() {
+    if (typeof showToast === 'function') showToast('Please sign in securely with Google.');
+    if (typeof go === 'function') go('scr-login');
 }
-
-function handleSendForgotOtp(isResend = false) {
-    const emailInput = document.getElementById('forgotEmailInput');
-    const email = isResend ? forgotPasswordState.email : (emailInput ? emailInput.value.trim() : '');
-
-    if (!email) {
-        if (emailInput) highlightFieldError(emailInput, 'Please enter your registered Gmail address');
-        return;
-    }
-
-    const gmailCheck = validateGmail(email);
-    if (!gmailCheck.ok) {
-        if (emailInput) highlightFieldError(emailInput, gmailCheck.msg);
-        return;
-    }
-    if (emailInput) clearFieldError(emailInput);
-
-    const generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
-    forgotPasswordState.email = email.toLowerCase();
-    forgotPasswordState.otp = generatedOtp;
-    forgotPasswordState.otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    const emailDisplay = document.getElementById('forgotOtpEmailDisplay');
-    if (emailDisplay) emailDisplay.textContent = email.toLowerCase();
-
-    // Clear all 6 otp boxes
-    for (let i = 1; i <= 6; i++) {
-        const inp = document.getElementById(`forgotOtp${i}`);
-        if (inp) inp.value = '';
-    }
-
-    // Dispatch 6-digit OTP code exclusively via EmailJS (branded Royal Purple template from mangalsetu.in@gmail.com)
-    (async () => {
-        if (typeof sendOtpEmail === 'function') {
-            try {
-                await sendOtpEmail(email, generatedOtp, 'Member', 'reset');
-                console.info('[Auth] Password reset OTP dispatched successfully via EmailJS');
-            } catch (err) {
-                console.warn('[EmailService] Reset OTP notice:', err);
-            }
-        }
-    })();
-
-    startForgotResendCountdown(isResend ? 35 : 30);
-    showToast(`Password Reset OTP sent to ${email.toLowerCase()} (Check your Gmail)`);
-    go('scr-forgot-otp');
+function verifyForgotOtp() {
+    if (typeof showToast === 'function') showToast('Please sign in securely with Google.');
+    if (typeof go === 'function') go('scr-login');
 }
-
-async function verifyForgotOtp() {
-    let entered = '';
-    for (let i = 1; i <= 6; i++) {
-        const inp = document.getElementById(`forgotOtp${i}`);
-        if (inp) entered += inp.value.trim();
-    }
-
-    if (entered.length < 6) {
-        showToast('Please enter the full 6-digit OTP code');
-        return;
-    }
-
-    // 1. Expiration check (10 minutes)
-    if (forgotPasswordState.otpExpiry && Date.now() > forgotPasswordState.otpExpiry) {
-        showToast('OTP has expired. Please click "Resend OTP" to get a fresh code.');
-        return;
-    }
-
-    // 2. Validate OTP: Primary check with EmailJS dispatched OTP
-    let isValid = false;
-    if (forgotPasswordState.otp && entered === forgotPasswordState.otp) {
-        isValid = true;
-    } else if (typeof supabaseVerifyEmailOtp === 'function' && getSupabaseClient() && forgotPasswordState.email) {
-        try {
-            const client = getSupabaseClient();
-            let res = await client.auth.verifyOtp({
-                email: forgotPasswordState.email.toLowerCase(),
-                token: entered,
-                type: 'recovery'
-            });
-            if (res && res.error) {
-                const retry = await client.auth.verifyOtp({
-                    email: forgotPasswordState.email.toLowerCase(),
-                    token: entered,
-                    type: 'email'
-                });
-                if (retry && !retry.error) res = retry;
-            }
-            if (res && !res.error) {
-                isValid = true;
-            }
-        } catch (e) {
-            console.warn('[Supabase] Recovery OTP verification note:', e);
-        }
-    }
-
-    if (!isValid) {
-        showToast('Incorrect OTP code. Please check your Gmail and try again.');
-        return;
-    }
-
-    if (resendForgotOtpCountdownTimer) {
-        clearInterval(resendForgotOtpCountdownTimer);
-        resendForgotOtpCountdownTimer = null;
-    }
-
-    showToast('OTP verified! Please set your new password.');
-    const np = document.getElementById('newPassInput');
-    const cp = document.getElementById('confirmPassInput');
-    if (np) np.value = '';
-    if (cp) cp.value = '';
-    go('scr-newpass');
+function handleResetPassword() {
+    if (typeof showToast === 'function') showToast('Please sign in securely with Google.');
+    if (typeof go === 'function') go('scr-login');
 }
-
-async function handleResetPassword() {
-    const npInput = document.getElementById('newPassInput');
-    const cpInput = document.getElementById('confirmPassInput');
-    const newPass = npInput ? npInput.value.trim() : '';
-    const confirmPass = cpInput ? cpInput.value.trim() : '';
-
-    if (!newPass) {
-        highlightFieldError(npInput, 'Please enter a new password');
-        return;
-    }
-    if (newPass.length < 6) {
-        highlightFieldError(npInput, 'Password must be at least 6 characters');
-        return;
-    }
-    clearFieldError(npInput);
-
-    if (newPass !== confirmPass) {
-        highlightFieldError(cpInput, 'Passwords do not match');
-        return;
-    }
-    clearFieldError(cpInput);
-
-    const resetEmail = (forgotPasswordState && forgotPasswordState.email) ? forgotPasswordState.email.trim().toLowerCase() : '';
-    if (!resetEmail) {
-        showToast('Password reset session expired. Please request OTP again.');
-        go('scr-forgot');
-        return;
-    }
-
-    const newHash = await hashPass(newPass);
-
-    // 1. Update in Supabase Auth if session exists
-    if (typeof supabaseUpdateUserPassword === 'function') {
-        try {
-            await supabaseUpdateUserPassword(newPass);
-        } catch(e) {
-            console.warn('[Supabase] Auth update note:', e);
-        }
-    }
-
-    // 2. Update in Stored Accounts with Profile Reconciliation
-    try {
-        let accounts = getStoredAccounts();
-        let idx = accounts.findIndex(u => u.email && u.email.toLowerCase() === resetEmail);
-        if (idx !== -1) {
-            accounts[idx].passwordHash = newHash;
-        } else {
-            // If user reset on a new device or fresh browser, add them to stored accounts
-            accounts.push({
-                id: Date.now(),
-                email: resetEmail,
-                passwordHash: newHash,
-                name: '',
-                gender: '',
-                status: 'Active',
-                profileComplete: false,
-                paymentStatus: 'Unpaid'
-            });
-            idx = accounts.length - 1;
-        }
-
-        // Reconcile with PROFILES if user already has a profile
-        const prof = (window.PROFILES || []).find(p => p.email && p.email.toLowerCase() === resetEmail);
-        if (prof) {
-            accounts[idx].profileComplete = true;
-            if (!accounts[idx].name) accounts[idx].name = prof.name;
-            const isGirl = typeof isGirlGender === 'function' ? isGirlGender(prof.gender) : (prof.gender === 'girls' || prof.gender === 'Girl');
-            accounts[idx].gender = isGirl ? 'Girl' : 'Boy';
-            if (!accounts[idx].caste) accounts[idx].caste = prof.community;
-            if (!accounts[idx].mobile) accounts[idx].mobile = prof.mobile;
-            if (isGirl) {
-                accounts[idx].paymentStatus = 'Free';
-            } else if (prof.paymentStatus === 'paid' || prof.paymentStatus === 'active') {
-                accounts[idx].paymentStatus = 'Active';
-                if (!accounts[idx].planExpiry) {
-                    const exp = new Date();
-                    exp.setDate(exp.getDate() + 30);
-                    accounts[idx].planExpiry = exp.toISOString().split('T')[0];
-                    accounts[idx].planStart = new Date().toISOString().split('T')[0];
-                }
-            }
-        }
-        saveStoredAccounts(accounts);
-    } catch(e) {
-        console.error('Error saving updated password in accounts:', e);
-    }
-
-    // 3. Clear temporary recovery session in Supabase client for clean login
-    if (typeof getSupabaseClient === 'function' && getSupabaseClient()) {
-        try {
-            await getSupabaseClient().auth.signOut();
-        } catch (_) {}
-    }
-
-    // Wipe sensitive in-memory and DOM data
-    if (npInput) npInput.value = '';
-    if (cpInput) cpInput.value = '';
-    forgotPasswordState.email = '';
-    forgotPasswordState.otp = '';
-
-    showToast('Password reset successfully! Please log in with your new password.');
-    const loginEmail = document.getElementById('loginEmail');
-    if (loginEmail) loginEmail.value = resetEmail;
-    const loginPass = document.getElementById('loginPass');
-    if (loginPass) loginPass.value = '';
-    go('scr-login');
-}
+window.handleSendForgotOtp = handleSendForgotOtp;
+window.verifyForgotOtp = verifyForgotOtp;
+window.handleResetPassword = handleResetPassword;
 
 // ============================================================ REMEMBER ME CREDENTIAL HELPERS ============================================================
 function encodeStoredUserPass(p) {

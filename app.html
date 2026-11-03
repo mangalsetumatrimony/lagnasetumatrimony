@@ -431,88 +431,6 @@
             </div>
         </section>
 
-        <!-- FORGOT PASSWORD -->
-        <section class="screen auth-screen" id="scr-forgot">
-            <div class="topbar"><button class="icon-btn" onclick="goBack()"><i
-                        class="fa-solid fa-arrow-left"></i></button></div>
-            <div class="screen-pad no-tab">
-                <div
-                    style="width:64px;height:64px;border-radius:20px;background:var(--primary-light);display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:24px;margin-bottom:20px;">
-                    <i class="fa-solid fa-key"></i>
-                </div>
-                <div class="h-display h-xl">Reset password</div>
-                <p class="p-muted" style="margin-top:6px;">Enter your Gmail and we'll send a 6-digit OTP to reset your
-                    password.</p>
-                <div style="margin-top:26px;">
-                    <div class="field"><label>Gmail address <span style="color:var(--error);">*</span></label>
-                        <div class="input-icon-wrap"><i class="fa-solid fa-envelope leading"></i><input class="input"
-                                id="forgotEmailInput" placeholder="you@gmail.com" oninput="liveGmailValidate(this)">
-                        </div>
-                    </div>
-                    <button class="btn btn-primary" onclick="handleSendForgotOtp()"><i
-                            class="fa-solid fa-paper-plane"></i> Send OTP Code</button>
-                    <div class="center-txt p-muted" style="margin-top:20px;">Remember your password? <span
-                            class="link-txt" onclick="go('scr-login')">Log in</span></div>
-                </div>
-            </div>
-        </section>
-
-        <section class="screen auth-screen" id="scr-forgot-otp">
-            <div class="topbar"><button class="icon-btn" onclick="goBack()"><i
-                        class="fa-solid fa-arrow-left"></i></button></div>
-            <div class="screen-pad no-tab center-txt">
-                <div
-                    style="width:74px;height:74px;border-radius:50%;background:var(--primary-light);display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:28px;margin:10px auto 6px;">
-                    <i class="fa-solid fa-envelope-open-text"></i>
-                </div>
-                <div class="h-display h-lg">Verify OTP Code</div>
-                <p class="p-muted" style="margin-top:6px;">We sent a 6-digit verification code to <b
-                        id="forgotOtpEmailDisplay">your email</b></p>
-                <div class="otp-boxes" onpaste="handleOtpPaste(event, 'forgotOtp')">
-                    <input maxlength="1" inputmode="numeric" id="forgotOtp1" onkeyup="otpMove(this, event)"
-                        autocomplete="one-time-code">
-                    <input maxlength="1" inputmode="numeric" id="forgotOtp2" onkeyup="otpMove(this, event)">
-                    <input maxlength="1" inputmode="numeric" id="forgotOtp3" onkeyup="otpMove(this, event)">
-                    <input maxlength="1" inputmode="numeric" id="forgotOtp4" onkeyup="otpMove(this, event)">
-                    <input maxlength="1" inputmode="numeric" id="forgotOtp5" onkeyup="otpMove(this, event)">
-                    <input maxlength="1" inputmode="numeric" id="forgotOtp6" onkeyup="otpMove(this, event)">
-                </div>
-                <div class="p-muted" style="margin-bottom:22px;">Didn't get it? <span class="link-txt"
-                        id="btnResendForgotOtp" onclick="handleSendForgotOtp(true)">Resend OTP</span></div>
-                <button class="btn btn-primary" onclick="verifyForgotOtp()"><i class="fa-solid fa-check"></i> Verify
-                    &amp; Proceed</button>
-            </div>
-        </section>
-
-        <section class="screen auth-screen" id="scr-newpass">
-            <div class="topbar"><button class="icon-btn" onclick="goBack()"><i
-                        class="fa-solid fa-arrow-left"></i></button></div>
-            <div class="screen-pad no-tab">
-                <div class="h-display h-xl">Set new password</div>
-                <p class="p-muted" style="margin-top:6px;">Choose a strong new password (minimum 6 characters).</p>
-                <div style="margin-top:26px;">
-                    <div class="field"><label>New password <span style="color:var(--error);">*</span></label>
-                        <div class="input-icon-wrap"><i class="fa-solid fa-lock leading"></i><input class="input"
-                                id="newPassInput" type="password" placeholder="••••••••" autocomplete="new-password">
-                            <button class="trailing-btn" type="button" onclick="togglePw('newPassInput',this)"
-                                aria-label="Show or hide password"><i class="fa-solid fa-eye"></i></button>
-                        </div>
-                        <span class="hint">Minimum 6 characters</span>
-                    </div>
-                    <div class="field"><label>Confirm password <span style="color:var(--error);">*</span></label>
-                        <div class="input-icon-wrap"><i class="fa-solid fa-lock leading"></i><input class="input"
-                                id="confirmPassInput" type="password" placeholder="••••••••"
-                                autocomplete="new-password">
-                            <button class="trailing-btn" type="button" onclick="togglePw('confirmPassInput',this)"
-                                aria-label="Show or hide confirm password"><i class="fa-solid fa-eye"></i></button>
-                        </div>
-                    </div>
-                    <button class="btn btn-primary" onclick="handleResetPassword()"><i class="fa-solid fa-rotate"></i>
-                        Update Password &amp; Log in</button>
-                </div>
-            </div>
-        </section>
-
         <!-- ============================================================ REGISTER ACCOUNT ============================================================ -->
         <section class="screen auth-screen" id="scr-reg1">
             <div class="topbar"><button class="icon-btn" onclick="goBack()"><i
@@ -2887,32 +2805,32 @@
     <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Core & State -->
-    <script src="js/core/state.js?v=6.3"></script>
-    <script src="js/core/supabase-client.js?v=6.3"></script>
+    <script src="js/core/state.js?v=6.4"></script>
+    <script src="js/core/supabase-client.js?v=6.4"></script>
     <!-- EmailJS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script src="js/services/email-service.js?v=6.3"></script>
-    <script src="js/core/router.js?v=6.3"></script>
+    <script src="js/services/email-service.js?v=6.4"></script>
+    <script src="js/core/router.js?v=6.4"></script>
     <!-- Data Modules -->
-    <script src="js/data/castes.js?v=6.3"></script>
-    <script src="js/data/help-content.js?v=6.3"></script>
-    <script src="js/data/profiles.js?v=6.3"></script>
+    <script src="js/data/castes.js?v=6.4"></script>
+    <script src="js/data/help-content.js?v=6.4"></script>
+    <script src="js/data/profiles.js?v=6.4"></script>
     <!-- Utilities -->
-    <script src="js/utils/helpers.js?v=6.3"></script>
-    <script src="js/utils/pwa.js?v=6.3"></script>
-    <script src="js/utils/cloudinary.js?v=6.3"></script>
-    <script src="js/utils/cropper.js?v=6.3"></script>
-    <script src="js/utils/datepicker.js?v=6.3"></script>
+    <script src="js/utils/helpers.js?v=6.4"></script>
+    <script src="js/utils/pwa.js?v=6.4"></script>
+    <script src="js/utils/cloudinary.js?v=6.4"></script>
+    <script src="js/utils/cropper.js?v=6.4"></script>
+    <script src="js/utils/datepicker.js?v=6.4"></script>
     <!-- Application Modules -->
-    <script src="js/modules/auth.js?v=6.3"></script>
-    <script src="js/modules/browse.js?v=6.3"></script>
-    <script src="js/modules/chat.js?v=6.3"></script>
-    <script src="js/modules/profile.js?v=6.3"></script>
-    <script src="js/modules/notifications.js?v=6.3"></script>
+    <script src="js/modules/auth.js?v=6.4"></script>
+    <script src="js/modules/browse.js?v=6.4"></script>
+    <script src="js/modules/chat.js?v=6.4"></script>
+    <script src="js/modules/profile.js?v=6.4"></script>
+    <script src="js/modules/notifications.js?v=6.4"></script>
     <!-- Application Entrypoint -->
-    <script src="js/app.js?v=6.3"></script>
+    <script src="js/app.js?v=6.4"></script>
     <!-- Privacy & Anti-Inspect Security Guard -->
-    <script src="js/utils/security-guard.js?v=6.3"></script>
+    <script src="js/utils/security-guard.js?v=6.4"></script>
 
 </body>
 

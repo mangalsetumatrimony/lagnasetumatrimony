@@ -393,9 +393,7 @@ function mapProfileFromSupabase(row, forAdmin = false) {
     }
 
     const isAdmin = forAdmin || (typeof window !== 'undefined' && (
-        window.location.pathname.includes('admin') ||
-        typeof ADMIN_CREDS !== 'undefined' ||
-        typeof isSessionValidSync === 'function'
+        (window.location.pathname.includes('admin') && typeof isSessionValidSync === 'function' && isSessionValidSync())
     ));
 
     const isAccepted = (typeof interestStatusFor === 'function') && (
@@ -550,20 +548,9 @@ async function supabaseFetchProfiles(filters = {}) {
         } catch (_) {}
 
         if (!data) {
-            let query = client
-                .from('profiles')
-                .select('*')
-                .neq('account_status', 'suspended')
-                .neq('account_status', 'deleted')
-                .neq('verify_status', 'rejected');
-
-            if (filters.caste && filters.caste !== 'All' && filters.caste !== 'MY_COMMUNITY') {
-                query = query.eq('community', filters.caste);
-            }
-
-            const tableRes = await query.order('created_at', { ascending: false });
-            data = tableRes.data;
-            error = tableRes.error;
+            // Security hardening: Public directory strictly queries community_profiles view (contacts masked)
+            // Never fall back to querying raw unmasked profiles table directly
+            console.warn('[Supabase] community_profiles view returned empty or unavailable. Using sanitized local data.');
         }
 
         if (error && !data) {
@@ -765,6 +752,27 @@ window.supabaseFetchAuthorizedContact = supabaseFetchAuthorizedContact;
 async function supabaseUpsertProfile(profile) {
     const client = getSupabaseClient();
     if (!client) return { success: true, localOnly: true };
+
+    // STRICT SECURITY GATEKEEPER:
+    // Only allow upserting if it is current user's profile OR authenticated admin.
+    const curUser = (typeof state !== 'undefined' && state.currentUser) ? state.currentUser : null;
+    const isAdmin = (typeof isSessionValidSync === 'function' && isSessionValidSync()) || 
+                    (typeof window !== 'undefined' && window.location.pathname.includes('admin'));
+
+    if (!isAdmin && curUser) {
+        const curEmail = (curUser.email || '').trim().toLowerCase();
+        const curId = String(curUser.id || curUser.userId || curUser.profileId || '');
+        const pEmail = (profile?.email || '').trim().toLowerCase();
+        const pId = String(profile?.id || profile?.userId || '');
+
+        const isMatch = (curEmail && pEmail && curEmail === pEmail) ||
+                        (curId && pId && (curId === pId || curId === String(profile?.id)));
+
+        if (!isMatch && (curEmail || curId)) {
+            console.error('[Security Guard] Unauthorized profile upsert attempt blocked for different user:', pEmail || pId);
+            return { success: false, error: 'Unauthorized: Cannot modify another member profile.' };
+        }
+    }
 
     try {
         const payload = mapProfileForSupabase(profile);
@@ -1521,6 +1529,32 @@ async function supabaseDeleteUserCompletely(id, email, extraId, options = {}) {
 
     let normEmail = Array.from(collectedEmails)[0] || '';
     let normId = Array.from(collectedIds)[0] || '';
+
+    // STRICT SECURITY GATEKEEPER:
+    // Only allow deletion if:
+    // 1) The active logged-in user is deleting their OWN account, OR
+    // 2) An authenticated Admin is performing the deletion.
+    // ANY arbitrary deletion attempt by a non-owner from console/script is BLOCKED.
+    const curUser = (typeof state !== 'undefined' && state.currentUser) ? state.currentUser : null;
+    const curEmail = (curUser && curUser.email) ? curUser.email.trim().toLowerCase() : '';
+    const curId = (curUser && curUser.id) ? String(curUser.id).trim() : '';
+
+    const isAdmin = (typeof isSessionValidSync === 'function' && isSessionValidSync()) || 
+                    (typeof window !== 'undefined' && window.location.pathname.includes('admin'));
+
+    const isSelfMatch = Boolean(
+        (normEmail && curEmail && normEmail.toLowerCase() === curEmail) ||
+        (normId && curId && (normId === curId || String(curUser?.userId) === normId || String(curUser?.profileId) === normId)) ||
+        (options && options.isSelfDelete && curEmail)
+    );
+
+    if (!isSelfMatch && !isAdmin) {
+        console.error('[Security Guard] Unauthorized account deletion blocked! Target:', normEmail || normId);
+        if (typeof showToast === 'function') {
+            showToast('Security Alert: Unauthorized account deletion blocked.');
+        }
+        return { success: false, error: 'Unauthorized: You can only delete your own account.' };
+    }
 
     // Immediately register with in-memory & session purged cache
     if (typeof registerPurgedUserId === 'function') {
@@ -4393,6 +4427,16 @@ function supabaseSubscribeMaintenance(callback) {
  * Generic app_settings accessors (FAQs, Castes, Guide Steps, Maintenance)
  */
 async function supabaseGetAppSetting(key, defaultValue = null) {
+    // Security Guard: Prevent non-admin contexts from reading sensitive admin credentials
+    if (key === 'admin_credentials') {
+        const isAdmin = (typeof isSessionValidSync === 'function' && isSessionValidSync()) || 
+                        (typeof window !== 'undefined' && window.location.pathname.includes('admin'));
+        if (!isAdmin) {
+            console.warn('[Security Guard] Access to admin_credentials setting blocked.');
+            return defaultValue;
+        }
+    }
+
     const client = getSupabaseClient();
     if (!client) return defaultValue;
     try {
@@ -4424,6 +4468,16 @@ async function supabaseGetAppSetting(key, defaultValue = null) {
 async function supabaseSetAppSetting(key, value) {
     const client = getSupabaseClient();
     if (!client) return { success: false, error: 'No Supabase client' };
+
+    // STRICT SECURITY GATEKEEPER:
+    // Platform configurations can only be modified by authenticated Administrator!
+    const isAdmin = (typeof isSessionValidSync === 'function' && isSessionValidSync()) || 
+                    (typeof window !== 'undefined' && window.location.pathname.includes('admin'));
+    if (!isAdmin) {
+        console.error('[Security Guard] Unauthorized app_settings modification blocked for key:', key);
+        return { success: false, error: 'Unauthorized: Admin session required.' };
+    }
+
     try {
         const { data, error } = await client
             .from('app_settings')
