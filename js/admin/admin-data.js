@@ -566,12 +566,27 @@ async function syncAdminDataFromSupabase() {
  * Sync real administrative notifications directly from live database tables in memory
  */
 function syncAdminNotifsFromDatabase() {
+    // 1. Purge any existing notifications relating to deleted / purged users
+    if (Array.isArray(NOTIFS)) {
+        NOTIFS = NOTIFS.filter(n => {
+            if (!n) return false;
+            const tid = String(n.targetId || n.userId || '');
+            const teml = (n.targetEmail || '').toLowerCase().trim();
+            if (typeof isUserPurged === 'function') {
+                if (tid && isUserPurged(tid)) return false;
+                if (teml && isUserPurged(teml)) return false;
+            }
+            return true;
+        });
+    }
+
     const existingKeys = new Set(NOTIFS.map(n => n.id || (n.txt + '::' + n.time)));
     const generated = [];
 
-    // Real profile registrations
+    // Real profile registrations (strictly exclude deleted & purged accounts)
     if (Array.isArray(USERS)) {
-        USERS.slice(0, 12).forEach(u => {
+        USERS.filter(u => u && (u.accountStatus || u.account_status) !== 'deleted' && (typeof isUserPurged !== 'function' || !isUserPurged(u)))
+            .slice(0, 12).forEach(u => {
             const k = `user_${u.id}`;
             if (!existingKeys.has(k)) {
                 generated.push({
@@ -582,16 +597,23 @@ function syncAdminNotifsFromDatabase() {
                     time: u.registered || 'Recently',
                     unread: false,
                     type: 'user',
-                    targetId: u.id
+                    targetId: u.id,
+                    targetEmail: u.email || ''
                 });
                 existingKeys.add(k);
             }
         });
     }
 
-    // Real payments
+    // Real payments (strictly exclude payments from deleted/purged accounts)
     if (Array.isArray(PAYMENTS)) {
-        PAYMENTS.slice(0, 12).forEach(p => {
+        PAYMENTS.filter(p => {
+            if (!p) return false;
+            const pUid = String(p.userId || p.user_id || '');
+            const pEml = (p.userEmail || p.email || '').toLowerCase().trim();
+            if (typeof isUserPurged === 'function' && (isUserPurged(pUid) || isUserPurged(pEml))) return false;
+            return true;
+        }).slice(0, 12).forEach(p => {
             const k = `pay_${p.id}`;
             if (!existingKeys.has(k)) {
                 generated.push({
@@ -602,16 +624,25 @@ function syncAdminNotifsFromDatabase() {
                     time: p.date + (p.time ? ' ' + p.time : ''),
                     unread: false,
                     type: 'payment',
-                    targetId: p.id
+                    targetId: p.id,
+                    userId: p.userId || p.user_id || ''
                 });
                 existingKeys.add(k);
             }
         });
     }
 
-    // Real interests
+    // Real interests (strictly exclude interests involving deleted/purged accounts)
     if (Array.isArray(INTERESTS)) {
-        INTERESTS.slice(0, 12).forEach(i => {
+        INTERESTS.filter(i => {
+            if (!i) return false;
+            const sId = String(i.sender_id || i.fromUserId || '');
+            const rId = String(i.receiver_id || i.toUserId || '');
+            const sEml = (i.sender_email || i.fromEmail || '').toLowerCase().trim();
+            const rEml = (i.receiver_email || i.toEmail || '').toLowerCase().trim();
+            if (typeof isUserPurged === 'function' && (isUserPurged(sId) || isUserPurged(rId) || isUserPurged(sEml) || isUserPurged(rEml))) return false;
+            return true;
+        }).slice(0, 12).forEach(i => {
             const k = `int_${i.id}`;
             if (!existingKeys.has(k)) {
                 const sName = (i.from && i.from.name) || i.senderName || 'Member';

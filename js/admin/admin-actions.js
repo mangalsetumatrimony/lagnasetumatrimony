@@ -914,7 +914,19 @@ window.escapeHtml = escapeHtmlAdmin;
             if (!wrap) return;
             wrap.innerHTML = '';
 
-            if (!NOTIFS || NOTIFS.length === 0) {
+            // Filter out notifications of deleted/purged members
+            const visibleNotifs = (Array.isArray(NOTIFS) ? NOTIFS : []).filter(n => {
+                if (!n) return false;
+                const tid = String(n.targetId || n.userId || '');
+                const teml = (n.targetEmail || '').toLowerCase().trim();
+                if (typeof isUserPurged === 'function') {
+                    if (tid && isUserPurged(tid)) return false;
+                    if (teml && isUserPurged(teml)) return false;
+                }
+                return true;
+            });
+
+            if (!visibleNotifs || visibleNotifs.length === 0) {
                 wrap.innerHTML = `
                     <div class="empty-state" style="padding:60px 20px;text-align:center;">
                         <div style="width:72px;height:72px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px;">
@@ -929,7 +941,7 @@ window.escapeHtml = escapeHtmlAdmin;
                 return;
             }
 
-            NOTIFS.forEach((n, idx) => {
+            visibleNotifs.forEach((n, idx) => {
                 const row = document.createElement('div');
                 row.className = 'notif-item' + (n.unread ? ' unread' : '');
                 row.style.cursor = 'pointer';
@@ -984,7 +996,17 @@ window.escapeHtml = escapeHtmlAdmin;
         }
 
         function updateAdminNotifBadge() {
-            const unreadCount = Array.isArray(NOTIFS) ? NOTIFS.filter(n => n.unread).length : 0;
+            const visibleNotifs = (Array.isArray(NOTIFS) ? NOTIFS : []).filter(n => {
+                if (!n) return false;
+                const tid = String(n.targetId || n.userId || '');
+                const teml = (n.targetEmail || '').toLowerCase().trim();
+                if (typeof isUserPurged === 'function') {
+                    if (tid && isUserPurged(tid)) return false;
+                    if (teml && isUserPurged(teml)) return false;
+                }
+                return true;
+            });
+            const unreadCount = visibleNotifs.filter(n => n.unread).length;
             const badge = document.getElementById('adminNotifBadge');
             if (badge) {
                 if (unreadCount > 0) {

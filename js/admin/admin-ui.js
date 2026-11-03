@@ -531,10 +531,23 @@
 
             const act = document.getElementById('dashActivity');
             act.innerHTML = '';
-            if (!NOTIFS || NOTIFS.length === 0) {
+            
+            // Strictly exclude notifications belonging to deleted or purged accounts
+            const visibleNotifs = (Array.isArray(NOTIFS) ? NOTIFS : []).filter(n => {
+                if (!n) return false;
+                const tid = String(n.targetId || n.userId || '');
+                const teml = (n.targetEmail || '').toLowerCase().trim();
+                if (typeof isUserPurged === 'function') {
+                    if (tid && isUserPurged(tid)) return false;
+                    if (teml && isUserPurged(teml)) return false;
+                }
+                return true;
+            });
+
+            if (!visibleNotifs || visibleNotifs.length === 0) {
                 act.innerHTML = `<div class="empty-state" style="padding:24px 16px;text-align:center;"><p class="p-muted" style="font-size:12.5px;margin:0;"><i class="fa-solid fa-bell-slash" style="margin-right:6px;"></i>No recent activity yet. Live events will appear here.</p></div>`;
             } else {
-                NOTIFS.slice(0, 4).forEach((n, idx) => {
+                visibleNotifs.slice(0, 4).forEach((n, idx) => {
                     const row = document.createElement('div');
                     row.className = 'notif-item' + (n.unread ? ' unread' : '');
                     row.style.cursor = 'pointer';
@@ -1537,6 +1550,22 @@
                     return true;
                 });
                 window.REPORTS = REPORTS;
+            }
+
+            // Purge NOTIFS in admin (instantly clears Recent Activity for this deleted user)
+            if (typeof NOTIFS !== 'undefined' && Array.isArray(NOTIFS)) {
+                NOTIFS = NOTIFS.filter(n => {
+                    if (!n) return false;
+                    const nTarget = String(n.targetId || n.userId || '');
+                    if (ids.includes(nTarget)) return false;
+                    const nTxt = (n.txt || '').toLowerCase();
+                    const nSub = (n.sub || '').toLowerCase();
+                    const uNameLower = (userName || '').toLowerCase();
+                    if (uNameLower && uNameLower.length > 2 && (nTxt.includes(uNameLower) || nSub.includes(uNameLower))) return false;
+                    if (normEmail && (nTxt.includes(normEmail) || nSub.includes(normEmail))) return false;
+                    return true;
+                });
+                window.NOTIFS = NOTIFS;
             }
 
             saveAdminData();
