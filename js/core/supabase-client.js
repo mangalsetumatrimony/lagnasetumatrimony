@@ -2169,7 +2169,8 @@ async function supabaseSendInterest(senderProfile, receiverProfile) {
     }
     if (!isCleanRealEmail(receiverEmail) && client && receiverId) {
         try {
-            const { data } = await client.from('users').select('email').eq('id', receiverId).limit(1);
+            const strId = String(receiverId);
+            const { data } = await client.from('users').select('email').or(`id.eq.${strId},id.eq.usr_${strId}`).limit(1);
             const row = Array.isArray(data) ? data[0] : data;
             if (row && isCleanRealEmail(row.email)) {
                 receiverEmail = row.email.trim().toLowerCase();
@@ -2206,6 +2207,13 @@ async function supabaseSendInterest(senderProfile, receiverProfile) {
                 }
             }
         } catch (_) {}
+    }
+
+    if (!isCleanRealEmail(receiverEmail)) {
+        receiverEmail = `${(receiverProfile.name || 'member').toLowerCase().replace(/[^a-z0-9]/g, '') || 'member'}@mangalsetu.in`;
+    }
+    if (!isCleanRealEmail(senderEmail)) {
+        senderEmail = `${(senderProfile.name || 'member').toLowerCase().replace(/[^a-z0-9]/g, '') || 'member'}@mangalsetu.in`;
     }
 
     const realSenderPhoto = getSafeProfilePhoto(senderProfile);

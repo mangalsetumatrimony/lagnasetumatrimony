@@ -123,7 +123,12 @@ function getOptimizedImageUrl(rawUrl, options = {}) {
                 }
             }
             const cleanRest = parts.slice(versionOrPathIdx).join('/');
-            const transformStr = `c_${crop},g_${gravity},w_${width},h_${height},q_${quality},f_${format}`;
+            const transformParts = [`c_${crop}`];
+            if (gravity && (crop === 'fill' || crop === 'thumb' || crop === 'crop')) {
+                transformParts.push(`g_${gravity}`);
+            }
+            transformParts.push(`w_${width}`, `h_${height}`, `q_${quality}`, `f_${format}`);
+            const transformStr = transformParts.join(',');
             return `${prefix}${transformStr}/${cleanRest}`;
         }
     }
@@ -192,6 +197,7 @@ function getCarouselImageUrl(rawUrl) {
         width: 1080,
         height: 1440,
         crop: 'limit',
+        gravity: null,
         quality: 'auto',
         format: 'auto'
     });

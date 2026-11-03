@@ -240,6 +240,10 @@ function saveSessionState() {
         sessionStorage.setItem('mangalSetu_chatThreads', JSON.stringify(CHAT_THREADS));
         sessionStorage.setItem('mangalSetu_incomingRequests', JSON.stringify(typeof INCOMING_REQUESTS !== 'undefined' ? INCOMING_REQUESTS : []));
         sessionStorage.setItem('mangalSetu_outgoingRequests', JSON.stringify(typeof OUTGOING_REQUESTS !== 'undefined' ? OUTGOING_REQUESTS : []));
+        try {
+            localStorage.setItem('mangalSetu_incomingRequests_v2', JSON.stringify(typeof INCOMING_REQUESTS !== 'undefined' ? INCOMING_REQUESTS : []));
+            localStorage.setItem('mangalSetu_outgoingRequests_v2', JSON.stringify(typeof OUTGOING_REQUESTS !== 'undefined' ? OUTGOING_REQUESTS : []));
+        } catch (_) {}
         sessionStorage.setItem('mangalSetu_history', JSON.stringify(state.history));
     } catch (e) {
         console.error('saveSessionState error', e);
@@ -383,18 +387,18 @@ function loadSessionState() {
                 });
             }
         }
-        const savedIncoming = sessionStorage.getItem('mangalSetu_incomingRequests');
+        const savedIncoming = sessionStorage.getItem('mangalSetu_incomingRequests') || localStorage.getItem('mangalSetu_incomingRequests_v2');
         if (savedIncoming && typeof INCOMING_REQUESTS !== 'undefined') {
             const parsed = JSON.parse(savedIncoming);
-            if (Array.isArray(parsed)) {
+            if (Array.isArray(parsed) && parsed.length > 0) {
                 INCOMING_REQUESTS.length = 0;
                 parsed.forEach(r => INCOMING_REQUESTS.push(r));
             }
         }
-        const savedOutgoing = sessionStorage.getItem('mangalSetu_outgoingRequests');
+        const savedOutgoing = sessionStorage.getItem('mangalSetu_outgoingRequests') || localStorage.getItem('mangalSetu_outgoingRequests_v2');
         if (savedOutgoing && typeof OUTGOING_REQUESTS !== 'undefined') {
             const parsed = JSON.parse(savedOutgoing);
-            if (Array.isArray(parsed)) {
+            if (Array.isArray(parsed) && parsed.length > 0) {
                 OUTGOING_REQUESTS.length = 0;
                 parsed.forEach(r => OUTGOING_REQUESTS.push(r));
             }

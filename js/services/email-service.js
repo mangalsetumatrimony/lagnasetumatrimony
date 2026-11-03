@@ -743,6 +743,7 @@ async function sendMatrimonialEmailNotification(params) {
   }
 
   cleanEmail = String(cleanEmail).trim().toLowerCase();
+  let emailData = null;
   if (type === 'INTEREST_RECEIVED') {
     emailData = getInterestReceivedEmailHtml(senderData, receiverData);
   } else if (type === 'INTEREST_ACCEPTED') {

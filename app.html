@@ -859,72 +859,81 @@
                     </div>
                 </div>
 
-                <!-- Quick Skip Button for Candidate Self -->
-                <div id="regSkipFamilyBtnWrap" style="margin-bottom:14px;">
-                    <button type="button" class="btn btn-ghost" style="width:100%;border:1.5px dashed var(--primary);border-radius:12px;padding:10px 14px;font-size:13px;font-weight:700;color:var(--primary);background:rgba(123,44,191,0.04);display:flex;align-items:center;justify-content:center;gap:8px;" onclick="skipRegFamilyDetails()">
-                        <i class="fa-solid fa-forward-step"></i> Skip Family Details for Now &amp; Continue ➔ (ફેમિલી વિગત સ્કીપ કરો)
-                    </button>
-                </div>
-
-                <div class="field"><label>Father's name (પિતાનું નામ) <span class="family-req-star" style="color:var(--error);display:none;">*</span></label><input
-                        class="input" id="regFatherName" placeholder="Father's full name (ઓપ્શનલ)" value="" autocomplete="off">
-                </div>
-                <div class="field"><label>Father's occupation (પિતાનો વ્યવસાય)</label><input class="input" id="regFatherOcc"
-                        placeholder="e.g. Business, Agriculture, Job (ઓપ્શનલ)" value="" autocomplete="off"></div>
-
-                <!-- Father's contact number right below Father's name with WhatsApp checkbox -->
-                <div class="field"><label>Father's mobile number (Public Contact) <span class="family-req-star"
-                            style="color:var(--error);display:none;">*</span></label>
-                    <div class="input-icon-wrap"><i class="fa-solid fa-phone leading"></i><input class="input"
-                            id="regFatherMobile" placeholder="e.g. 9876543210 (ઓપ્શનલ)" type="tel" maxlength="16" value=""
-                            autocomplete="off">
-                    </div>
-                    <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
-                        <div class="checkbox on" id="regFatherWhatsapp" onclick="toggleCheck('regFatherWhatsapp',this)">
-                            <i class="fa-solid fa-check"></i>
+                <!-- Add Family Details Toggle Row (OFF by default for Self) -->
+                <div class="toggle-row" id="regFamilyToggleWrap" style="background:var(--surface,#fff);border:1.5px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="toggleRegFamily(event)">
+                    <div style="flex:1;padding-right:12px;">
+                        <div style="font-size:13.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px;">
+                            <span>Add family details now? (પરિવારની વિગત ઉમેરવી છે?)</span>
                         </div>
-                        <span style="font-size:13px;font-weight:700;color:var(--text);cursor:pointer;"
-                            onclick="toggleCheck('regFatherWhatsapp',this)">
-                            Active on WhatsApp <i class="fa-brands fa-whatsapp" style="color:#128C7E;"></i>
-                        </span>
-                    </div>
-                </div>
-
-                <div class="field"><label>Mother's name (માતાનું નામ) <span class="family-req-star" style="color:var(--error);display:none;">*</span></label><input
-                        class="input" id="regMotherName" placeholder="Mother's full name (ઓપ્શનલ)" value="" autocomplete="off">
-                </div>
-                <div class="field"><label>Mother's occupation</label><input class="input" id="regMotherOcc"
-                        placeholder="Mother's occupation" value="" autocomplete="off"></div>
-
-                <div style="margin-top:22px;">
-                    <div class="toggle-row">
-                        <div>
-                            <div class="tlabel">I don't have a sister</div>
+                        <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;" id="regFamilyToggleSubtext">
+                            Optional for Self • Turn ON to add family details now (મરજીયાત • ઉમેરવા માટે ચાલુ કરો)
                         </div>
-                        <button class="toggle" id="tglSister" onclick="toggleSibling('sister',this)"></button>
                     </div>
-                    <div id="sisterBlock">
-                        <label style="font-size:13px;font-weight:700;margin-bottom:8px;display:block;">Sister
-                            details</label>
-                        <div id="sisterList"></div>
-                        <button class="add-dashed" onclick="addSibling('sister')"><i class="fa-solid fa-plus"></i> Add
-                            another sister</button>
-                    </div>
+                    <button type="button" class="toggle" id="tglRegFamily" onclick="event.stopPropagation();toggleRegFamily(event)"></button>
                 </div>
 
-                <div style="margin-top:20px;">
-                    <div class="toggle-row">
-                        <div>
-                            <div class="tlabel">I don't have a brother</div>
-                        </div>
-                        <button class="toggle" id="tglBrother" onclick="toggleSibling('brother',this)"></button>
+                <!-- Family Details Inputs Container (Hidden by default for Self, shown when Toggle is ON) -->
+                <div id="regFamilyInputsContainer" style="display:none;">
+                    <div class="field"><label>Father's name (પિતાનું નામ) <span class="family-req-star" style="color:var(--error);display:none;">*</span></label><input
+                            class="input" id="regFatherName" placeholder="Father's full name" value="" autocomplete="off">
                     </div>
-                    <div id="brotherBlock">
-                        <label style="font-size:13px;font-weight:700;margin-bottom:8px;display:block;">Brother
-                            details</label>
-                        <div id="brotherList"></div>
-                        <button class="add-dashed" onclick="addSibling('brother')"><i class="fa-solid fa-plus"></i> Add
-                            another brother</button>
+                    <div class="field"><label>Father's occupation (પિતાનો વ્યવસાય)</label><input class="input" id="regFatherOcc"
+                            placeholder="e.g. Business, Agriculture, Job" value="" autocomplete="off"></div>
+
+                    <!-- Father's contact number right below Father's name with WhatsApp checkbox -->
+                    <div class="field"><label>Father's mobile number (Public Contact) <span class="family-req-star"
+                                style="color:var(--error);display:none;">*</span></label>
+                        <div class="input-icon-wrap"><i class="fa-solid fa-phone leading"></i><input class="input"
+                                id="regFatherMobile" placeholder="e.g. 9876543210" type="tel" maxlength="16" value=""
+                                autocomplete="off">
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+                            <div class="checkbox on" id="regFatherWhatsapp" onclick="toggleCheck('regFatherWhatsapp',this)">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                            <span style="font-size:13px;font-weight:700;color:var(--text);cursor:pointer;"
+                                onclick="toggleCheck('regFatherWhatsapp',this)">
+                                Active on WhatsApp <i class="fa-brands fa-whatsapp" style="color:#128C7E;"></i>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="field"><label>Mother's name (માતાનું નામ) <span class="family-req-star" style="color:var(--error);display:none;">*</span></label><input
+                            class="input" id="regMotherName" placeholder="Mother's full name" value="" autocomplete="off">
+                    </div>
+                    <div class="field"><label>Mother's occupation</label><input class="input" id="regMotherOcc"
+                            placeholder="Mother's occupation" value="" autocomplete="off"></div>
+
+                    <div style="margin-top:22px;">
+                        <div class="toggle-row">
+                            <div>
+                                <div class="tlabel">I don't have a sister</div>
+                            </div>
+                            <button class="toggle" id="tglSister" onclick="toggleSibling('sister',this)"></button>
+                        </div>
+                        <div id="sisterBlock">
+                            <label style="font-size:13px;font-weight:700;margin-bottom:8px;display:block;">Sister
+                                details</label>
+                            <div id="sisterList"></div>
+                            <button class="add-dashed" onclick="addSibling('sister')"><i class="fa-solid fa-plus"></i> Add
+                                another sister</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:20px;">
+                        <div class="toggle-row">
+                            <div>
+                                <div class="tlabel">I don't have a brother</div>
+                            </div>
+                            <button class="toggle" id="tglBrother" onclick="toggleSibling('brother',this)"></button>
+                        </div>
+                        <div id="brotherBlock">
+                            <label style="font-size:13px;font-weight:700;margin-bottom:8px;display:block;">Brother
+                                details</label>
+                            <div id="brotherList"></div>
+                            <button class="add-dashed" onclick="addSibling('brother')"><i class="fa-solid fa-plus"></i> Add
+                                another brother</button>
+                        </div>
                     </div>
                 </div>
 
@@ -2906,32 +2915,32 @@
     <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Core & State -->
-    <script src="js/core/state.js?v=6.8"></script>
-    <script src="js/core/supabase-client.js?v=6.8"></script>
+    <script src="js/core/state.js?v=6.9"></script>
+    <script src="js/core/supabase-client.js?v=6.9"></script>
     <!-- EmailJS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script src="js/services/email-service.js?v=6.8"></script>
-    <script src="js/core/router.js?v=6.8"></script>
+    <script src="js/services/email-service.js?v=6.9"></script>
+    <script src="js/core/router.js?v=6.9"></script>
     <!-- Data Modules -->
-    <script src="js/data/castes.js?v=6.8"></script>
-    <script src="js/data/help-content.js?v=6.8"></script>
-    <script src="js/data/profiles.js?v=6.8"></script>
+    <script src="js/data/castes.js?v=6.9"></script>
+    <script src="js/data/help-content.js?v=6.9"></script>
+    <script src="js/data/profiles.js?v=6.9"></script>
     <!-- Utilities -->
-    <script src="js/utils/helpers.js?v=6.8"></script>
-    <script src="js/utils/pwa.js?v=6.8"></script>
-    <script src="js/utils/cloudinary.js?v=6.8"></script>
-    <script src="js/utils/cropper.js?v=6.8"></script>
-    <script src="js/utils/datepicker.js?v=6.8"></script>
+    <script src="js/utils/helpers.js?v=6.9"></script>
+    <script src="js/utils/pwa.js?v=6.9"></script>
+    <script src="js/utils/cloudinary.js?v=6.9"></script>
+    <script src="js/utils/cropper.js?v=6.9"></script>
+    <script src="js/utils/datepicker.js?v=6.9"></script>
     <!-- Application Modules -->
-    <script src="js/modules/auth.js?v=6.8"></script>
-    <script src="js/modules/browse.js?v=6.8"></script>
-    <script src="js/modules/chat.js?v=6.8"></script>
-    <script src="js/modules/profile.js?v=6.8"></script>
-    <script src="js/modules/notifications.js?v=6.8"></script>
+    <script src="js/modules/auth.js?v=6.9"></script>
+    <script src="js/modules/browse.js?v=6.9"></script>
+    <script src="js/modules/chat.js?v=6.9"></script>
+    <script src="js/modules/profile.js?v=6.9"></script>
+    <script src="js/modules/notifications.js?v=6.9"></script>
     <!-- Application Entrypoint -->
-    <script src="js/app.js?v=6.8"></script>
+    <script src="js/app.js?v=6.9"></script>
     <!-- Privacy & Anti-Inspect Security Guard -->
-    <script src="js/utils/security-guard.js?v=6.8"></script>
+    <script src="js/utils/security-guard.js?v=6.9"></script>
 
 </body>
 

@@ -700,7 +700,7 @@ function updateMembershipScreen() {
 let currentCarouselPhotos = [];
 let currentCarouselIdx = 0;
 
-function openPhotoCarousel(profileId, event) {
+function openPhotoCarousel(profileId, event, initialIdx = 0) {
     if (event) event.stopPropagation();
     const p = (typeof findProfile === 'function') ? findProfile(profileId) : (window.PROFILES || []).find(x => x.id === profileId || String(x.id) === String(profileId));
     if (!p) return;
@@ -713,23 +713,24 @@ function openPhotoCarousel(profileId, event) {
     }
 
     currentCarouselPhotos = photos;
-    currentCarouselIdx = 0;
+    currentCarouselIdx = (typeof initialIdx === 'number' && initialIdx >= 0 && initialIdx < photos.length) ? initialIdx : 0;
 
     const imgEl = document.getElementById('carouselImg') || document.getElementById('photoCarouselImg');
     const countEl = document.getElementById('carouselCounter') || document.getElementById('photoCarouselCount');
     const dotsWrap = document.getElementById('carouselDots') || document.getElementById('photoCarouselDots');
 
     if (imgEl) {
-        const optimizedCarouselImg = (typeof getCarouselImageUrl === 'function') ? getCarouselImageUrl(photos[0]) : photos[0];
+        const targetPhoto = photos[currentCarouselIdx] || photos[0];
+        const optimizedCarouselImg = (typeof getCarouselImageUrl === 'function') ? getCarouselImageUrl(targetPhoto) : targetPhoto;
         imgEl.src = optimizedCarouselImg;
         imgEl.onerror = function() {
             this.onerror = null;
-            this.src = fallbackImg;
+            this.src = targetPhoto || fallbackImg;
         };
     }
-    if (countEl) countEl.textContent = `1 / ${photos.length}`;
+    if (countEl) countEl.textContent = `${currentCarouselIdx + 1} / ${photos.length}`;
     if (dotsWrap) {
-        dotsWrap.innerHTML = photos.map((_, i) => `<span class="carousel-dot ${i === 0 ? 'active' : ''}" onclick="selectCarouselPhoto(${i})"></span>`).join('');
+        dotsWrap.innerHTML = photos.map((_, i) => `<span class="carousel-dot ${i === currentCarouselIdx ? 'active' : ''}" onclick="selectCarouselPhoto(${i})"></span>`).join('');
     }
 
     const prevBtn = document.querySelector('.carousel-btn.prev') || document.getElementById('photoCarouselPrev');

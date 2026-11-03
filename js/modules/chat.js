@@ -464,7 +464,24 @@ async function confirmSendInterest() {
         return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(c) ? c : '';
     };
 
-    const realReceiverEmail = cleanEmailCheck(p.rawEmail) || cleanEmailCheck(p.email) || '';
+    let realReceiverEmail = cleanEmailCheck(p.rawEmail) || cleanEmailCheck(p.email) || '';
+    if (!realReceiverEmail && typeof getStoredAccounts === 'function') {
+        try {
+            const accs = getStoredAccounts();
+            const m = (accs || []).find(a => (pid && (Number(a.id) === pid || Number(a.profileId) === pid)) || (p.name && a.name === p.name));
+            if (m && cleanEmailCheck(m.email)) realReceiverEmail = cleanEmailCheck(m.email);
+        } catch (_) {}
+    }
+    if (!realReceiverEmail) {
+        try {
+            const rawUsers = localStorage.getItem('LS_COMMUNITY_USERS');
+            if (rawUsers) {
+                const uList = JSON.parse(rawUsers);
+                const m = (uList || []).find(u => (pid && (Number(u.id) === pid || String(u.id) === String(pid))) || (p.name && u.name === p.name));
+                if (m && cleanEmailCheck(m.email)) realReceiverEmail = cleanEmailCheck(m.email);
+            }
+        } catch (_) {}
+    }
 
     const existing = OUTGOING_REQUESTS.find(r => Number(r.profileId) === pid);
     if (existing) {
@@ -802,8 +819,8 @@ async function syncUserChatAndInterests() {
             interestsRes = await supabaseFetchUserInterests(myEmail, myId);
             if (interestsRes) {
                 if (Array.isArray(interestsRes.incoming)) {
-                    INCOMING_REQUESTS.length = 0;
                     const seenIn = new Set();
+                    const mergedIn = [];
                     interestsRes.incoming.forEach(r => {
                         if (!r) return;
                         const pid = getCanonicalPeerId(r.profileId || r.senderId, r.senderEmail);
@@ -816,13 +833,25 @@ async function syncUserChatAndInterests() {
                         if (!seenIn.has(key)) {
                             seenIn.add(key);
                             r.profileId = pid;
-                            INCOMING_REQUESTS.push(r);
+                            mergedIn.push(r);
                         }
                     });
+                    INCOMING_REQUESTS.forEach(lr => {
+                        if (!lr) return;
+                        const lPid = Number(lr.profileId || lr.senderId);
+                        const lEmail = (lr.senderEmail || '').trim().toLowerCase();
+                        const lKey = lEmail || lPid;
+                        if (!seenIn.has(lKey)) {
+                            seenIn.add(lKey);
+                            mergedIn.push(lr);
+                        }
+                    });
+                    INCOMING_REQUESTS.length = 0;
+                    mergedIn.forEach(r => INCOMING_REQUESTS.push(r));
                 }
                 if (Array.isArray(interestsRes.outgoing)) {
-                    OUTGOING_REQUESTS.length = 0;
                     const seenOut = new Set();
+                    const mergedOut = [];
                     interestsRes.outgoing.forEach(r => {
                         if (!r) return;
                         const pid = getCanonicalPeerId(r.profileId || r.receiverId, r.receiverEmail);
@@ -835,10 +864,23 @@ async function syncUserChatAndInterests() {
                         if (!seenOut.has(key)) {
                             seenOut.add(key);
                             r.profileId = pid;
-                            OUTGOING_REQUESTS.push(r);
+                            mergedOut.push(r);
                         }
                     });
+                    OUTGOING_REQUESTS.forEach(lr => {
+                        if (!lr) return;
+                        const lPid = Number(lr.profileId);
+                        const lEmail = (lr.receiverEmail || '').trim().toLowerCase();
+                        const lKey = lEmail || lPid;
+                        if (!seenOut.has(lKey)) {
+                            seenOut.add(lKey);
+                            mergedOut.push(lr);
+                        }
+                    });
+                    OUTGOING_REQUESTS.length = 0;
+                    mergedOut.forEach(r => OUTGOING_REQUESTS.push(r));
                 }
+                saveSessionState();
             }
         }
 
