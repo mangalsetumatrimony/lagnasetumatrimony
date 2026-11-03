@@ -1939,7 +1939,6 @@ function onRememberMeToggle(chk) {
 }
 
 // Global Window Exports
-window.forgotPasswordState = forgotPasswordState;
 window.restoreRememberedLogin = restoreRememberedLogin;
 window.onRememberMeToggle = onRememberMeToggle;
 if (typeof doLogin !== 'undefined') window.doLogin = doLogin;
@@ -1947,9 +1946,6 @@ if (typeof doLogout !== 'undefined') window.doLogout = doLogout;
 if (typeof handleSendSignupOtp !== 'undefined') window.handleSendSignupOtp = handleSendSignupOtp;
 if (typeof signupOtpVerified !== 'undefined') window.signupOtpVerified = signupOtpVerified;
 if (typeof enterHome !== 'undefined') window.enterHome = enterHome;
-if (typeof handleSendForgotOtp !== 'undefined') window.handleSendForgotOtp = handleSendForgotOtp;
-if (typeof verifyForgotOtp !== 'undefined') window.verifyForgotOtp = verifyForgotOtp;
-if (typeof handleResetPassword !== 'undefined') window.handleResetPassword = handleResetPassword;
 
 /* ============================================================
    MODERN 1-CLICK SOCIAL AUTHENTICATION (GOOGLE, INSTA, SNAP)
