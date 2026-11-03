@@ -718,7 +718,8 @@ function openPhotoCarousel(profileId, event) {
     const dotsWrap = document.getElementById('carouselDots') || document.getElementById('photoCarouselDots');
 
     if (imgEl) {
-        imgEl.src = photos[0];
+        const optimizedCarouselImg = (typeof getCarouselImageUrl === 'function') ? getCarouselImageUrl(photos[0]) : photos[0];
+        imgEl.src = optimizedCarouselImg;
         imgEl.onerror = function() {
             this.onerror = null;
             this.src = fallbackImg;
@@ -757,7 +758,9 @@ function updateCarouselView() {
     const dotsWrap = document.getElementById('carouselDots') || document.getElementById('photoCarouselDots');
 
     if (imgEl && currentCarouselPhotos[currentCarouselIdx]) {
-        imgEl.src = currentCarouselPhotos[currentCarouselIdx];
+        const rawPhoto = currentCarouselPhotos[currentCarouselIdx];
+        const optimizedCarouselImg = (typeof getCarouselImageUrl === 'function') ? getCarouselImageUrl(rawPhoto) : rawPhoto;
+        imgEl.src = optimizedCarouselImg;
     }
     if (countEl) countEl.textContent = `${currentCarouselIdx + 1} / ${currentCarouselPhotos.length}`;
     if (dotsWrap) {
@@ -1170,9 +1173,11 @@ function openProfile(id) {
         ? `<i class="fa-solid fa-location-dot"></i> ${escapeHtml(p.village || p.city || '')}${p.district ? ', ' + escapeHtml(p.district) : ''}`
         : `<i class="fa-solid fa-location-dot"></i> ${escapeHtml(p.district ? p.district + ', Gujarat' : 'Gujarat')} <span style="font-size:10.5px;padding:2px 6px;border-radius:6px;background:rgba(255,255,255,0.25);margin-left:4px;letter-spacing:0.02em;"><i class="fa-solid fa-shield-halved"></i> Protected</span>`;
 
+    const heroImg = (typeof getHeroImageUrl === 'function') ? getHeroImageUrl(mainImg) : mainImg;
+
     el.innerHTML = `
         <div class="full-hero" style="cursor:pointer;" onclick="openPhotoCarousel(${p.id}, event)">
-            <img src="${mainImg}" alt="${escapeHtml(p.name || 'Profile')}" onerror="this.onerror=null;this.src='${fallbackImg}';">
+            <img src="${heroImg}" alt="${escapeHtml(p.name || 'Profile')}" fetchpriority="high" decoding="async" onerror="this.onerror=null;this.src='${fallbackImg}';">
             <div class="grad"></div>
             <div class="fh-top">
                 <button class="icon-btn" onclick="event.stopPropagation();goBack()"><i class="fa-solid fa-arrow-left"></i></button>
@@ -1309,8 +1314,13 @@ function toggleFullFav(id) {
             const icon = btn.querySelector('i');
             if (icon) icon.className = 'fa-solid fa-heart';
         }
-        showToast('Added to favorites');
+        showToast('Added to favorites ❤️');
     }
+    const favCountHome = document.getElementById('favCountHome');
+    if (favCountHome) {
+        favCountHome.textContent = state.favorites.size;
+    }
+    saveSessionState();
     if (typeof syncFavoritesToDatabase === 'function') {
         syncFavoritesToDatabase();
     }

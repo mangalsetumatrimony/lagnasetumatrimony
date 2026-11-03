@@ -91,37 +91,109 @@ async function uploadToCloudinary(fileOrBlob, folder = 'profiles') {
 
 /**
  * Generate an ultra-fast, optimized Cloudinary delivery URL with face-cropping & auto-WebP
+ * Strips previous transformations to avoid nested strings, and optimizes external images
  * @param {string} rawUrl - Full Cloudinary URL or regular image URL
- * @param {Object} options - Transformation options { width, height, crop, quality, gravity }
- * @returns {string} - Transformed URL
+ * @param {Object} options - Transformation options { width, height, crop, quality, gravity, format }
+ * @returns {string} - Transformed WebP / responsive URL
  */
 function getOptimizedImageUrl(rawUrl, options = {}) {
     if (!rawUrl || typeof rawUrl !== 'string') return '';
-    if (!rawUrl.includes('res.cloudinary.com')) return rawUrl;
 
-    const width = options.width || 800;
-    const height = options.height || 800;
-    const crop = options.crop || 'fill';
-    const gravity = options.gravity || 'face'; // Intelligent AI Face Center
-    const quality = options.quality || 'auto';
-    const format = options.format || 'auto'; // Delivers AVIF/WebP depending on browser
+    // Smart Optimization for Cloudinary CDN assets
+    if (rawUrl.includes('res.cloudinary.com')) {
+        const width = options.width || 800;
+        const height = options.height || 800;
+        const crop = options.crop || 'fill';
+        const gravity = options.gravity || 'face'; // Intelligent AI Face Center
+        const quality = options.quality || 'auto';
+        const format = options.format || 'auto'; // Delivers AVIF/WebP depending on user browser
 
-    const transformStr = `c_${crop},g_${gravity},w_${width},h_${height},q_${quality},f_${format}`;
-    return rawUrl.replace('/upload/', `/upload/${transformStr}/`);
+        const uploadIdx = rawUrl.indexOf('/upload/');
+        if (uploadIdx !== -1) {
+            const prefix = rawUrl.substring(0, uploadIdx + 8);
+            const rest = rawUrl.substring(uploadIdx + 8);
+            
+            // Cleanly strip any previous transformations between /upload/ and version/path
+            const parts = rest.split('/');
+            let versionOrPathIdx = 0;
+            for (let i = 0; i < parts.length; i++) {
+                if (/^v\d+$/.test(parts[i]) || (!parts[i].includes('_') && !parts[i].includes(','))) {
+                    versionOrPathIdx = i;
+                    break;
+                }
+            }
+            const cleanRest = parts.slice(versionOrPathIdx).join('/');
+            const transformStr = `c_${crop},g_${gravity},w_${width},h_${height},q_${quality},f_${format}`;
+            return `${prefix}${transformStr}/${cleanRest}`;
+        }
+    }
+
+    // Optimization for Unsplash fallback / demo images (serves auto-WebP & cropped to exact card size)
+    if (rawUrl.includes('images.unsplash.com')) {
+        try {
+            const u = new URL(rawUrl);
+            const w = options.width || 800;
+            const h = options.height || 800;
+            u.searchParams.set('w', String(w));
+            u.searchParams.set('h', String(h));
+            u.searchParams.set('fit', 'crop');
+            u.searchParams.set('crop', 'faces');
+            u.searchParams.set('auto', 'format');
+            u.searchParams.set('q', '75');
+            return u.toString();
+        } catch (_) {
+            return rawUrl;
+        }
+    }
+
+    return rawUrl;
 }
 
 /**
- * Generate a lightweight, round avatar thumbnail
+ * Generate a lightweight, round avatar thumbnail (120x120 WebP with face centering)
+ * @param {string} rawUrl
+ * @param {number} size
+ * @returns {string}
+ */
+function getAvatarThumbUrl(rawUrl, size = 120) {
+    return getOptimizedImageUrl(rawUrl, {
+        width: size,
+        height: size,
+        crop: 'thumb',
+        gravity: 'face',
+        quality: 'auto',
+        format: 'auto'
+    });
+}
+
+/**
+ * Generate a high-performance full profile hero image (720x960 WebP)
  * @param {string} rawUrl
  * @returns {string}
  */
-function getAvatarThumbUrl(rawUrl) {
+function getHeroImageUrl(rawUrl) {
     return getOptimizedImageUrl(rawUrl, {
-        width: 160,
-        height: 160,
-        crop: 'thumb',
+        width: 720,
+        height: 960,
+        crop: 'fill',
         gravity: 'face',
-        quality: 'auto'
+        quality: 'auto',
+        format: 'auto'
+    });
+}
+
+/**
+ * Generate an optimized photo carousel viewing image (1080x1440 WebP)
+ * @param {string} rawUrl
+ * @returns {string}
+ */
+function getCarouselImageUrl(rawUrl) {
+    return getOptimizedImageUrl(rawUrl, {
+        width: 1080,
+        height: 1440,
+        crop: 'limit',
+        quality: 'auto',
+        format: 'auto'
     });
 }
 
@@ -299,6 +371,8 @@ window.CLOUDINARY_CONFIG = CLOUDINARY_CONFIG;
 window.uploadToCloudinary = uploadToCloudinary;
 window.getOptimizedImageUrl = getOptimizedImageUrl;
 window.getAvatarThumbUrl = getAvatarThumbUrl;
+window.getHeroImageUrl = getHeroImageUrl;
+window.getCarouselImageUrl = getCarouselImageUrl;
 window.extractCloudinaryPublicId = extractCloudinaryPublicId;
 window.deleteFromCloudinary = deleteFromCloudinary;
 window.deleteMultipleCloudinaryImages = deleteMultipleCloudinaryImages;

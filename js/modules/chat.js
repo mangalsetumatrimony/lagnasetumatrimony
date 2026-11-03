@@ -499,10 +499,13 @@ async function confirmSendInterest() {
     closeModal('modalInterest');
     showToast(`Interest request sent to ${p.name}! (${remainingCount} of 3 daily requests remaining) 💍`);
     refreshProfileButtons();
+    if (typeof window.refreshProfileContactState === 'function') {
+        window.refreshProfileContactState(pid);
+    }
     updateInboxBadge();
     saveSessionState();
 
-    // Persist to Supabase PostgreSQL & Send Notification Email with real sender photo
+    // Persist to Supabase PostgreSQL & Send Notification Email in background (Optimistic Non-Blocking)
     const sendInterestFn = (typeof supabaseSendInterest === 'function')
         ? supabaseSendInterest
         : ((typeof window !== 'undefined' && typeof window.supabaseSendInterest === 'function') ? window.supabaseSendInterest : null);
@@ -517,21 +520,27 @@ async function confirmSendInterest() {
                 email: realReceiverEmail,
                 rawEmail: realReceiverEmail || cleanEmailCheck(p.rawEmail)
             };
-            await sendInterestFn(senderObj, receiverObj);
-            console.info('[Interest] Successfully persisted to Supabase for:', p.name);
-        } catch (err) {
-            if (err && err.message === 'DAILY_LIMIT_EXCEEDED') {
-                // Rollback local state because server confirmed daily limit was exceeded
-                OUTGOING_REQUESTS = OUTGOING_REQUESTS.filter(r => Number(r.profileId) !== pid);
-                if (typeof window !== 'undefined') window.OUTGOING_REQUESTS = OUTGOING_REQUESTS;
-                saveSessionState();
-                refreshProfileButtons();
-                updateInboxBadge();
-                const curUsage = getDailyInterestUsage();
-                showToast(getDailyInterestLimitMessage(curUsage), 3500);
-            } else {
-                console.warn('[Interest] Supabase note:', err);
-            }
+            sendInterestFn(senderObj, receiverObj).then(() => {
+                console.info('[Interest] Successfully persisted to Supabase for:', p.name);
+            }).catch(err => {
+                if (err && err.message === 'DAILY_LIMIT_EXCEEDED') {
+                    // Rollback local state because server confirmed daily limit was exceeded
+                    OUTGOING_REQUESTS = OUTGOING_REQUESTS.filter(r => Number(r.profileId) !== pid);
+                    if (typeof window !== 'undefined') window.OUTGOING_REQUESTS = OUTGOING_REQUESTS;
+                    saveSessionState();
+                    refreshProfileButtons();
+                    if (typeof window.refreshProfileContactState === 'function') {
+                        window.refreshProfileContactState(pid);
+                    }
+                    updateInboxBadge();
+                    const curUsage = getDailyInterestUsage();
+                    showToast(getDailyInterestLimitMessage(curUsage), 3500);
+                } else {
+                    console.warn('[Interest] Supabase note:', err);
+                }
+            });
+        } catch (syncErr) {
+            console.warn('[Interest] Background sync dispatch error:', syncErr);
         }
     }
 }
@@ -1136,8 +1145,10 @@ function requestCard(r, kind) {
         ? p.img
         : ((kind === 'received' ? r.senderPhoto : r.receiverPhoto) || fallbackAvatar);
 
+    const cardThumb = (typeof getAvatarThumbUrl === 'function') ? getAvatarThumbUrl(cardImg, 120) : cardImg;
+
     card.innerHTML = `
-            <img src="${cardImg}" onerror="this.onerror=null;this.src='${fallbackAvatar}';" style="width:52px;height:52px;border-radius:14px;object-fit:cover;flex-shrink:0;" alt="${escapeHtml(cardName)}">
+            <img src="${cardThumb}" onerror="this.onerror=null;this.src='${fallbackAvatar}';" style="width:52px;height:52px;border-radius:14px;object-fit:cover;flex-shrink:0;" loading="lazy" decoding="async" alt="${escapeHtml(cardName)}">
             <div style="flex:1;min-width:0;">
               <div style="font-weight:800;font-size:14px;">${escapeHtml(cardName)}${p.age ? ', ' + p.age : ''}</div>
               <div class="p-muted" style="font-size:11.5px;"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(p.village || p.city || 'Gujarat')} · ${escapeHtml(p.community || '')}</div>
@@ -1221,9 +1232,11 @@ function chatThreadCard(t) {
         unreadBadgeHtml = `<span class="chat-thread-unread-pill">${unreadCount > 99 ? '99+' : unreadCount}</span>`;
     }
 
+    const resolvedThumb = (typeof getAvatarThumbUrl === 'function') ? getAvatarThumbUrl(resolvedImg, 120) : resolvedImg;
+
     card.innerHTML = `
             <div style="position:relative;flex-shrink:0;">
-                <img src="${resolvedImg}" onerror="this.onerror=null;this.src='${fallbackAvatar}';" style="width:52px;height:52px;border-radius:14px;object-fit:cover;display:block;" alt="${escapeHtml(resolvedName)}">
+                <img src="${resolvedThumb}" onerror="this.onerror=null;this.src='${fallbackAvatar}';" style="width:52px;height:52px;border-radius:14px;object-fit:cover;display:block;" loading="lazy" decoding="async" alt="${escapeHtml(resolvedName)}">
                 ${unreadCount > 0 ? '<span style="position:absolute;top:-3px;right:-3px;width:11px;height:11px;border-radius:50%;background:linear-gradient(135deg,#e63946,#d90429);border:2px solid #fff;"></span>' : ''}
             </div>
             <div style="flex:1;min-width:0;">
@@ -1286,7 +1299,7 @@ async function acceptRequest(profileId) {
         window.refreshProfileContactState(pid);
     }
 
-    // Persist to Supabase and send congratulatory email to sender
+    // Persist to Supabase and send congratulatory email to sender (Optimistic Background Sync)
     const updateStatusFn = (typeof supabaseUpdateInterestStatus === 'function')
         ? supabaseUpdateInterestStatus
         : ((typeof window !== 'undefined' && typeof window.supabaseUpdateInterestStatus === 'function') ? window.supabaseUpdateInterestStatus : null);
@@ -1304,7 +1317,9 @@ async function acceptRequest(profileId) {
                 photo: peerImg,
                 img: peerImg
             };
-            await updateStatusFn(interestId, 'accepted', senderObj, receiverObj);
+            updateStatusFn(interestId, 'accepted', senderObj, receiverObj).catch(e => {
+                console.warn('[Interest] Background accept sync note:', e);
+            });
         } catch (e) {
             console.warn('[Interest] Update status error:', e);
         }
@@ -1335,7 +1350,7 @@ async function declineRequest(profileId) {
     updateInboxBadge();
     refreshProfileButtons();
 
-    // Persist to Supabase and send polite notification to sender
+    // Persist to Supabase and send polite notification to sender (Optimistic Background Sync)
     const updateStatusFn = (typeof supabaseUpdateInterestStatus === 'function')
         ? supabaseUpdateInterestStatus
         : ((typeof window !== 'undefined' && typeof window.supabaseUpdateInterestStatus === 'function') ? window.supabaseUpdateInterestStatus : null);
@@ -1351,7 +1366,9 @@ async function declineRequest(profileId) {
                 email: realSenderEmail,
                 rawEmail: realSenderEmail
             };
-            await updateStatusFn(interestId, 'declined', senderObj, receiverObj);
+            updateStatusFn(interestId, 'declined', senderObj, receiverObj).catch(e => {
+                console.warn('[Interest] Background decline sync note:', e);
+            });
         } catch (e) {
             console.warn('[Interest] Update status error:', e);
         }
@@ -1489,7 +1506,7 @@ function openChatFor(profileId) {
     const aEl = document.getElementById('chatAvatar');
     const nEl = document.getElementById('chatName');
     if (aEl) {
-        aEl.src = peerImg;
+        aEl.src = (typeof getAvatarThumbUrl === 'function') ? getAvatarThumbUrl(peerImg, 120) : peerImg;
         aEl.onerror = function() { this.src = fallbackAvatar; };
     }
     if (nEl) nEl.textContent = peerName;

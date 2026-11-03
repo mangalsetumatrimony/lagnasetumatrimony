@@ -485,14 +485,16 @@ function updateHeaderUserDisplay() {
 
     checkCurrentUserStatus();
 
+    const avatarThumb = (typeof getAvatarThumbUrl === 'function') ? getAvatarThumbUrl(photo, 120) : photo;
+
     const homeAvatar = document.getElementById('homeUserAvatar');
     if (homeAvatar) {
-        homeAvatar.src = photo;
+        homeAvatar.src = avatarThumb;
         homeAvatar.onerror = function () { this.src = fallbackPhoto; };
     }
     const menuAvatar = document.getElementById('menuUserAvatar');
     if (menuAvatar) {
-        menuAvatar.src = photo;
+        menuAvatar.src = avatarThumb;
         menuAvatar.onerror = function () { this.src = fallbackPhoto; };
     }
     const menuName = document.getElementById('menuUserName');
