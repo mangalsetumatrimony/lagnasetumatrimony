@@ -312,7 +312,7 @@ async function submitProfileCompletion() {
 }
 
 var selectedUpiApp = 'Google Pay';
-window.RAZORPAY_KEY_ID = window.RAZORPAY_KEY_ID || '';
+window.RAZORPAY_KEY_ID = window.RAZORPAY_KEY_ID || 'rzp_test_TvbuB5B2Ts4muf';
 
 function selectUpiApp(appName, el) {
     selectedUpiApp = appName;
@@ -341,6 +341,7 @@ window.selectUpiApp = selectUpiApp;
 function openRazorpayCheckout() {
     closeModal('modalPaywall');
     closeModal('modalBoyComplete');
+    closeModal('modalMembership');
 
     // If official Razorpay JS SDK is loaded and real Key is present
     if (typeof window.Razorpay === 'function' && window.RAZORPAY_KEY_ID && !window.RAZORPAY_KEY_ID.includes('demo')) {
@@ -352,7 +353,7 @@ function openRazorpayCheckout() {
 
             const options = {
                 key: window.RAZORPAY_KEY_ID,
-                amount: 19900, // ₹199 in paise
+                amount: 19900, // ₹199 in paise (₹199.00)
                 currency: 'INR',
                 name: 'Mangal Setu',
                 description: 'Boys 30-Day Membership Pass (₹199)',
@@ -360,7 +361,9 @@ function openRazorpayCheckout() {
                 notes: {
                     service: '30-Day Matrimonial Directory Access Pass',
                     nature: 'Instant Digital Service (Non-refundable)',
-                    disclaimer: 'Directory access only. Match/response not guaranteed.'
+                    disclaimer: 'Directory access only. Match/response not guaranteed.',
+                    user_id: String(user.id || ''),
+                    user_email: boyEmail
                 },
                 prefill: {
                     name: boyName,
@@ -370,45 +373,21 @@ function openRazorpayCheckout() {
                 theme: {
                     color: '#7B2CBF'
                 },
-                // CRITICAL: Strictly UPI ONLY - NO Card, NO Net Banking, NO Wallets
-                config: {
-                    display: {
-                        blocks: {
-                            upi: {
-                                name: 'Pay via UPI',
-                                instruments: [
-                                    { method: 'upi' }
-                                ]
-                            }
-                        },
-                        sequence: ['block.upi'],
-                        preferences: {
-                            show_default_blocks: false
-                        }
-                    }
-                },
-                method: {
-                    netbanking: false,
-                    card: false,
-                    wallet: false,
-                    emi: false,
-                    paylater: false,
-                    upi: true
-                },
                 handler: function(response) {
                     const txnId = response.razorpay_payment_id || ('RZP_UPI_' + Math.floor(10000 + Math.random() * 90000));
-                    processSuccessfulPayment(txnId, 'UPI (Razorpay)');
+                    console.log('[Razorpay] Payment successful:', txnId);
+                    processSuccessfulPayment(txnId, 'Razorpay UPI');
                 },
                 modal: {
                     ondismiss: function() {
-                        showToast('UPI Payment cancelled');
+                        showToast('Payment window closed');
                     }
                 }
             };
 
             const rzp = new window.Razorpay(options);
             rzp.on('payment.failed', function(resp) {
-                showToast('Payment failed: ' + (resp.error ? resp.error.description : 'Please try again with UPI'));
+                showToast('Payment failed: ' + (resp.error ? resp.error.description : 'Please try again'));
             });
             rzp.open();
             return;
@@ -600,8 +579,8 @@ function processSuccessfulPayment(txnId, upiMethod) {
 function processMockPayment() {
     closeModal('modalRazorpayCheckout');
 
-    // Only route to official Razorpay if a real live merchant key is configured
-    if (window.RAZORPAY_KEY_ID && !window.RAZORPAY_KEY_ID.includes('demo') && window.RAZORPAY_KEY_ID.startsWith('rzp_live_')) {
+    // Route to official Razorpay if a real merchant key is configured (Test or Live)
+    if (window.RAZORPAY_KEY_ID && !window.RAZORPAY_KEY_ID.includes('demo') && (window.RAZORPAY_KEY_ID.startsWith('rzp_live_') || window.RAZORPAY_KEY_ID.startsWith('rzp_test_'))) {
         showToast('Connecting to Razorpay gateway...');
         if (typeof openRazorpayCheckout === 'function') {
             openRazorpayCheckout();
