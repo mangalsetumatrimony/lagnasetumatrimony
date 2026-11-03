@@ -369,7 +369,7 @@ function populateEditProfile() {
     if (physicalSpan) physicalSpan.textContent = myProfile.physical || state.currentUser?.physical || 'Normal';
 
     const occEl = document.getElementById('editOccupation');
-    if (occEl) occEl.value = myProfile.occ || state.currentUser?.occupation || state.currentUser?.occ || '';
+    if (occEl) occEl.value = myProfile.occ || myProfile.occupation || state.currentUser?.occupation || state.currentUser?.occ || '';
 
     const incomeSpan = document.querySelector('#ddIncomeEdit .dd-trigger span');
     if (incomeSpan) incomeSpan.textContent = myProfile.income || state.currentUser?.income || '₹40K – ₹75K';
@@ -379,10 +379,10 @@ function populateEditProfile() {
 
     // Family details
     const fNameEl = document.getElementById('editFatherName');
-    if (fNameEl) fNameEl.value = myProfile.father || state.currentUser?.father || '';
+    if (fNameEl) fNameEl.value = myProfile.father || myProfile.fatherName || myProfile.father_name || state.currentUser?.father || state.currentUser?.fatherName || state.currentUser?.father_name || '';
 
     const fOccEl = document.getElementById('editFatherOcc');
-    if (fOccEl) fOccEl.value = myProfile.fatherOcc || state.currentUser?.fatherOcc || '';
+    if (fOccEl) fOccEl.value = myProfile.fatherOcc || myProfile.father_occ || state.currentUser?.fatherOcc || state.currentUser?.father_occ || '';
 
     const fMobileEl = document.getElementById('editFatherMobile');
     if (fMobileEl) {
@@ -409,10 +409,10 @@ function populateEditProfile() {
     }
 
     const mNameEl = document.getElementById('editMotherName');
-    if (mNameEl) mNameEl.value = myProfile.mother || state.currentUser?.mother || '';
+    if (mNameEl) mNameEl.value = myProfile.mother || myProfile.motherName || myProfile.mother_name || state.currentUser?.mother || state.currentUser?.motherName || state.currentUser?.mother_name || '';
 
     const mOccEl = document.getElementById('editMotherOcc');
-    if (mOccEl) mOccEl.value = myProfile.motherOcc || state.currentUser?.motherOcc || '';
+    if (mOccEl) mOccEl.value = myProfile.motherOcc || myProfile.mother_occ || state.currentUser?.motherOcc || state.currentUser?.mother_occ || '';
 
     const sisterEl = document.getElementById('editSister');
     if (sisterEl) sisterEl.value = (myProfile.sister && myProfile.sister !== '—') ? myProfile.sister : (state.currentUser?.sister || '');
@@ -649,16 +649,23 @@ function saveEditProfile() {
         myProfile.marital = maritalVal;
         myProfile.physical = physicalVal;
         myProfile.occ = occVal;
+        myProfile.occupation = occVal;
         myProfile.income = incomeVal;
         myProfile.education = eduVal;
 
         myProfile.father = fatherNameVal;
+        myProfile.fatherName = fatherNameVal;
+        myProfile.father_name = fatherNameVal;
         myProfile.fatherOcc = fatherOccVal;
+        myProfile.father_occ = fatherOccVal;
         myProfile.fatherMobile = formatPhoneNumber(cleanFatherMobile);
         myProfile.rawFatherMobile = cleanFatherMobile;
         myProfile.father_mobile = cleanFatherMobile;
         myProfile.mother = motherNameVal;
+        myProfile.motherName = motherNameVal;
+        myProfile.mother_name = motherNameVal;
         myProfile.motherOcc = motherOccVal;
+        myProfile.mother_occ = motherOccVal;
         myProfile.sister = sisterVal;
         myProfile.brother = brotherVal;
 
@@ -679,6 +686,7 @@ function saveEditProfile() {
             myProfile.photos = photos;
             myProfile.img = photos[0];
         }
+        myProfile.raw_data = { ...(myProfile.raw_data || {}), ...myProfile };
     }
 
     if (state.currentUser) {
@@ -696,13 +704,17 @@ function saveEditProfile() {
         state.currentUser.physical = physicalVal;
         state.currentUser.father = fatherNameVal;
         state.currentUser.fatherName = fatherNameVal;
+        state.currentUser.father_name = fatherNameVal;
         state.currentUser.fatherOcc = fatherOccVal;
+        state.currentUser.father_occ = fatherOccVal;
         state.currentUser.fatherMobile = formatPhoneNumber(cleanFatherMobile);
         state.currentUser.rawFatherMobile = cleanFatherMobile;
         state.currentUser.father_mobile = cleanFatherMobile;
         state.currentUser.mother = motherNameVal;
         state.currentUser.motherName = motherNameVal;
+        state.currentUser.mother_name = motherNameVal;
         state.currentUser.motherOcc = motherOccVal;
+        state.currentUser.mother_occ = motherOccVal;
         state.currentUser.sister = sisterVal;
         state.currentUser.brother = brotherVal;
         state.currentUser.village = city;
@@ -753,13 +765,17 @@ function saveEditProfile() {
                 accounts[uIdx].physical = physicalVal;
                 accounts[uIdx].father = fatherNameVal;
                 accounts[uIdx].fatherName = fatherNameVal;
+                accounts[uIdx].father_name = fatherNameVal;
                 accounts[uIdx].fatherOcc = fatherOccVal;
+                accounts[uIdx].father_occ = fatherOccVal;
                 accounts[uIdx].fatherMobile = formatPhoneNumber(cleanFatherMobile);
                 accounts[uIdx].rawFatherMobile = cleanFatherMobile;
                 accounts[uIdx].father_mobile = cleanFatherMobile;
                 accounts[uIdx].mother = motherNameVal;
                 accounts[uIdx].motherName = motherNameVal;
+                accounts[uIdx].mother_name = motherNameVal;
                 accounts[uIdx].motherOcc = motherOccVal;
+                accounts[uIdx].mother_occ = motherOccVal;
                 accounts[uIdx].sister = sisterVal;
                 accounts[uIdx].brother = brotherVal;
                 accounts[uIdx].mobile = formatPhoneNumber(cleanOwnMobile);
@@ -783,11 +799,17 @@ function saveEditProfile() {
         }
     } catch(e) { console.warn(e); }
 
-    // Keep active in-memory window.PROFILES strictly in sync
+    // Keep active in-memory window.PROFILES strictly in sync with all updated fields
     if (Array.isArray(window.PROFILES) && myProfile) {
-        const pIdx = window.PROFILES.findIndex(p => p && (p.id == myProfile.id || (p.email && myProfile.email && p.email.toLowerCase() === myProfile.email.toLowerCase())));
+        const pIdx = window.PROFILES.findIndex(p => p && (
+            (p.id && (String(p.id) === String(myProfile.id) || Number(p.id) === Number(myProfile.id))) ||
+            (p.userId && (String(p.userId) === String(myProfile.id) || String(p.user_id) === String(myProfile.id))) ||
+            (p.email && myProfile.email && p.email.toLowerCase().trim() === myProfile.email.toLowerCase().trim())
+        ));
         if (pIdx !== -1) {
-            window.PROFILES[pIdx].visible = isVisible;
+            window.PROFILES[pIdx] = { ...window.PROFILES[pIdx], ...myProfile, visible: isVisible };
+        } else {
+            window.PROFILES.push({ ...myProfile, visible: isVisible });
         }
     }
 

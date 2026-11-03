@@ -844,16 +844,16 @@
             document.getElementById('adminEditOwnMobile').value = isValidPhoneField(unmaskedOwn) ? unmaskedOwn : (isValidPhoneField(u.mobile) ? u.mobile : '');
             document.getElementById('adminEditEmail').value = (u.rawEmail && !u.rawEmail.includes('•')) ? u.rawEmail : (u.email && !u.email.includes('•') ? u.email : (u.raw_data && u.raw_data.email && !u.raw_data.email.includes('•') ? u.raw_data.email : ''));
             document.getElementById('adminEditFatherMobile').value = isValidPhoneField(unmaskedFather) ? unmaskedFather : '';
-            document.getElementById('adminEditFather').value = u.father || u.fatherName || '';
-            document.getElementById('adminEditFatherOcc').value = u.fatherOcc || '';
-            document.getElementById('adminEditMother').value = u.mother || u.motherName || '';
-            document.getElementById('adminEditMotherOcc').value = u.motherOcc || '';
+            document.getElementById('adminEditFather').value = u.father || u.fatherName || u.father_name || '';
+            document.getElementById('adminEditFatherOcc').value = u.fatherOcc || u.father_occ || '';
+            document.getElementById('adminEditMother').value = u.mother || u.motherName || u.mother_name || '';
+            document.getElementById('adminEditMotherOcc').value = u.motherOcc || u.mother_occ || '';
             document.getElementById('adminEditSister').value = u.sister || '';
             document.getElementById('adminEditBrother').value = u.brother || '';
             document.getElementById('adminEditVillage').value = u.village || u.city || '';
             document.getElementById('adminEditTaluka').value = u.taluka || '';
             document.getElementById('adminEditDistrict').value = u.district || '';
-            document.getElementById('adminEditAddress').value = u.fullAddress || u.address || '';
+            document.getElementById('adminEditAddress').value = u.fullAddress || u.full_address || u.address || '';
 
             openModal('modalAdminEditUser');
         }
@@ -927,10 +927,14 @@
 
             u.father = father;
             u.fatherName = father;
+            u.father_name = father;
             u.fatherOcc = fatherOcc;
+            u.father_occ = fatherOcc;
             u.mother = mother;
             u.motherName = mother;
+            u.mother_name = mother;
             u.motherOcc = motherOcc;
+            u.mother_occ = motherOcc;
             u.sister = sister || '—';
             u.brother = brother || '—';
 
@@ -940,15 +944,42 @@
             u.district = district;
             u.fullAddress = address;
             u.address = address;
+            u.full_address = address;
+
+            // Update raw_data object as well
+            u.raw_data = { ...(u.raw_data || {}), ...u };
 
             // Also synchronize in window.PROFILES and localStorage
             if (Array.isArray(window.PROFILES)) {
-                const pIdx = window.PROFILES.findIndex(p => p && String(p.id) === String(u.id));
+                const pIdx = window.PROFILES.findIndex(p => p && (
+                    String(p.id) === String(u.id) ||
+                    (u.userId && (String(p.userId) === String(u.userId) || String(p.user_id) === String(u.userId))) ||
+                    (u.email && p.email && p.email.toLowerCase().trim() === u.email.toLowerCase().trim())
+                ));
                 if (pIdx !== -1) {
                     window.PROFILES[pIdx] = { ...window.PROFILES[pIdx], ...u };
+                } else {
+                    window.PROFILES.push({ ...u });
                 }
             }
             if (typeof saveCommunityProfiles === 'function') saveCommunityProfiles();
+            if (typeof saveAdminData === 'function') saveAdminData();
+
+            // Also update localStorage stored accounts if member is locally stored/logged-in
+            if (typeof getStoredAccounts === 'function' && typeof saveStoredAccounts === 'function') {
+                try {
+                    const accs = getStoredAccounts();
+                    const aIdx = accs.findIndex(a => a && (
+                        String(a.id) === String(u.id) ||
+                        (u.userId && (String(a.userId) === String(u.userId) || String(a.id) === String(u.userId))) ||
+                        (u.email && a.email && a.email.toLowerCase().trim() === u.email.toLowerCase().trim())
+                    ));
+                    if (aIdx !== -1) {
+                        accs[aIdx] = { ...accs[aIdx], ...u };
+                        saveStoredAccounts(accs);
+                    }
+                } catch (_) {}
+            }
 
             closeModal('modalAdminEditUser');
             showGlobalLoader('Saving member updates to Supabase...');
@@ -964,7 +995,7 @@
                 console.warn('[Supabase] Member edit update note:', err);
             } finally {
                 hideGlobalLoader();
-                showToast('Member profile updated successfully');
+                showToast('Member profile updated successfully ✨');
                 openUserDetail(u.id);
                 renderUsers();
                 if (typeof renderDashboard === 'function') renderDashboard();

@@ -174,12 +174,14 @@ function mapProfileForSupabase(p) {
         weight: p.weight || '',
         education: p.education || '',
         occupation: p.occ || p.occupation || '',
+        occ: p.occ || p.occupation || '',
         income: p.income || '',
         marital: p.marital || 'Unmarried',
         physical: p.physical || 'Normal',
         community: p.community || p.caste || '',
         hobbies: Array.isArray(p.hobbies) ? p.hobbies : [],
         father: p.father || p.father_name || p.fatherName || '',
+        father_name: p.father || p.father_name || p.fatherName || '',
         father_occ: p.fatherOcc || p.father_occ || '',
         father_mobile: (!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
                        (!p.father_mobile?.includes('•') && p.father_mobile) ||
@@ -192,6 +194,7 @@ function mapProfileForSupabase(p) {
                     (!p.mobile?.includes('•') && p.mobile) ||
                     '',
         mother: p.mother || p.mother_name || p.motherName || '',
+        mother_name: p.mother || p.mother_name || p.motherName || '',
         mother_occ: p.motherOcc || p.mother_occ || '',
         sister: p.sister || 'None',
         brother: p.brother || 'None',
@@ -199,6 +202,7 @@ function mapProfileForSupabase(p) {
         taluka: p.taluka || '',
         district: p.district || '',
         full_address: p.fullAddress || p.full_address || p.address || '',
+        address: p.fullAddress || p.full_address || p.address || '',
         img: p.img || (Array.isArray(p.photos) ? p.photos[0] : '') || '',
         photos: Array.isArray(p.photos) && p.photos.length > 0 ? p.photos : (p.img ? [p.img] : []),
         email: p.email || '',
@@ -210,8 +214,6 @@ function mapProfileForSupabase(p) {
                 '',
         verify_status: p.verifyStatus || p.verify_status || 'approved',
         payment_status: p.paymentStatus || p.payment_status || 'unpaid',
-        plan_start: p.planStart || p.plan_start || null,
-        plan_expiry: p.planExpiry || p.plan_expiry || null,
         account_status: p.accountStatus || p.account_status || 'active',
         suspension_reason: p.suspensionReason || p.suspension_reason || null,
         reject_reason: p.rejectReason || p.reject_reason || null,
@@ -832,7 +834,7 @@ async function supabaseRecordPayment(paymentData) {
         const uid = String(paymentData.userId || '');
         const numProfId = Number(paymentData.profileId || (!isNaN(Number(uid)) ? Number(uid) : 0));
 
-        // 1. Insert into payments table
+        // 1. Insert into payments table (matching exact PostgreSQL columns)
         const paymentRow = {
             id: paymentData.id,
             user_id: uid,
@@ -843,21 +845,16 @@ async function supabaseRecordPayment(paymentData) {
             method: paymentData.method || 'UPI',
             razorpay_payment_id: paymentData.razorpayPaymentId || null,
             status: 'success',
-            plan_start: planStart,
-            plan_expiry: planExpiry,
             date: dateStr,
             time: timeStr
         };
-        if (eml) paymentRow.user_email = eml;
 
         const { error: payErr } = await client.from('payments').upsert(paymentRow, { onConflict: 'id' });
         if (payErr) console.warn('[Supabase] Payment upsert note:', payErr.message);
 
-        // 2. Also update profile payment_status, plan_start, plan_expiry in profiles and users table
+        // 2. Also update profile payment_status in profiles and users table
         const profUpdates = {
             payment_status: 'paid',
-            plan_start: planStart,
-            plan_expiry: planExpiry,
             updated_at: new Date().toISOString()
         };
         const userUpdates = {
@@ -907,7 +904,6 @@ async function supabaseFetchActiveUserPayment(userId, email) {
         if (strId) filterOr.push(`user_id.eq.${strId}`);
         if (numId > 0) filterOr.push(`user_id.eq.${numId}`);
         if (normEmail) {
-            filterOr.push(`user_email.ilike.${normEmail}`);
             filterOr.push(`user_id.ilike.${normEmail}`);
         }
 
@@ -1314,29 +1310,72 @@ async function supabaseAdminUpdateMember(profileId, u) {
 
     try {
         const payload = mapProfileForSupabase(u);
+        if (!payload) return { success: false, error: 'Empty payload' };
+
+        // Ensure non-existent schema columns are strictly stripped
+        delete payload.plan_start;
+        delete payload.plan_expiry;
+
         const normEmail = (u.email || '').trim().toLowerCase();
+        const numId = Number(profileId || u.id);
+        const hasValidNumId = !isNaN(numId) && numId > 0;
 
-        // 1. Try update by primary key id
         let updated = false;
-        if (profileId !== undefined && profileId !== null) {
-            const numId = Number(profileId);
-            const { error: errId } = await client
+
+        // Prepare update payload without primary key 'id' to prevent Postgres key errors
+        const updatePayload = { ...payload };
+        delete updatePayload.id;
+
+        // 1. Try update by primary key id (if numeric)
+        if (hasValidNumId) {
+            const { data: updatedRows, error: errId } = await client
                 .from('profiles')
-                .update(payload)
-                .eq('id', !isNaN(numId) ? numId : profileId);
-            if (!errId) updated = true;
+                .update(updatePayload)
+                .eq('id', numId)
+                .select('id');
+            if (!errId && Array.isArray(updatedRows) && updatedRows.length > 0) {
+                updated = true;
+            }
         }
 
-        // 2. If not updated and email exists, update by email
-        if (!updated && normEmail) {
-            const { error: errEmail } = await client
+        // 2. Try update by user_id
+        if (!updated && (profileId || u.userId || u.user_id)) {
+            const uidStr = String(u.userId || u.user_id || profileId);
+            const { data: updatedRows, error: errUid } = await client
                 .from('profiles')
-                .update(payload)
-                .eq('email', normEmail);
-            if (!errEmail) updated = true;
+                .update(updatePayload)
+                .eq('user_id', uidStr)
+                .select('id');
+            if (!errUid && Array.isArray(updatedRows) && updatedRows.length > 0) {
+                updated = true;
+            }
         }
 
-        // 3. Keep public.users table synchronized as well
+        // 3. Try update by email
+        if (!updated && normEmail && !normEmail.includes('•')) {
+            const { data: updatedRows, error: errEmail } = await client
+                .from('profiles')
+                .update(updatePayload)
+                .ilike('email', normEmail)
+                .select('id');
+            if (!errEmail && Array.isArray(updatedRows) && updatedRows.length > 0) {
+                updated = true;
+            }
+        }
+
+        // 4. If record doesn't exist yet, UPSERT it!
+        if (!updated) {
+            const { error: errUpsert } = await client
+                .from('profiles')
+                .upsert(payload, { onConflict: 'id' });
+            if (!errUpsert) {
+                updated = true;
+            } else {
+                console.warn('[Supabase] Admin member upsert fallback note:', errUpsert.message);
+            }
+        }
+
+        // 5. Keep public.users table synchronized as well
         const unmaskedPhone = (!u.ownMobile?.includes('•') && u.ownMobile) || (!u.mobile?.includes('•') && u.mobile) || '';
         const userUpdatePayload = {
             name: u.name || '',
@@ -1348,10 +1387,10 @@ async function supabaseAdminUpdateMember(profileId, u) {
             userUpdatePayload.mobile = unmaskedPhone;
         }
         if (normEmail && !normEmail.includes('•')) {
-            await client.from('users').update(userUpdatePayload).eq('email', normEmail);
+            await client.from('users').update(userUpdatePayload).ilike('email', normEmail);
         }
-        if (profileId) {
-            await client.from('users').update(userUpdatePayload).eq('id', String(profileId));
+        if (hasValidNumId) {
+            await client.from('users').update(userUpdatePayload).eq('id', String(numId));
         }
         if (u.userId && String(u.userId) !== String(profileId)) {
             await client.from('users').update(userUpdatePayload).eq('id', String(u.userId));
