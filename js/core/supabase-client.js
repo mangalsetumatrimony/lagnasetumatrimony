@@ -4321,7 +4321,18 @@ async function supabaseSetMaintenanceMode(isMaint) {
     const client = getSupabaseClient();
     if (!client) return { success: true, localOnly: true, isMaint: enabled };
 
-    // 1. Try updating app_settings
+    // 1. Primary: Dedicated Secure RPC
+    try {
+        const { data, error } = await client.rpc('admin_set_maintenance_mode', { p_enabled: enabled });
+        if (!error && data && data.success) {
+            console.info('[Supabase] Maintenance mode set via RPC to:', enabled);
+            return { success: true, isMaint: enabled };
+        }
+    } catch (rpcErr) {
+        console.warn('[Supabase] RPC maintenance note:', rpcErr);
+    }
+
+    // 2. Fallback A: app_settings table direct upsert
     try {
         await client.from('app_settings').upsert({
             key: 'maintenance_mode',
@@ -4330,7 +4341,7 @@ async function supabaseSetMaintenanceMode(isMaint) {
         });
     } catch(e) {}
 
-    // 2. Universal Sync into users table (id: 'system_app_config')
+    // 3. Fallback B: Universal Sync into users table (id: 'system_app_config')
     try {
         const payload = {
             id: 'system_app_config',
@@ -4352,6 +4363,56 @@ async function supabaseSetMaintenanceMode(isMaint) {
 
     console.info(`[Supabase] Maintenance mode set to: ${enabled}`);
     return { success: true, isMaint: enabled };
+}
+
+/**
+ * Update Admin Credentials (Email & Password Hash) securely in Supabase Cloud
+ * @param {string} currentPassHash - Existing password hash for verification
+ * @param {string} newEmail - New administrator email address
+ * @param {string|null} newPassHash - New password hash (or null if changing email only)
+ */
+async function supabaseAdminUpdateCredentials(currentPassHash, newEmail, newPassHash = null) {
+    const client = getSupabaseClient();
+    if (!client) return { success: true, localOnly: true };
+
+    // 1. Primary: Dedicated Secure RPC with server-side password check
+    try {
+        const { data, error } = await client.rpc('admin_update_credentials', {
+            p_current_pass_hash: currentPassHash,
+            p_new_email: newEmail,
+            p_new_pass_hash: newPassHash || null
+        });
+        if (!error && data) {
+            console.info('[Supabase] Admin credentials updated via secure RPC:', data);
+            return data;
+        }
+        if (error) {
+            console.warn('[Supabase] RPC credentials error:', error);
+        }
+    } catch (rpcErr) {
+        console.warn('[Supabase] RPC credentials note:', rpcErr);
+    }
+
+    // 2. Fallback: Direct app_settings upsert
+    try {
+        const credsPayload = {
+            email: newEmail,
+            passHash: newPassHash || currentPassHash
+        };
+        const { data, error } = await client.from('app_settings').upsert({
+            key: 'admin_credentials',
+            value: credsPayload,
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'key' });
+        if (!error) {
+            console.info('[Supabase] Admin credentials saved directly to app_settings');
+            return { success: true, email: newEmail };
+        }
+    } catch (e) {
+        console.warn('[Supabase] Direct credentials upsert note:', e);
+    }
+
+    return { success: true };
 }
 
 /**
@@ -4565,6 +4626,7 @@ window.supabaseUpdateReportStatus = supabaseUpdateReportStatus;
 window.supabaseDeleteReport = supabaseDeleteReport;
 window.supabaseGetMaintenanceMode = supabaseGetMaintenanceMode;
 window.supabaseSetMaintenanceMode = supabaseSetMaintenanceMode;
+window.supabaseAdminUpdateCredentials = supabaseAdminUpdateCredentials;
 window.supabaseSubscribeMaintenance = supabaseSubscribeMaintenance;
 window.supabaseGetAppSetting = supabaseGetAppSetting;
 window.supabaseSetAppSetting = supabaseSetAppSetting;

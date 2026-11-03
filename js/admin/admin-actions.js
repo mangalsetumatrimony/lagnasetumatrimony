@@ -1514,14 +1514,23 @@ async function updateAdminEmail() {
         if (input) input.focus();
         return;
     }
-    ADMIN_CREDS.email = newEmail;
-    window.ADMIN_CREDS = ADMIN_CREDS;
-    localStorage.setItem(LS_ADMIN_CREDS_KEY, JSON.stringify(ADMIN_CREDS));
+    const creds = (typeof getEffectiveAdminCreds === 'function') ? getEffectiveAdminCreds() : (window.ADMIN_CREDS || ADMIN_CREDS || {});
+    creds.email = newEmail;
+    ADMIN_CREDS = creds;
+    window.ADMIN_CREDS = creds;
+    localStorage.setItem(LS_ADMIN_CREDS_KEY, JSON.stringify(creds));
 
-    // Save directly to Supabase app_settings
-    if (typeof supabaseSetAppSetting === 'function') {
+    // Save directly to Supabase cloud via secure RPC
+    if (typeof supabaseAdminUpdateCredentials === 'function') {
         try {
-            await supabaseSetAppSetting('admin_credentials', ADMIN_CREDS);
+            await supabaseAdminUpdateCredentials(creds.passHash, newEmail, creds.passHash);
+            console.info('[Admin] Admin email saved to Supabase cloud');
+        } catch(e) {
+            console.warn('[Admin] Failed saving email via RPC:', e);
+        }
+    } else if (typeof supabaseSetAppSetting === 'function') {
+        try {
+            await supabaseSetAppSetting('admin_credentials', creds);
             console.info('[Admin] Admin email saved to Supabase app_settings');
         } catch(e) {
             console.warn('[Admin] Failed saving email to Supabase:', e);

@@ -324,8 +324,15 @@ async function updateAdminPassword() {
     delete creds.pass;
     localStorage.setItem(LS_ADMIN_CREDS_KEY, JSON.stringify(creds));
 
-    // Save directly to Supabase app_settings
-    if (typeof supabaseSetAppSetting === 'function') {
+    // Save directly to Supabase cloud via secure RPC
+    if (typeof supabaseAdminUpdateCredentials === 'function') {
+        try {
+            await supabaseAdminUpdateCredentials(curHash, creds.email, newHash);
+            console.info('[Admin Security] Admin credentials updated in Supabase cloud');
+        } catch(e) {
+            console.warn('[Admin Security] Failed saving creds via RPC:', e);
+        }
+    } else if (typeof supabaseSetAppSetting === 'function') {
         try {
             await supabaseSetAppSetting('admin_credentials', creds);
             console.info('[Admin Security] Admin credentials updated in Supabase app_settings');
