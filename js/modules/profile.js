@@ -684,7 +684,7 @@ function updateMembershipScreen() {
         if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-lock"></i> ₹199 PASS REQUIRED';
         if (titleEl) titleEl.textContent = 'Payment Required';
         if (subEl) {
-            subEl.textContent = '₹199 access pass required to unlock full profile details and father contact';
+            subEl.textContent = '₹199 access pass required to browse brides and send interest requests';
         }
         if (payBtn) {
             payBtn.style.display = 'flex';
