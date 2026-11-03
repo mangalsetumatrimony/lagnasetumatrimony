@@ -1726,6 +1726,15 @@ function enterHome() {
     if (typeof updateHeaderUserDisplay === 'function') {
         updateHeaderUserDisplay();
     }
+    if (typeof syncUserNotificationsFromData === 'function') {
+        syncUserNotificationsFromData();
+    }
+    if (typeof updateUserNotifBadge === 'function') {
+        updateUserNotifBadge();
+    }
+    if (typeof updateInboxBadge === 'function') {
+        updateInboxBadge();
+    }
 
     go('scr-home', true);
 

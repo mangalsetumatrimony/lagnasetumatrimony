@@ -64,6 +64,7 @@ function initApp() {
     initHobbies();
     updateInboxBadge();
     updateHeaderUserDisplay();
+    if (typeof syncUserNotificationsFromData === 'function') syncUserNotificationsFromData();
     if (typeof updateUserNotifBadge === 'function') updateUserNotifBadge();
 
     // Start live sync, real-time chat listener, presence tracking & 10-min inactivity timer for active user session

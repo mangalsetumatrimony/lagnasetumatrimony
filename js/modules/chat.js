@@ -1,7 +1,37 @@
 /* ============================================================ CHAT & INTEREST DATA (PRODUCTION) ============================================================ */
-let INCOMING_REQUESTS = [];
-let OUTGOING_REQUESTS = [];
-let CHAT_THREADS = [];
+window.INCOMING_REQUESTS = window.INCOMING_REQUESTS || [];
+window.OUTGOING_REQUESTS = window.OUTGOING_REQUESTS || [];
+window.CHAT_THREADS = window.CHAT_THREADS || [];
+let INCOMING_REQUESTS = window.INCOMING_REQUESTS;
+let OUTGOING_REQUESTS = window.OUTGOING_REQUESTS;
+let CHAT_THREADS = window.CHAT_THREADS;
+
+// Immediate boot hydration from storage so interests never disappear on reload
+(function hydrateFromStorageImmediate() {
+    try {
+        const sInc = sessionStorage.getItem('mangalSetu_incomingRequests') || localStorage.getItem('mangalSetu_incomingRequests_v2');
+        if (sInc && !INCOMING_REQUESTS.length) {
+            const parsed = JSON.parse(sInc);
+            if (Array.isArray(parsed) && parsed.length) {
+                parsed.forEach(r => INCOMING_REQUESTS.push(r));
+            }
+        }
+        const sOut = sessionStorage.getItem('mangalSetu_outgoingRequests') || localStorage.getItem('mangalSetu_outgoingRequests_v2');
+        if (sOut && !OUTGOING_REQUESTS.length) {
+            const parsed = JSON.parse(sOut);
+            if (Array.isArray(parsed) && parsed.length) {
+                parsed.forEach(r => OUTGOING_REQUESTS.push(r));
+            }
+        }
+        const sThr = sessionStorage.getItem('mangalSetu_chatThreads');
+        if (sThr && !CHAT_THREADS.length) {
+            const parsed = JSON.parse(sThr);
+            if (Array.isArray(parsed) && parsed.length) {
+                parsed.forEach(t => CHAT_THREADS.push(t));
+            }
+        }
+    } catch (_) {}
+})();
 
 // Local Seen Messages Cache (Production-grade persistence against page reloads)
 const LS_SEEN_CACHE_PREFIX = 'ls_seen_msg_ids_';
@@ -794,10 +824,11 @@ function updateInboxBadge() {
 async function syncUserChatAndInterests() {
     if (!state.currentUser || !state.currentUser.email) return;
     try {
-        const myId = Number(state.currentUser.id || 0);
-        const myEmail = state.currentUser.email.trim().toLowerCase();
-
+        const myIdStr = String(state.currentUser.id || '');
         const myProfId = (state.currentUser && state.currentUser.profileId) ? Number(state.currentUser.profileId) : 0;
+        const myCleanId = Number(myIdStr.replace(/\D/g, '')) || myProfId || 0;
+        const myId = myCleanId;
+        const myEmail = state.currentUser.email.trim().toLowerCase();
 
         // Canonical peer ID resolver by email and profile lookup
         function getCanonicalPeerId(rawPid, rawEmail) {
@@ -816,7 +847,7 @@ async function syncUserChatAndInterests() {
         // 1. Fetch Interests from Supabase
         let interestsRes = { incoming: [], outgoing: [] };
         if (typeof supabaseFetchUserInterests === 'function') {
-            interestsRes = await supabaseFetchUserInterests(myEmail, myId);
+            interestsRes = await supabaseFetchUserInterests(myEmail, myCleanId);
             if (interestsRes) {
                 if (Array.isArray(interestsRes.incoming)) {
                     const seenIn = new Set();
@@ -881,6 +912,14 @@ async function syncUserChatAndInterests() {
                     mergedOut.forEach(r => OUTGOING_REQUESTS.push(r));
                 }
                 saveSessionState();
+                if (typeof syncUserNotificationsFromData === 'function') {
+                    syncUserNotificationsFromData();
+                }
+                if (typeof updateUserNotifBadge === 'function') {
+                    updateUserNotifBadge();
+                }
+                updateInboxBadge();
+                refreshProfileButtons();
             }
         }
 
@@ -2823,15 +2862,18 @@ function handleRealtimeMessageDelete(oldMsg) {
 
 function handleRealtimeInterestUpdate(dbInterest) {
     if (!dbInterest || !state.currentUser) return;
-    const myId = Number(state.currentUser.id);
+    const myIdStr = String(state.currentUser.id || '');
+    const myProfId = (state.currentUser && state.currentUser.profileId) ? Number(state.currentUser.profileId) : 0;
+    const myCleanId = Number(myIdStr.replace(/\D/g, '')) || myProfId || 0;
     const myEmail = (state.currentUser.email || '').trim().toLowerCase();
-    const sendId = Number(dbInterest.sender_id);
-    const recId = Number(dbInterest.receiver_id);
+
+    const sendId = Number(dbInterest.sender_id || 0);
+    const recId = Number(dbInterest.receiver_id || 0);
     const sendEmail = (dbInterest.sender_email || '').trim().toLowerCase();
     const recEmail = (dbInterest.receiver_email || '').trim().toLowerCase();
 
-    const isMeSender = sendId === myId || (myEmail && sendEmail === myEmail);
-    const isMeReceiver = recId === myId || (myEmail && recEmail === myEmail);
+    const isMeSender = (myCleanId && sendId === myCleanId) || (myProfId && sendId === myProfId) || (myEmail && sendEmail && myEmail === sendEmail);
+    const isMeReceiver = (myCleanId && recId === myCleanId) || (myProfId && recId === myProfId) || (myEmail && recEmail && myEmail === recEmail);
 
     if (!isMeSender && !isMeReceiver) return;
 
@@ -2927,6 +2969,12 @@ function handleRealtimeInterestUpdate(dbInterest) {
     saveSessionState();
     updateInboxBadge();
     refreshProfileButtons();
+    if (typeof syncUserNotificationsFromData === 'function') {
+        syncUserNotificationsFromData();
+    }
+    if (typeof updateUserNotifBadge === 'function') {
+        updateUserNotifBadge();
+    }
 
     const activeScreen = document.querySelector('.screen.active');
     if (activeScreen && activeScreen.id === 'scr-inbox') {
@@ -2969,45 +3017,63 @@ function handleRealtimeInterestUpdate(dbInterest) {
 
 function handleRealtimeInterestInsert(dbInterest) {
     if (!dbInterest || !state.currentUser) return;
-    const myId = Number(state.currentUser.id);
+    const myIdStr = String(state.currentUser.id || '');
+    const myProfId = (state.currentUser && state.currentUser.profileId) ? Number(state.currentUser.profileId) : 0;
+    const myCleanId = Number(myIdStr.replace(/\D/g, '')) || myProfId || 0;
     const myEmail = (state.currentUser.email || '').trim().toLowerCase();
-    const recId = Number(dbInterest.receiver_id);
+
+    const recId = Number(dbInterest.receiver_id || 0);
     const recEmail = (dbInterest.receiver_email || '').trim().toLowerCase();
 
-    if (recId === myId || (myEmail && recEmail === myEmail)) {
+    const isMeReceiver = (myCleanId && recId === myCleanId) ||
+                         (myProfId && recId === myProfId) ||
+                         (myEmail && recEmail && myEmail === recEmail);
+
+    if (isMeReceiver) {
         const pid = Number(dbInterest.sender_id);
-        if (!INCOMING_REQUESTS.some(r => Number(r.profileId) === pid)) {
-            INCOMING_REQUESTS.unshift({
-                id: dbInterest.id,
-                profileId: pid,
-                senderEmail: dbInterest.sender_email,
-                senderName: dbInterest.sender_name,
-                senderPhoto: dbInterest.sender_photo,
-                senderCaste: dbInterest.sender_caste,
-                senderCity: dbInterest.sender_city,
-                status: 'pending',
-                date: 'Just now'
-            });
-            saveSessionState();
-            updateInboxBadge();
-            const activeScreen = document.querySelector('.screen.active');
-            if (activeScreen && activeScreen.id === 'scr-inbox') {
-                renderInbox();
-            }
-            if (typeof addUserRealtimeNotification === 'function') {
-                addUserRealtimeNotification({
-                    id: `interest_in_${pid}_${Date.now()}`,
-                    icon: 'fa-heart-circle-check',
-                    title: `${dbInterest.sender_name || 'A member'} sent you an interest request`,
-                    desc: 'Wants to connect with you. Visit your inbox to respond.',
-                    time: 'Just now',
-                    unread: true,
-                    actionType: 'screen',
-                    actionTarget: 'scr-inbox'
-                });
-            }
-            showToast(`💍 Interest request received from ${dbInterest.sender_name || 'a member'}!`);
+        const existingIdx = INCOMING_REQUESTS.findIndex(r => Number(r.profileId) === pid || Number(r.senderId) === pid);
+        const newReq = {
+            id: dbInterest.id,
+            profileId: pid,
+            senderId: pid,
+            senderEmail: dbInterest.sender_email,
+            senderName: dbInterest.sender_name,
+            senderPhoto: dbInterest.sender_photo,
+            senderCaste: dbInterest.sender_caste,
+            senderCity: dbInterest.sender_city,
+            status: 'pending',
+            date: 'Just now'
+        };
+        if (existingIdx !== -1) {
+            INCOMING_REQUESTS[existingIdx] = newReq;
+        } else {
+            INCOMING_REQUESTS.unshift(newReq);
         }
+        saveSessionState();
+        updateInboxBadge();
+        if (typeof addUserRealtimeNotification === 'function') {
+            addUserRealtimeNotification({
+                id: `interest_in_${pid}_${Date.now()}`,
+                icon: 'fa-heart-circle-check',
+                title: `${dbInterest.sender_name || 'A member'} sent you an interest request`,
+                desc: 'Wants to connect with you. Visit your inbox to respond.',
+                time: 'Just now',
+                unread: true,
+                actionType: 'screen',
+                actionTarget: 'scr-inbox'
+            });
+        }
+        if (typeof syncUserNotificationsFromData === 'function') {
+            syncUserNotificationsFromData();
+        }
+        if (typeof updateUserNotifBadge === 'function') {
+            updateUserNotifBadge();
+        }
+        const activeScreen = document.querySelector('.screen.active');
+        if (activeScreen && activeScreen.id === 'scr-inbox') {
+            renderInbox();
+        }
+        showToast(`💍 Interest request received from ${dbInterest.sender_name || 'a member'}!`);
     }
 }
 

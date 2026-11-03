@@ -1,4 +1,11 @@
 /* ============================================================ STATE & SESSION ============================================================ */
+window.INCOMING_REQUESTS = window.INCOMING_REQUESTS || [];
+window.OUTGOING_REQUESTS = window.OUTGOING_REQUESTS || [];
+window.CHAT_THREADS = window.CHAT_THREADS || [];
+var INCOMING_REQUESTS = window.INCOMING_REQUESTS;
+var OUTGOING_REQUESTS = window.OUTGOING_REQUESTS;
+var CHAT_THREADS = window.CHAT_THREADS;
+
 /* ============================================================ STATE ============================================================ */
 var state = {
     tab: 'girls',

@@ -2303,6 +2303,7 @@ async function supabaseSendInterest(senderProfile, receiverProfile) {
             toEmail: receiverEmail,
             toName: receiverProfile.name,
             senderData: {
+                id: senderId,
                 name: senderProfile.name,
                 age: senderProfile.age,
                 caste: senderProfile.community || senderProfile.caste,
@@ -2313,6 +2314,7 @@ async function supabaseSendInterest(senderProfile, receiverProfile) {
                 photo: realSenderPhoto
             },
             receiverData: {
+                id: receiverId,
                 name: receiverProfile.name,
                 email: receiverEmail,
                 photo: realReceiverPhoto
@@ -2329,12 +2331,12 @@ async function supabaseSendInterest(senderProfile, receiverProfile) {
 async function supabaseFetchUserInterests(userEmail, userId) {
     const client = getSupabaseClient();
     const normEmail = (userEmail || '').trim().toLowerCase();
-    let numId = Number(userId || 0);
+    let numId = Number(String(userId || 0).replace(/\D/g, '')) || 0;
     if (!numId && typeof state !== 'undefined' && state.currentUser) {
         if (state.currentUser.profileId && !isNaN(Number(state.currentUser.profileId))) {
             numId = Number(state.currentUser.profileId);
-        } else if (state.currentUser.id && !isNaN(Number(state.currentUser.id))) {
-            numId = Number(state.currentUser.id);
+        } else if (state.currentUser.id) {
+            numId = Number(String(state.currentUser.id).replace(/\D/g, '')) || 0;
         }
     }
 

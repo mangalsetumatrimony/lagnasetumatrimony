@@ -236,6 +236,7 @@ function syncUserNotificationsFromData() {
         const merged = [...newItems, ...existing];
         saveUserNotifications(merged);
     }
+    updateUserNotifBadge();
 }
 
 /**

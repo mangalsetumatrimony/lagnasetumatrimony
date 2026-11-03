@@ -707,7 +707,26 @@ function openPhotoCarousel(profileId, event, initialIdx = 0) {
     const isProfileGirl = typeof isGirlGender === 'function' ? isGirlGender(p.gender) : (p.gender === 'girls' || p.gender === 'Girl');
     const fallbackImg = isProfileGirl ? 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=800&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=800&auto=format&fit=crop';
 
-    let photos = (p.photos && p.photos.length > 0) ? p.photos.filter(Boolean) : [p.img || p.photo].filter(Boolean);
+    // Prioritize actual main image in the profile so the slider opens the EXACT current photo
+    let photos = [];
+    const isSelf = (typeof isSelfProfile === 'function') ? isSelfProfile(p) : false;
+    const sourceObj = (isSelf && state.currentUser) ? state.currentUser : p;
+
+    if (Array.isArray(sourceObj.photos) && sourceObj.photos.length > 0) {
+        photos = sourceObj.photos.filter(Boolean);
+    }
+    const currentHeroImg = sourceObj.img || sourceObj.photo || p.img || p.photo;
+    if (currentHeroImg) {
+        if (!photos.includes(currentHeroImg)) {
+            photos.unshift(currentHeroImg);
+        } else {
+            const heroIdx = photos.indexOf(currentHeroImg);
+            if (heroIdx > 0 && initialIdx === 0) {
+                photos.splice(heroIdx, 1);
+                photos.unshift(currentHeroImg);
+            }
+        }
+    }
     if (!photos || photos.length === 0) {
         photos = [fallbackImg];
     }
@@ -722,6 +741,7 @@ function openPhotoCarousel(profileId, event, initialIdx = 0) {
     if (imgEl) {
         const targetPhoto = photos[currentCarouselIdx] || photos[0];
         const optimizedCarouselImg = (typeof getCarouselImageUrl === 'function') ? getCarouselImageUrl(targetPhoto) : targetPhoto;
+        imgEl.onerror = null;
         imgEl.src = optimizedCarouselImg;
         imgEl.onerror = function() {
             this.onerror = null;

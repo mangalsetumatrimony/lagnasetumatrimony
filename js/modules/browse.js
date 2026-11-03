@@ -480,30 +480,54 @@ function populateEditProfile() {
 
     // Family details
     const fNameEl = document.getElementById('editFatherName');
-    if (fNameEl) fNameEl.value = myProfile.father || myProfile.fatherName || myProfile.father_name || state.currentUser?.father || state.currentUser?.fatherName || state.currentUser?.father_name || '';
+    const fNameVal = myProfile.father || myProfile.fatherName || myProfile.father_name || state.currentUser?.father || state.currentUser?.fatherName || state.currentUser?.father_name || '';
+    if (fNameEl) fNameEl.value = fNameVal;
 
     const fOccEl = document.getElementById('editFatherOcc');
-    if (fOccEl) fOccEl.value = myProfile.fatherOcc || myProfile.father_occ || state.currentUser?.fatherOcc || state.currentUser?.father_occ || '';
+    const fOccVal = myProfile.fatherOcc || myProfile.father_occ || state.currentUser?.fatherOcc || state.currentUser?.father_occ || '';
+    if (fOccEl) fOccEl.value = fOccVal;
 
     const fMobileEl = document.getElementById('editFatherMobile');
+    let cleanFM = '';
     if (fMobileEl) {
-        const cleanFM = (typeof getUnmaskedContactFromAnywhere === 'function')
+        cleanFM = (typeof getUnmaskedContactFromAnywhere === 'function')
             ? getUnmaskedContactFromAnywhere('father', myProfile)
             : (myProfile.rawFatherMobile || myProfile.father_mobile || '');
         fMobileEl.value = cleanFM ? ((typeof formatPhoneNumber === 'function') ? formatPhoneNumber(cleanFM) : cleanFM) : '';
     }
 
     const mNameEl = document.getElementById('editMotherName');
-    if (mNameEl) mNameEl.value = myProfile.mother || myProfile.motherName || myProfile.mother_name || state.currentUser?.mother || state.currentUser?.motherName || state.currentUser?.mother_name || '';
+    const mNameVal = myProfile.mother || myProfile.motherName || myProfile.mother_name || state.currentUser?.mother || state.currentUser?.motherName || state.currentUser?.mother_name || '';
+    if (mNameEl) mNameEl.value = mNameVal;
 
     const mOccEl = document.getElementById('editMotherOcc');
-    if (mOccEl) mOccEl.value = myProfile.motherOcc || myProfile.mother_occ || state.currentUser?.motherOcc || state.currentUser?.mother_occ || '';
+    const mOccVal = myProfile.motherOcc || myProfile.mother_occ || state.currentUser?.motherOcc || state.currentUser?.mother_occ || '';
+    if (mOccEl) mOccEl.value = mOccVal;
 
     const sisterEl = document.getElementById('editSister');
-    if (sisterEl) sisterEl.value = (myProfile.sister && myProfile.sister !== '—') ? myProfile.sister : (state.currentUser?.sister || '');
+    const sisterVal = (myProfile.sister && myProfile.sister !== '—' && myProfile.sister !== 'None') ? myProfile.sister : (state.currentUser?.sister && state.currentUser.sister !== 'None' ? state.currentUser.sister : '');
+    if (sisterEl) sisterEl.value = sisterVal;
 
     const brotherEl = document.getElementById('editBrother');
-    if (brotherEl) brotherEl.value = (myProfile.brother && myProfile.brother !== '—') ? myProfile.brother : (state.currentUser?.brother || '');
+    const brotherVal = (myProfile.brother && myProfile.brother !== '—' && myProfile.brother !== 'None') ? myProfile.brother : (state.currentUser?.brother && state.currentUser.brother !== 'None' ? state.currentUser.brother : '');
+    if (brotherEl) brotherEl.value = brotherVal;
+
+    // Toggle Family Details based on whether user has existing family details
+    const hasFamilyDetails = Boolean(fNameVal || fOccVal || cleanFM || mNameVal || mOccVal || sisterVal || brotherVal);
+    const tglEditFam = document.getElementById('tglEditFamily');
+    const editFamContainer = document.getElementById('editFamilyInputsContainer');
+    const editFamSubtext = document.getElementById('editFamilyToggleSubtext');
+    if (tglEditFam && editFamContainer) {
+        if (hasFamilyDetails) {
+            tglEditFam.classList.add('on');
+            editFamContainer.style.display = 'block';
+            if (editFamSubtext) editFamSubtext.textContent = 'Family details enabled • Turn OFF if you wish to skip (પરિવારની વિગત ચાલુ છે • છુપાવવા માટે બંધ કરો)';
+        } else {
+            tglEditFam.classList.remove('on');
+            editFamContainer.style.display = 'none';
+            if (editFamSubtext) editFamSubtext.textContent = 'Optional • Turn ON to add or update family details (મરજીયાત • પરિવાર વિગત ઉમેરવા ચાલુ કરો)';
+        }
+    }
 
     // Address (Properly restored from registration and profile)
     const cityEl = document.getElementById('editCity');
@@ -558,6 +582,38 @@ function populateEditProfile() {
     }
 }
 
+function toggleEditFamily(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    const tgl = document.getElementById('tglEditFamily');
+    const container = document.getElementById('editFamilyInputsContainer');
+    const subtext = document.getElementById('editFamilyToggleSubtext');
+    if (!tgl || !container) return;
+
+    const willBeOn = !tgl.classList.contains('on');
+    tgl.classList.toggle('on', willBeOn);
+    container.style.display = willBeOn ? 'block' : 'none';
+
+    if (subtext) {
+        subtext.textContent = willBeOn
+            ? 'Family details enabled • Turn OFF if you wish to skip (પરિવારની વિગત ચાલુ છે • છુપાવવા માટે બંધ કરો)'
+            : 'Optional • Turn ON to add or update family details (મરજીયાત • પરિવાર વિગત ઉમેરવા ચાલુ કરો)';
+    }
+
+    if (!willBeOn) {
+        ['editFatherName', 'editFatherOcc', 'editFatherMobile', 'editMotherName', 'editMotherOcc', 'editSister', 'editBrother'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.classList.remove('input-error');
+                el.style.borderColor = '';
+            }
+        });
+    }
+}
+window.toggleEditFamily = toggleEditFamily;
+
 function saveEditProfile() {
     const myProfile = getCurrentUserProfile();
 
@@ -574,25 +630,51 @@ function saveEditProfile() {
         return;
     }
 
-    const rawFatherMobile = fMobileEl ? fMobileEl.value.trim() : '';
-    const fatherDigits = rawFatherMobile.replace(/\D/g, '');
-    const hasTypedFatherDigits = fatherDigits.length > 2 && (fatherDigits.startsWith('91') ? fatherDigits.length > 2 : fatherDigits.length > 0);
-
+    // Family Details Toggle Evaluation
+    const isFamilyOn = document.getElementById('tglEditFamily')?.classList.contains('on');
+    let fatherNameVal = '';
+    let fatherOccVal = '';
     let cleanFatherMobile = '';
-    if (hasTypedFatherDigits) {
-        cleanFatherMobile = extract10DigitMobile(rawFatherMobile);
-        if (!cleanFatherMobile || cleanFatherMobile.length !== 10 || !/^[6-9]\d{9}$/.test(cleanFatherMobile)) {
-            highlightFieldError(fMobileEl, "Please enter a valid 10-digit mobile number for father starting with 6, 7, 8, or 9 (e.g. 98765 43210) or leave blank");
-            showToast("Please enter a valid 10-digit mobile number for father or leave blank");
-            return;
+    let motherNameVal = '';
+    let motherOccVal = '';
+    let sisterVal = '—';
+    let brotherVal = '—';
+
+    if (isFamilyOn) {
+        fatherNameVal = fNameEl ? fNameEl.value.trim() : '';
+        fatherOccVal = document.getElementById('editFatherOcc')?.value.trim() || '';
+        motherNameVal = document.getElementById('editMotherName')?.value.trim() || '';
+        motherOccVal = document.getElementById('editMotherOcc')?.value.trim() || '';
+        sisterVal = document.getElementById('editSister')?.value.trim() || '—';
+        brotherVal = document.getElementById('editBrother')?.value.trim() || '—';
+
+        const rawFatherMobile = fMobileEl ? fMobileEl.value.trim() : '';
+        const fatherDigits = rawFatherMobile.replace(/\D/g, '');
+        const hasTypedFatherDigits = fatherDigits.length > 2 && (fatherDigits.startsWith('91') ? fatherDigits.length > 2 : fatherDigits.length > 0);
+
+        if (hasTypedFatherDigits) {
+            cleanFatherMobile = extract10DigitMobile(rawFatherMobile);
+            if (!cleanFatherMobile || cleanFatherMobile.length !== 10 || !/^[6-9]\d{9}$/.test(cleanFatherMobile)) {
+                highlightFieldError(fMobileEl, "Please enter a valid 10-digit mobile number for father starting with 6, 7, 8, or 9 (e.g. 98765 43210) or leave blank");
+                showToast("Please enter a valid 10-digit mobile number for father or leave blank");
+                return;
+            }
+            if (fMobileEl) fMobileEl.value = formatPhoneNumber(cleanFatherMobile);
+        } else {
+            cleanFatherMobile = (typeof getUnmaskedContactFromAnywhere === 'function')
+                ? getUnmaskedContactFromAnywhere('father', myProfile)
+                : '';
+            if (!cleanFatherMobile && fMobileEl) fMobileEl.value = '';
         }
-        if (fMobileEl) fMobileEl.value = formatPhoneNumber(cleanFatherMobile);
     } else {
-        // Empty or skipped father mobile: cleanly allowed!
-        cleanFatherMobile = (typeof getUnmaskedContactFromAnywhere === 'function')
-            ? getUnmaskedContactFromAnywhere('father', myProfile)
-            : '';
-        if (!cleanFatherMobile && fMobileEl) fMobileEl.value = '';
+        // Toggle is OFF: clean skip, zero validation on father mobile
+        fatherNameVal = '';
+        fatherOccVal = '';
+        cleanFatherMobile = '';
+        motherNameVal = '';
+        motherOccVal = '';
+        sisterVal = '—';
+        brotherVal = '—';
     }
 
     const rawOwnMobile = ownMobileEl ? ownMobileEl.value.trim() : '';
@@ -665,13 +747,6 @@ function saveEditProfile() {
     const occVal = document.getElementById('editOccupation')?.value.trim() || '';
     const incomeVal = document.querySelector('#ddIncomeEdit .dd-trigger span')?.textContent.trim() || '₹40K – ₹75K';
     const eduVal = document.getElementById('editEducation')?.value.trim() || '';
-
-    const fatherNameVal = fNameEl ? fNameEl.value.trim() : '';
-    const fatherOccVal = document.getElementById('editFatherOcc')?.value.trim() || '';
-    const motherNameVal = document.getElementById('editMotherName')?.value.trim() || '';
-    const motherOccVal = document.getElementById('editMotherOcc')?.value.trim() || '';
-    const sisterVal = document.getElementById('editSister')?.value.trim() || '—';
-    const brotherVal = document.getElementById('editBrother')?.value.trim() || '—';
 
     const talukaVal = document.getElementById('editTaluka')?.value.trim() || '';
     const distVal = document.getElementById('editDistrict')?.value.trim() || '';
@@ -2021,4 +2096,5 @@ if (typeof populateEditProfile !== 'undefined') window.populateEditProfile = pop
 if (typeof getCurrentUserProfile !== 'undefined') window.getCurrentUserProfile = getCurrentUserProfile;
 if (typeof getUnmaskedContactFromAnywhere !== 'undefined') window.getUnmaskedContactFromAnywhere = getUnmaskedContactFromAnywhere;
 if (typeof saveEditProfile !== 'undefined') window.saveEditProfile = saveEditProfile;
+if (typeof toggleEditFamily !== 'undefined') window.toggleEditFamily = toggleEditFamily;
 
