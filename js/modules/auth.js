@@ -1850,23 +1850,6 @@ function payNow() {
     openRazorpayCheckout();
 }
 
-/* ============================================================ FORGOT PASSWORD (DISABLED - DIRECT GOOGLE AUTH) ============================================================ */
-function handleSendForgotOtp() {
-    if (typeof showToast === 'function') showToast('Please sign in securely with Google.');
-    if (typeof go === 'function') go('scr-login');
-}
-function verifyForgotOtp() {
-    if (typeof showToast === 'function') showToast('Please sign in securely with Google.');
-    if (typeof go === 'function') go('scr-login');
-}
-function handleResetPassword() {
-    if (typeof showToast === 'function') showToast('Please sign in securely with Google.');
-    if (typeof go === 'function') go('scr-login');
-}
-window.handleSendForgotOtp = handleSendForgotOtp;
-window.verifyForgotOtp = verifyForgotOtp;
-window.handleResetPassword = handleResetPassword;
-
 // ============================================================ REMEMBER ME CREDENTIAL HELPERS ============================================================
 function encodeStoredUserPass(p) {
     if (!p) return '';

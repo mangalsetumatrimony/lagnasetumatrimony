@@ -107,37 +107,6 @@ async function supabaseVerifyEmailOtp(email, token) {
 }
 
 /**
- * Send Password Reset Email via Supabase Auth (Supabase emails suppressed — EmailJS is official OTP provider)
- * @param {string} email
- */
-async function supabaseSendPasswordReset(email) {
-    // Suppress Supabase email dispatch: EmailJS is the sole authenticated provider
-    console.info('[Supabase] Password reset email dispatch bypassed (handled exclusively by EmailJS)');
-    return { data: null, error: null };
-}
-
-/**
- * Update authenticated user password in Supabase Auth (Used in Forgot Password completion)
- * @param {string} newPassword
- */
-async function supabaseUpdateUserPassword(newPassword) {
-    const client = getSupabaseClient();
-    if (!client) return { data: null, error: null };
-    try {
-        const res = await client.auth.updateUser({ password: newPassword });
-        if (res && res.error) {
-            console.warn('[Supabase] Auth password update note:', res.error.message);
-        } else {
-            console.info('[Supabase] Password updated successfully in Supabase Auth');
-        }
-        return res;
-    } catch (err) {
-        console.warn('[Supabase] Auth password update error:', err?.message || err);
-        return { data: null, error: err };
-    }
-}
-
-/**
  * Bidirectional mapper: Frontend Profile Object -> Supabase PostgreSQL Row
  */
 function mapProfileForSupabase(p) {
@@ -4554,8 +4523,6 @@ window.supabaseUpsertProfile = supabaseUpsertProfile;
 window.supabaseRecordPayment = supabaseRecordPayment;
 window.supabaseSendEmailOtp = supabaseSendEmailOtp;
 window.supabaseVerifyEmailOtp = supabaseVerifyEmailOtp;
-window.supabaseSendPasswordReset = supabaseSendPasswordReset;
-window.supabaseUpdateUserPassword = supabaseUpdateUserPassword;
 window.supabaseFetchAllProfilesForAdmin = supabaseFetchAllProfilesForAdmin;
 window.supabaseUpdateProfileStatus = supabaseUpdateProfileStatus;
 window.supabaseAdminUpdateMember = supabaseAdminUpdateMember;
