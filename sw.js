@@ -3,7 +3,7 @@
    Strategy: Network-First with Fallback Cache (Ensures instant updates)
    ============================================================ */
 
-const CACHE_NAME = 'mangal-setu-v3.6';
+const CACHE_NAME = 'mangal-setu-v3.7';
 
 // Core assets to pre-cache on install
 const PRECACHE_ASSETS = [
@@ -18,7 +18,7 @@ const PRECACHE_ASSETS = [
     './css/tokens.css',
     './css/base.css',
     './css/components.css',
-    './css/screens.css?v=3.3',
+    './css/screens.css?v=4.5',
     './css/fonts.css',
     './css/fontawesome.css'
 ];
