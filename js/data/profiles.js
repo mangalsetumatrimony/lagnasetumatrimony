@@ -90,10 +90,14 @@ async function syncProfilesFromSupabase(force = false, silent = false) {
                     if (myProf.fatherOcc !== undefined) state.currentUser.fatherOcc = myProf.fatherOcc || '';
                     const cleanIncomingFM = (!String(myProf.rawFatherMobile || '').includes('•') && myProf.rawFatherMobile) ||
                                             (!String(myProf.father_mobile || '').includes('•') && myProf.father_mobile) ||
-                                            (!String(myProf.fatherMobile || '').includes('•') && myProf.fatherMobile);
+                                            (!String(myProf.fatherMobile || '').includes('•') && myProf.fatherMobile) ||
+                                            (!String(myProf.raw_data?.rawFatherMobile || '').includes('•') && myProf.raw_data?.rawFatherMobile) ||
+                                            (!String(myProf.raw_data?.father_mobile || '').includes('•') && myProf.raw_data?.father_mobile) ||
+                                            (!String(myProf.raw_data?.fatherMobile || '').includes('•') && myProf.raw_data?.fatherMobile);
                     if (cleanIncomingFM) {
                         state.currentUser.fatherMobile = cleanIncomingFM;
                         state.currentUser.rawFatherMobile = cleanIncomingFM;
+                        state.currentUser.father_mobile = cleanIncomingFM;
                     }
                     if (myProf.mother !== undefined || myProf.motherName !== undefined) {
                         state.currentUser.mother = myProf.mother || myProf.motherName || '';
@@ -115,10 +119,15 @@ async function syncProfilesFromSupabase(force = false, silent = false) {
                     const cleanIncomingOM = (!String(myProf.rawOwnMobile || '').includes('•') && myProf.rawOwnMobile) ||
                                             (!String(myProf.own_mobile || '').includes('•') && myProf.own_mobile) ||
                                             (!String(myProf.ownMobile || '').includes('•') && myProf.ownMobile) ||
-                                            (!String(myProf.mobile || '').includes('•') && myProf.mobile);
+                                            (!String(myProf.mobile || '').includes('•') && myProf.mobile) ||
+                                            (!String(myProf.raw_data?.rawOwnMobile || '').includes('•') && myProf.raw_data?.rawOwnMobile) ||
+                                            (!String(myProf.raw_data?.own_mobile || '').includes('•') && myProf.raw_data?.own_mobile) ||
+                                            (!String(myProf.raw_data?.ownMobile || '').includes('•') && myProf.raw_data?.ownMobile) ||
+                                            (!String(myProf.raw_data?.mobile || '').includes('•') && myProf.raw_data?.mobile);
                     if (cleanIncomingOM) {
                         state.currentUser.ownMobile = cleanIncomingOM;
                         state.currentUser.rawOwnMobile = cleanIncomingOM;
+                        state.currentUser.own_mobile = cleanIncomingOM;
                         state.currentUser.mobile = cleanIncomingOM;
                     }
                     if (Array.isArray(myProf.photos) && myProf.photos.length > 0) {

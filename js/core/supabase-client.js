@@ -370,11 +370,27 @@ function mapProfileFromSupabase(row, forAdmin = false) {
     const raw = (row.raw_data && typeof row.raw_data === 'object') ? row.raw_data : {};
 
     // Privacy Guard: Allow unmasked contact for self viewing or when accessed by administrator
-    const curUser = (typeof state !== 'undefined' && state.currentUser) ? state.currentUser : null;
-    const isSelf = curUser && (
-        (curUser.id && (String(curUser.id) === String(row.id) || String(curUser.id) === String(row.user_id) || String(curUser.id) === String(raw.userId))) ||
-        (curUser.email && row.email && curUser.email.trim().toLowerCase() === row.email.trim().toLowerCase())
-    );
+    let curUser = (typeof state !== 'undefined' && state.currentUser) ? state.currentUser : null;
+    if (!curUser && typeof sessionStorage !== 'undefined') {
+        try {
+            const rawU = sessionStorage.getItem('mangalSetu_currentUser') || localStorage.getItem('mangalSetu_currentUser');
+            if (rawU) curUser = JSON.parse(rawU);
+        } catch (_) {}
+    }
+
+    let isSelf = false;
+    if (curUser) {
+        const uId = String(curUser.id || curUser.userId || curUser.profileId || '');
+        const rId = String(row.id || '');
+        const rUid = String(row.user_id || raw.userId || '');
+        const uEmail = (curUser.email || '').trim().toLowerCase();
+        const rEmail = (row.email || raw.email || '').trim().toLowerCase();
+        if (uId && (uId === rId || uId === rUid)) {
+            isSelf = true;
+        } else if (uEmail && !rEmail.includes('•') && uEmail === rEmail) {
+            isSelf = true;
+        }
+    }
 
     const isAdmin = forAdmin || (typeof window !== 'undefined' && (
         window.location.pathname.includes('admin') ||
@@ -401,7 +417,12 @@ function mapProfileFromSupabase(row, forAdmin = false) {
             }
         }
     }
-    const rawOwnMobile = row.own_mobile || raw.ownMobile || row.own_mobile || row.mobile || '';
+    let rawOwnMobile = (!row.own_mobile?.includes('•') && row.own_mobile) ||
+                       (!raw.ownMobile?.includes('•') && raw.ownMobile) ||
+                       (!raw.own_mobile?.includes('•') && raw.own_mobile) ||
+                       (!row.mobile?.includes('•') && row.mobile) ||
+                       (!raw.mobile?.includes('•') && raw.mobile) ||
+                       row.own_mobile || raw.ownMobile || row.mobile || '';
     const rawEmail = row.email || raw.email || '';
     const rawFullAddress = row.full_address || raw.fullAddress || row.address || '';
 
@@ -1835,22 +1856,44 @@ async function supabaseCheckUserExists(email) {
     if (!normEmail) return { online: true, exists: false };
 
     try {
-        // Check profiles table (fetch full profile record)
-        const { data: pData, error: pErr } = await client
-            .from('profiles')
-            .select('*')
-            .ilike('email', normEmail)
-            .limit(1);
-
-        // Check users table (fetch full user record)
+        // Check users table first (fetch full user record)
         const { data: uData, error: uErr } = await client
             .from('users')
             .select('*')
             .ilike('email', normEmail)
             .limit(1);
 
-        const profile = Array.isArray(pData) && pData.length > 0 ? pData[0] : null;
         const user = Array.isArray(uData) && uData.length > 0 ? uData[0] : null;
+
+        // Check profiles table: by email, or by user id if user was found
+        let profile = null;
+        const { data: pData, error: pErr } = await client
+            .from('profiles')
+            .select('*')
+            .ilike('email', normEmail)
+            .limit(1);
+
+        if (Array.isArray(pData) && pData.length > 0) {
+            profile = pData[0];
+        } else if (user && user.id) {
+            const { data: pDataById } = await client
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .limit(1);
+            if (Array.isArray(pDataById) && pDataById.length > 0) {
+                profile = pDataById[0];
+            } else {
+                const { data: pDataByUid } = await client
+                    .from('profiles')
+                    .select('*')
+                    .eq('user_id', String(user.id))
+                    .limit(1);
+                if (Array.isArray(pDataByUid) && pDataByUid.length > 0) {
+                    profile = pDataByUid[0];
+                }
+            }
+        }
 
         const exists = Boolean(profile || user);
         // profiles.account_status is the PRIMARY source of truth for suspension.

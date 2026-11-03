@@ -1244,10 +1244,16 @@ async function doLogin() {
             matchedUser.father = prof.father || prof.father_name || matchedUser.father || '';
             matchedUser.fatherName = prof.father || prof.father_name || matchedUser.fatherName || '';
             matchedUser.fatherOcc = prof.father_occ || prof.fatherOcc || matchedUser.fatherOcc || '';
-            const cleanProfFM = (!prof.rawFatherMobile?.includes('•') && prof.rawFatherMobile) || (!prof.father_mobile?.includes('•') && prof.father_mobile) || (!prof.fatherMobile?.includes('•') && prof.fatherMobile) || '';
+            const cleanProfFM = (!prof.rawFatherMobile?.includes('•') && prof.rawFatherMobile) || 
+                                (!prof.father_mobile?.includes('•') && prof.father_mobile) || 
+                                (!prof.fatherMobile?.includes('•') && prof.fatherMobile) || 
+                                (!prof.raw_data?.rawFatherMobile?.includes('•') && prof.raw_data?.rawFatherMobile) ||
+                                (!prof.raw_data?.father_mobile?.includes('•') && prof.raw_data?.father_mobile) ||
+                                (!prof.raw_data?.fatherMobile?.includes('•') && prof.raw_data?.fatherMobile) || '';
             if (cleanProfFM) {
                 matchedUser.fatherMobile = cleanProfFM;
                 matchedUser.rawFatherMobile = cleanProfFM;
+                matchedUser.father_mobile = cleanProfFM;
             }
             matchedUser.mother = prof.mother || prof.mother_name || matchedUser.mother || '';
             matchedUser.motherName = prof.mother || prof.mother_name || matchedUser.motherName || '';
@@ -1259,10 +1265,17 @@ async function doLogin() {
             matchedUser.district = prof.district || matchedUser.district || '';
             matchedUser.fullAddress = prof.full_address || prof.address || matchedUser.fullAddress || '';
             matchedUser.full_address = prof.full_address || prof.address || matchedUser.full_address || '';
-            const cleanProfOM = (!prof.rawOwnMobile?.includes('•') && prof.rawOwnMobile) || (!prof.own_mobile?.includes('•') && prof.own_mobile) || (!prof.mobile?.includes('•') && prof.mobile) || '';
+            const cleanProfOM = (!prof.rawOwnMobile?.includes('•') && prof.rawOwnMobile) || 
+                                (!prof.own_mobile?.includes('•') && prof.own_mobile) || 
+                                (!prof.mobile?.includes('•') && prof.mobile) || 
+                                (!prof.raw_data?.rawOwnMobile?.includes('•') && prof.raw_data?.rawOwnMobile) ||
+                                (!prof.raw_data?.own_mobile?.includes('•') && prof.raw_data?.own_mobile) ||
+                                (!prof.raw_data?.ownMobile?.includes('•') && prof.raw_data?.ownMobile) ||
+                                (!prof.raw_data?.mobile?.includes('•') && prof.raw_data?.mobile) || '';
             if (cleanProfOM) {
                 matchedUser.ownMobile = cleanProfOM;
                 matchedUser.rawOwnMobile = cleanProfOM;
+                matchedUser.own_mobile = cleanProfOM;
                 matchedUser.mobile = cleanProfOM;
             }
             matchedUser.photos = (Array.isArray(prof.photos) && prof.photos.length > 0) ? prof.photos : (prof.img ? [prof.img] : (matchedUser.photos || []));

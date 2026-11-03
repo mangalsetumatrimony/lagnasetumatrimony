@@ -183,17 +183,99 @@ function renderHobbiesHtml(hobbies) {
     return '';
 }
 
+/**
+ * Safely extract unmasked 10-digit mobile number from all known in-memory, stored, and profile sources
+ * Prevents masked strings (e.g. '••••••', '+91 97••• ••863') from ever overwriting or hiding the real phone number.
+ */
+function getUnmaskedContactFromAnywhere(type = 'father', fallbackProf = null) {
+    const find10 = (v) => {
+        if (!v || (typeof v !== 'string' && typeof v !== 'number')) return '';
+        const s = String(v).trim();
+        if (s.includes('•') || s.includes('*')) return '';
+        const ext = (typeof extract10DigitMobile === 'function') 
+            ? extract10DigitMobile(s) 
+            : s.replace(/\D/g, '').slice(-10);
+        return (ext && ext.length === 10) ? ext : '';
+    };
+
+    const myProf = fallbackProf || (typeof state !== 'undefined' && state.currentUser ? (window.PROFILES || []).find(p => p && (
+        (state.currentUser.id && (String(p.id) === String(state.currentUser.id) || String(p.userId) === String(state.currentUser.id) || String(p.user_id) === String(state.currentUser.id))) ||
+        (state.currentUser.email && p.email && !p.email.includes('•') && p.email.toLowerCase().trim() === state.currentUser.email.toLowerCase().trim())
+    )) : null);
+
+    const curU = (typeof state !== 'undefined' && state.currentUser) ? state.currentUser : null;
+    let sAcc = null;
+    if (typeof getStoredAccounts === 'function') {
+        try {
+            const accs = getStoredAccounts();
+            const email = (curU?.email || '').trim().toLowerCase();
+            const id = curU?.id || myProf?.id;
+            sAcc = accs.find(a => a && (
+                (email && a.email && a.email.toLowerCase().trim() === email) ||
+                (id && (String(a.id) === String(id) || String(a.userId) === String(id) || String(a.profileId) === String(id)))
+            ));
+        } catch (_) {}
+    }
+
+    if (type === 'father') {
+        const candidates = [
+            myProf?.rawFatherMobile,
+            myProf?.father_mobile,
+            myProf?.fatherMobile,
+            myProf?.raw_data?.rawFatherMobile,
+            myProf?.raw_data?.father_mobile,
+            myProf?.raw_data?.fatherMobile,
+            curU?.rawFatherMobile,
+            curU?.father_mobile,
+            curU?.fatherMobile,
+            sAcc?.rawFatherMobile,
+            sAcc?.father_mobile,
+            sAcc?.fatherMobile,
+            (typeof state !== 'undefined') ? state.regData?.fatherMobile : null
+        ];
+        for (const c of candidates) {
+            const num = find10(c);
+            if (num) return num;
+        }
+    } else {
+        const candidates = [
+            myProf?.rawOwnMobile,
+            myProf?.own_mobile,
+            myProf?.ownMobile,
+            myProf?.mobile,
+            myProf?.raw_data?.rawOwnMobile,
+            myProf?.raw_data?.own_mobile,
+            myProf?.raw_data?.ownMobile,
+            myProf?.raw_data?.mobile,
+            curU?.rawOwnMobile,
+            curU?.own_mobile,
+            curU?.ownMobile,
+            curU?.mobile,
+            sAcc?.rawOwnMobile,
+            sAcc?.own_mobile,
+            sAcc?.ownMobile,
+            sAcc?.mobile,
+            (typeof state !== 'undefined') ? state.regData?.ownMobile : null
+        ];
+        for (const c of candidates) {
+            const num = find10(c);
+            if (num) return num;
+        }
+    }
+    return '';
+}
+
 function getCurrentUserProfile() {
     if (!state.currentUser) return null;
-    const curId = state.currentUser.id;
+    const curId = state.currentUser.id || state.currentUser.userId || state.currentUser.profileId;
     const curEmail = (state.currentUser.email || '').toLowerCase().trim();
     const curName = (state.currentUser.name || '').toLowerCase().trim();
 
     // 1. Search in memory PROFILES array
     let myProfile = (window.PROFILES || []).find(p => {
         if (!p) return false;
-        if (curId && (p.id == curId || String(p.id) === String(curId) || p.userId == curId || String(p.userId) === String(curId) || p.user_id == curId || String(p.user_id) === String(curId))) return true;
-        if (curEmail && p.email && p.email.toLowerCase().trim() === curEmail) return true;
+        if (curId && (String(p.id) === String(curId) || String(p.userId) === String(curId) || String(p.user_id) === String(curId))) return true;
+        if (curEmail && p.email && !p.email.includes('•') && p.email.toLowerCase().trim() === curEmail) return true;
         if (curName && p.name && p.name.toLowerCase().trim() === curName) return true;
         return false;
     });
@@ -205,10 +287,13 @@ function getCurrentUserProfile() {
             const accs = getStoredAccounts();
             storedAcc = accs.find(a => a && (
                 (curEmail && a.email && a.email.toLowerCase().trim() === curEmail) ||
-                (curId && (a.id == curId || a.profileId == curId || a.userId == curId))
+                (curId && (String(a.id) === String(curId) || String(a.profileId) === String(curId) || String(a.userId) === String(curId)))
             ));
         } catch (_) {}
     }
+
+    const cleanFM = getUnmaskedContactFromAnywhere('father', myProfile);
+    const cleanOM = getUnmaskedContactFromAnywhere('own', myProfile);
 
     if (myProfile) {
         // Hydrate any missing fields in myProfile from state.currentUser, storedAcc, or state.regData
@@ -219,17 +304,33 @@ function getCurrentUserProfile() {
         if (!myProfile.weight && src.weight) myProfile.weight = src.weight;
         if (!myProfile.education && src.education) myProfile.education = src.education;
         if (!myProfile.occ && (src.occupation || src.occ)) myProfile.occ = src.occupation || src.occ;
+        if (!myProfile.occupation && (src.occupation || src.occ)) myProfile.occupation = src.occupation || src.occ;
         if (!myProfile.income && src.income) myProfile.income = src.income;
         if (!myProfile.marital && src.marital) myProfile.marital = src.marital;
         if (!myProfile.physical && src.physical) myProfile.physical = src.physical;
         if ((!myProfile.hobbies || !myProfile.hobbies.length) && Array.isArray(src.hobbies)) myProfile.hobbies = src.hobbies;
-        if (!myProfile.father && (src.father || src.fatherName)) myProfile.father = src.father || src.fatherName;
-        if (!myProfile.fatherOcc && src.fatherOcc) myProfile.fatherOcc = src.fatherOcc;
-        if (!myProfile.fatherMobile && src.fatherMobile) myProfile.fatherMobile = src.fatherMobile;
-        if (src.rawFatherMobile && !src.rawFatherMobile.includes('•')) myProfile.rawFatherMobile = src.rawFatherMobile;
-        if (src.rawOwnMobile && !src.rawOwnMobile.includes('•')) myProfile.rawOwnMobile = src.rawOwnMobile;
-        if (!myProfile.mother && (src.mother || src.motherName)) myProfile.mother = src.mother || src.motherName;
-        if (!myProfile.motherOcc && src.motherOcc) myProfile.motherOcc = src.motherOcc;
+        if (!myProfile.father && (src.father || src.fatherName || src.father_name)) myProfile.father = src.father || src.fatherName || src.father_name;
+        if (!myProfile.fatherName && (src.father || src.fatherName || src.father_name)) myProfile.fatherName = src.father || src.fatherName || src.father_name;
+        if (!myProfile.fatherOcc && (src.fatherOcc || src.father_occ)) myProfile.fatherOcc = src.fatherOcc || src.father_occ;
+        if (!myProfile.father_occ && (src.fatherOcc || src.father_occ)) myProfile.father_occ = src.fatherOcc || src.father_occ;
+
+        if (cleanFM) {
+            myProfile.rawFatherMobile = cleanFM;
+            myProfile.father_mobile = cleanFM;
+            myProfile.fatherMobile = (typeof formatPhoneNumber === 'function') ? formatPhoneNumber(cleanFM) : cleanFM;
+        }
+
+        if (cleanOM) {
+            myProfile.rawOwnMobile = cleanOM;
+            myProfile.own_mobile = cleanOM;
+            myProfile.ownMobile = (typeof formatPhoneNumber === 'function') ? formatPhoneNumber(cleanOM) : cleanOM;
+            myProfile.mobile = (typeof formatPhoneNumber === 'function') ? formatPhoneNumber(cleanOM) : cleanOM;
+        }
+
+        if (!myProfile.mother && (src.mother || src.motherName || src.mother_name)) myProfile.mother = src.mother || src.motherName || src.mother_name;
+        if (!myProfile.motherName && (src.mother || src.motherName || src.mother_name)) myProfile.motherName = src.mother || src.motherName || src.mother_name;
+        if (!myProfile.motherOcc && (src.motherOcc || src.mother_occ)) myProfile.motherOcc = src.motherOcc || src.mother_occ;
+        if (!myProfile.mother_occ && (src.motherOcc || src.mother_occ)) myProfile.mother_occ = src.motherOcc || src.mother_occ;
         if ((!myProfile.sister || myProfile.sister === '—') && src.sister) myProfile.sister = src.sister;
         if ((!myProfile.brother || myProfile.brother === '—') && src.brother) myProfile.brother = src.brother;
         if (!myProfile.village && (src.village || src.city)) myProfile.village = src.village || src.city;
@@ -237,7 +338,7 @@ function getCurrentUserProfile() {
         if (!myProfile.taluka && src.taluka) myProfile.taluka = src.taluka;
         if (!myProfile.district && src.district) myProfile.district = src.district;
         if (!myProfile.fullAddress && (src.fullAddress || src.address || src.full_address)) myProfile.fullAddress = src.fullAddress || src.address || src.full_address;
-        if (!myProfile.ownMobile && (src.ownMobile || src.mobile)) myProfile.ownMobile = src.ownMobile || src.mobile;
+        if (!myProfile.address && (src.fullAddress || src.address || src.full_address)) myProfile.address = src.fullAddress || src.address || src.full_address;
         if ((!myProfile.photos || !myProfile.photos.length) && (Array.isArray(src.photos) && src.photos.length > 0)) myProfile.photos = src.photos;
     } else {
         const isGirl = (state.currentUser.gender || state.regData?.gender || storedAcc?.gender) === 'Girl' || (state.currentUser.gender || state.regData?.gender || storedAcc?.gender) === 'girls';
@@ -386,26 +487,10 @@ function populateEditProfile() {
 
     const fMobileEl = document.getElementById('editFatherMobile');
     if (fMobileEl) {
-        let fVal = '';
-        const fCandidates = [
-            myProfile.rawFatherMobile,
-            myProfile.father_mobile,
-            myProfile.fatherMobile,
-            state.currentUser?.rawFatherMobile,
-            state.currentUser?.father_mobile,
-            state.currentUser?.fatherMobile,
-            state.regData?.fatherMobile
-        ];
-        for (const c of fCandidates) {
-            if (c && !String(c).includes('•') && !String(c).includes('*')) {
-                const ext = (typeof extract10DigitMobile === 'function') ? extract10DigitMobile(c) : String(c).replace(/\D/g, '').slice(-10);
-                if (ext && ext.length === 10) {
-                    fVal = (typeof formatPhoneNumber === 'function') ? formatPhoneNumber(ext) : ext;
-                    break;
-                }
-            }
-        }
-        fMobileEl.value = fVal || '';
+        const cleanFM = (typeof getUnmaskedContactFromAnywhere === 'function')
+            ? getUnmaskedContactFromAnywhere('father', myProfile)
+            : (myProfile.rawFatherMobile || myProfile.father_mobile || '');
+        fMobileEl.value = cleanFM ? ((typeof formatPhoneNumber === 'function') ? formatPhoneNumber(cleanFM) : cleanFM) : '';
     }
 
     const mNameEl = document.getElementById('editMotherName');
@@ -454,28 +539,10 @@ function populateEditProfile() {
     // Contact number (private admin only)
     const ownMobileEl = document.getElementById('editOwnMobile');
     if (ownMobileEl) {
-        let oVal = '';
-        const oCandidates = [
-            myProfile.rawOwnMobile,
-            myProfile.own_mobile,
-            myProfile.ownMobile,
-            myProfile.mobile,
-            state.currentUser?.rawOwnMobile,
-            state.currentUser?.own_mobile,
-            state.currentUser?.ownMobile,
-            state.currentUser?.mobile,
-            state.regData?.ownMobile
-        ];
-        for (const c of oCandidates) {
-            if (c && !String(c).includes('•') && !String(c).includes('*')) {
-                const ext = (typeof extract10DigitMobile === 'function') ? extract10DigitMobile(c) : String(c).replace(/\D/g, '').slice(-10);
-                if (ext && ext.length === 10) {
-                    oVal = (typeof formatPhoneNumber === 'function') ? formatPhoneNumber(ext) : ext;
-                    break;
-                }
-            }
-        }
-        ownMobileEl.value = oVal || '';
+        const cleanOM = (typeof getUnmaskedContactFromAnywhere === 'function')
+            ? getUnmaskedContactFromAnywhere('own', myProfile)
+            : (myProfile.rawOwnMobile || myProfile.own_mobile || myProfile.mobile || '');
+        ownMobileEl.value = cleanOM ? ((typeof formatPhoneNumber === 'function') ? formatPhoneNumber(cleanOM) : cleanOM) : '';
     }
 
     // Visibility toggle
@@ -511,24 +578,9 @@ function saveEditProfile() {
     let cleanFatherMobile = extract10DigitMobile(rawFatherMobile);
     if (!cleanFatherMobile) {
         // Fallback to any unmasked existing father mobile in profile, currentUser, or stored accounts
-        const fCandidates = [
-            myProfile?.rawFatherMobile,
-            myProfile?.father_mobile,
-            myProfile?.fatherMobile,
-            state.currentUser?.rawFatherMobile,
-            state.currentUser?.father_mobile,
-            state.currentUser?.fatherMobile,
-            state.regData?.fatherMobile
-        ];
-        for (const c of fCandidates) {
-            if (c && !String(c).includes('•') && !String(c).includes('*')) {
-                const ext = extract10DigitMobile(c);
-                if (ext && ext.length === 10) {
-                    cleanFatherMobile = ext;
-                    break;
-                }
-            }
-        }
+        cleanFatherMobile = (typeof getUnmaskedContactFromAnywhere === 'function')
+            ? getUnmaskedContactFromAnywhere('father', myProfile)
+            : '';
     }
     if (!cleanFatherMobile) {
         highlightFieldError(fMobileEl, "Please enter a valid 10-digit father's mobile number");
@@ -541,26 +593,9 @@ function saveEditProfile() {
     let cleanOwnMobile = extract10DigitMobile(rawOwnMobile);
     if (!cleanOwnMobile) {
         // Fallback to any unmasked existing personal mobile in profile, currentUser, or stored accounts
-        const oCandidates = [
-            myProfile?.rawOwnMobile,
-            myProfile?.own_mobile,
-            myProfile?.ownMobile,
-            myProfile?.mobile,
-            state.currentUser?.rawOwnMobile,
-            state.currentUser?.own_mobile,
-            state.currentUser?.ownMobile,
-            state.currentUser?.mobile,
-            state.regData?.ownMobile
-        ];
-        for (const c of oCandidates) {
-            if (c && !String(c).includes('•') && !String(c).includes('*')) {
-                const ext = extract10DigitMobile(c);
-                if (ext && ext.length === 10) {
-                    cleanOwnMobile = ext;
-                    break;
-                }
-            }
-        }
+        cleanOwnMobile = (typeof getUnmaskedContactFromAnywhere === 'function')
+            ? getUnmaskedContactFromAnywhere('own', myProfile)
+            : '';
     }
     if (!cleanOwnMobile) {
         highlightFieldError(ownMobileEl, "Please enter your valid 10-digit personal mobile number");
@@ -680,6 +715,7 @@ function saveEditProfile() {
         myProfile.hobbies = updatedHobbies;
         myProfile.ownMobile = formatPhoneNumber(cleanOwnMobile);
         myProfile.rawOwnMobile = cleanOwnMobile;
+        myProfile.own_mobile = cleanOwnMobile;
         myProfile.mobile = formatPhoneNumber(cleanOwnMobile);
 
         if (photos.length > 0) {
@@ -728,6 +764,7 @@ function saveEditProfile() {
         state.currentUser.mobile = formatPhoneNumber(cleanOwnMobile);
         state.currentUser.ownMobile = formatPhoneNumber(cleanOwnMobile);
         state.currentUser.rawOwnMobile = cleanOwnMobile;
+        state.currentUser.own_mobile = cleanOwnMobile;
         if (photos.length > 0) {
             state.currentUser.photos = photos;
             state.currentUser.img = photos[0];
@@ -781,6 +818,7 @@ function saveEditProfile() {
                 accounts[uIdx].mobile = formatPhoneNumber(cleanOwnMobile);
                 accounts[uIdx].ownMobile = formatPhoneNumber(cleanOwnMobile);
                 accounts[uIdx].rawOwnMobile = cleanOwnMobile;
+                accounts[uIdx].own_mobile = cleanOwnMobile;
                 accounts[uIdx].city = city;
                 accounts[uIdx].village = city;
                 accounts[uIdx].taluka = talukaVal;
@@ -1975,5 +2013,6 @@ if (typeof updateAgeSliderView !== 'undefined') window.updateAgeSliderView = upd
 if (typeof openShareModal !== 'undefined') window.openShareModal = openShareModal;
 if (typeof populateEditProfile !== 'undefined') window.populateEditProfile = populateEditProfile;
 if (typeof getCurrentUserProfile !== 'undefined') window.getCurrentUserProfile = getCurrentUserProfile;
+if (typeof getUnmaskedContactFromAnywhere !== 'undefined') window.getUnmaskedContactFromAnywhere = getUnmaskedContactFromAnywhere;
 if (typeof saveEditProfile !== 'undefined') window.saveEditProfile = saveEditProfile;
 
