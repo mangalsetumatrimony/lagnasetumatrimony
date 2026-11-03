@@ -762,10 +762,12 @@ async function supabaseUpsertProfile(profile) {
     if (!isAdmin && curUser) {
         const curEmail = (curUser.email || '').trim().toLowerCase();
         const curId = String(curUser.id || curUser.userId || curUser.profileId || '');
+        const regEmail = (typeof state !== 'undefined' && state.regData && state.regData.email) ? state.regData.email.trim().toLowerCase() : '';
         const pEmail = (profile?.email || '').trim().toLowerCase();
         const pId = String(profile?.id || profile?.userId || '');
 
         const isMatch = (curEmail && pEmail && curEmail === pEmail) ||
+                        (regEmail && pEmail && regEmail === pEmail) ||
                         (curId && pId && (curId === pId || curId === String(profile?.id)));
 
         if (!isMatch && (curEmail || curId)) {
