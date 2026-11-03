@@ -398,6 +398,109 @@ function initPhoneInputs() {
     });
 }
 
+/**
+ * Pick whether the profile is being registered by Candidate Self or Parents
+ * @param {'Self'|'Parents'} type
+ */
+function pickProfileCreatedBy(type) {
+    const val = (type === 'Parents') ? 'Parents' : 'Self';
+    if (!state.regData) state.regData = {};
+    state.regData.profileCreatedBy = val;
+
+    const selfCard = document.getElementById('createdForSelf');
+    const parentsCard = document.getElementById('createdForParents');
+    const checkSelf = document.getElementById('createdCheckSelf');
+    const checkParents = document.getElementById('createdCheckParents');
+
+    const optBadge = document.getElementById('regFamilyOptionalBadge');
+    const selfNotice = document.getElementById('regSelfFamilyNotice');
+    const skipBtnWrap = document.getElementById('regSkipFamilyBtnWrap');
+    const stars = document.querySelectorAll('.family-req-star');
+
+    if (val === 'Self') {
+        if (selfCard) {
+            selfCard.style.borderColor = 'var(--primary)';
+            selfCard.style.background = 'var(--primary-light)';
+        }
+        if (parentsCard) {
+            parentsCard.style.borderColor = 'var(--border)';
+            parentsCard.style.background = '#fff';
+        }
+        if (checkSelf) checkSelf.className = 'fa-solid fa-circle-check';
+        if (checkSelf) checkSelf.style.color = 'var(--primary)';
+        if (checkParents) checkParents.className = 'fa-regular fa-circle';
+        if (checkParents) checkParents.style.color = 'var(--text-faint)';
+
+        if (optBadge) {
+            optBadge.style.display = 'inline-block';
+            optBadge.innerText = 'Optional for Self / મરજીયાત';
+            optBadge.style.background = 'rgba(16,185,129,0.12)';
+            optBadge.style.color = '#059669';
+        }
+        if (selfNotice) selfNotice.style.display = 'flex';
+        if (skipBtnWrap) skipBtnWrap.style.display = 'block';
+
+        stars.forEach(s => s.style.display = 'none');
+    } else {
+        if (selfCard) {
+            selfCard.style.borderColor = 'var(--border)';
+            selfCard.style.background = '#fff';
+        }
+        if (parentsCard) {
+            parentsCard.style.borderColor = '#059669';
+            parentsCard.style.background = 'rgba(16,185,129,0.08)';
+        }
+        if (checkSelf) checkSelf.className = 'fa-regular fa-circle';
+        if (checkSelf) checkSelf.style.color = 'var(--text-faint)';
+        if (checkParents) checkParents.className = 'fa-solid fa-circle-check';
+        if (checkParents) checkParents.style.color = '#059669';
+
+        if (optBadge) {
+            optBadge.style.display = 'inline-block';
+            optBadge.innerText = 'Mandatory for Parents / ફરજિયાત';
+            optBadge.style.background = 'rgba(239,68,68,0.1)';
+            optBadge.style.color = '#DC2626';
+        }
+        if (selfNotice) selfNotice.style.display = 'none';
+        if (skipBtnWrap) skipBtnWrap.style.display = 'none';
+
+        stars.forEach(s => s.style.display = 'inline');
+    }
+}
+window.pickProfileCreatedBy = pickProfileCreatedBy;
+
+/**
+ * Fast track skip family details for candidate self
+ */
+function skipRegFamilyDetails() {
+    if (!state.regData) state.regData = {};
+    state.regData.profileCreatedBy = 'Self';
+    state.regData.fatherName = '';
+    state.regData.fatherOcc = '';
+    state.regData.fatherMobile = '';
+    state.regData.motherName = '';
+    state.regData.motherOcc = '';
+    state.regData.sister = 'None';
+    state.regData.brother = 'None';
+
+    const familyInputs = [
+        document.getElementById('regFatherName'),
+        document.getElementById('regFatherOcc'),
+        document.getElementById('regFatherMobile'),
+        document.getElementById('regMotherName'),
+        document.getElementById('regMotherOcc')
+    ];
+    familyInputs.forEach(inp => {
+        if (inp) {
+            inp.classList.remove('input-error');
+            inp.style.borderColor = '';
+        }
+    });
+
+    goToRegStep3();
+}
+window.skipRegFamilyDetails = skipRegFamilyDetails;
+
 function goToRegStep3() {
     // 1. Profile Photo Validation (Slot 1 Main photo is required)
     const hasPhoto = state.regData.photo || (state.regData.photos && state.regData.photos[0]);
@@ -545,48 +648,61 @@ function goToRegStep3() {
     });
     state.regData.hobbies = collectedHobbies;
 
-    // 14. Father's Name Validation
+    // 14. Family Details Validation (Conditional: Strict for Parents, Flexible for Candidate Self)
+    const isParentManaged = state.regData.profileCreatedBy === 'Parents';
     const fNameInput = document.getElementById('regFatherName');
     const fNameVal = fNameInput ? fNameInput.value.trim() : '';
-    if (!fNameVal || fNameVal.length < 2) {
-        highlightFieldError(fNameInput, "Please enter father's full name");
-        return;
-    }
-    state.regData.fatherName = fNameVal;
-    state.regData.fatherOcc = document.getElementById('regFatherOcc') ? document.getElementById('regFatherOcc').value.trim() : '';
 
-    // 15. Father's Mobile Number (10-Digit Indian Mobile Validation)
     const fMobileInput = document.getElementById('regFatherMobile');
     const rawMobile = fMobileInput ? fMobileInput.value.trim() : '';
     const cleanMobile = extract10DigitMobile(rawMobile);
-    if (!cleanMobile) {
-        highlightFieldError(fMobileInput, "Please enter father's mobile number (Public Contact)");
-        return;
+
+    const mNameInput = document.getElementById('regMotherName');
+    const mNameVal = mNameInput ? mNameInput.value.trim() : '';
+
+    if (isParentManaged) {
+        if (!fNameVal || fNameVal.length < 2) {
+            highlightFieldError(fNameInput, "Please enter father's full name (વાલી દ્વારા પ્રોફાઇલ માટે પિતાનું નામ જરૂરી છે)");
+            return;
+        }
+        if (!cleanMobile) {
+            highlightFieldError(fMobileInput, "Please enter father's mobile number (વાલીનો મોબાઈલ નંબર દાખલ કરો)");
+            return;
+        }
+        if (cleanMobile.length !== 10 || !/^[6-9]\d{9}$/.test(cleanMobile)) {
+            highlightFieldError(fMobileInput, "Please enter a valid 10-digit mobile number for father starting with 6, 7, 8, or 9 (e.g. 98765 43210)");
+            return;
+        }
+        if (!mNameVal || mNameVal.length < 2) {
+            highlightFieldError(mNameInput, "Please enter mother's full name (માતાનું નામ દાખલ કરો)");
+            return;
+        }
+    } else {
+        // Candidate Self: Optional for privacy. If mobile is entered, validate 10 digits; if blank, proceed smoothly.
+        if (rawMobile && rawMobile !== '+91' && rawMobile !== '+91 ') {
+            if (!cleanMobile || cleanMobile.length !== 10 || !/^[6-9]\d{9}$/.test(cleanMobile)) {
+                highlightFieldError(fMobileInput, "Please enter a valid 10-digit mobile number or leave blank for privacy (10 આંકડાનો સાચો નંબર લખો અથવા ખાલી રાખો)");
+                return;
+            }
+        }
     }
-    if (cleanMobile.length !== 10 || !/^[6-9]\d{9}$/.test(cleanMobile)) {
-        highlightFieldError(fMobileInput, "Please enter a valid 10-digit mobile number for father starting with 6, 7, 8, or 9 (e.g. 98765 43210)");
-        return;
-    }
-    state.regData.fatherMobile = '+91 ' + cleanMobile.slice(0, 5) + ' ' + cleanMobile.slice(5);
-    if (fMobileInput) fMobileInput.value = state.regData.fatherMobile;
+
+    state.regData.fatherName = fNameVal;
+    state.regData.fatherOcc = document.getElementById('regFatherOcc') ? document.getElementById('regFatherOcc').value.trim() : '';
+    state.regData.fatherMobile = cleanMobile ? ('+91 ' + cleanMobile.slice(0, 5) + ' ' + cleanMobile.slice(5)) : '';
+    if (fMobileInput && cleanMobile) fMobileInput.value = state.regData.fatherMobile;
+
     const fWhatsapp = document.getElementById('regFatherWhatsapp');
     state.regData.fatherWhatsapp = fWhatsapp ? fWhatsapp.classList.contains('on') : true;
 
-    // 16. Mother's Name Validation
-    const mNameInput = document.getElementById('regMotherName');
-    const mNameVal = mNameInput ? mNameInput.value.trim() : '';
-    if (!mNameVal || mNameVal.length < 2) {
-        highlightFieldError(mNameInput, "Please enter mother's full name");
-        return;
-    }
     state.regData.motherName = mNameVal;
     state.regData.motherOcc = document.getElementById('regMotherOcc') ? document.getElementById('regMotherOcc').value.trim() : '';
 
-    // 17. Sister Validation (Strict Toggle Check)
-    if (state.siblingEnabled.sister) {
+    // 17. Sister Details (Strict for Parents, Optional for Self)
+    if (state.siblingEnabled && state.siblingEnabled.sister) {
         const sisterList = document.getElementById('sisterList');
         const sisterInputs = sisterList ? Array.from(sisterList.querySelectorAll('input')) : [];
-        if (sisterInputs.length === 0) {
+        if (isParentManaged && sisterInputs.length === 0) {
             addSibling('sister');
             const newInputs = sisterList.querySelectorAll('input');
             const target = newInputs[newInputs.length - 1];
@@ -595,24 +711,24 @@ function goToRegStep3() {
         }
         for (let i = 0; i < sisterInputs.length; i++) {
             const inp = sisterInputs[i];
-            if (!inp.value.trim()) {
+            if (isParentManaged && !inp.value.trim()) {
                 highlightFieldError(inp, "Please enter sister's name or turn on 'I don't have a sister'");
                 return;
             }
         }
         const sisterNames = sisterInputs.map(inp => inp.value.trim()).filter(Boolean);
-        state.regData.sister = sisterNames.join(', ');
+        state.regData.sister = sisterNames.length > 0 ? sisterNames.join(', ') : 'None';
         state.regData.sisterCount = sisterNames.length;
     } else {
         state.regData.sister = 'None';
         state.regData.sisterCount = 0;
     }
 
-    // 18. Brother Validation (Strict Toggle Check)
-    if (state.siblingEnabled.brother) {
+    // 18. Brother Details (Strict for Parents, Optional for Self)
+    if (state.siblingEnabled && state.siblingEnabled.brother) {
         const brotherList = document.getElementById('brotherList');
         const brotherInputs = brotherList ? Array.from(brotherList.querySelectorAll('input')) : [];
-        if (brotherInputs.length === 0) {
+        if (isParentManaged && brotherInputs.length === 0) {
             addSibling('brother');
             const newInputs = brotherList.querySelectorAll('input');
             const target = newInputs[newInputs.length - 1];
@@ -621,13 +737,13 @@ function goToRegStep3() {
         }
         for (let i = 0; i < brotherInputs.length; i++) {
             const inp = brotherInputs[i];
-            if (!inp.value.trim()) {
+            if (isParentManaged && !inp.value.trim()) {
                 highlightFieldError(inp, "Please enter brother's name or turn on 'I don't have a brother'");
                 return;
             }
         }
         const brotherNames = brotherInputs.map(inp => inp.value.trim()).filter(Boolean);
-        state.regData.brother = brotherNames.join(', ');
+        state.regData.brother = brotherNames.length > 0 ? brotherNames.join(', ') : 'None';
         state.regData.brotherCount = brotherNames.length;
     } else {
         state.regData.brother = 'None';

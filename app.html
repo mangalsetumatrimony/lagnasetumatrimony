@@ -639,6 +639,40 @@
 
                 <div class="section-label">Personal details</div>
 
+                <!-- Profile Created By Selection (Myself vs Parents) - Dual Language -->
+                <div class="field" id="profileCreatedByFieldWrap">
+                    <label style="display:flex;align-items:center;justify-content:space-between;">
+                        <span>This profile is for (આ પ્રોફાઇલ કોના માટે બનાવી રહ્યા છો?) <span style="color:var(--error);">*</span></span>
+                        <span style="font-size:11px;font-weight:700;color:var(--primary);">Mandatory / ફરજિયાત</span>
+                    </label>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px;" id="profileCreatedByGrid">
+                        <!-- Myself Card (Default Selected) -->
+                        <div class="profile-for-card active-pick" id="createdForSelf" onclick="pickProfileCreatedBy('Self')"
+                            style="border:2px solid var(--primary);border-radius:14px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--primary-light);transition:all 0.2s ease;">
+                            <div style="width:36px;height:36px;border-radius:50%;background:rgba(123,44,191,0.15);display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:17px;flex-shrink:0;">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <div style="flex:1;">
+                                <div style="font-weight:700;font-size:13.5px;color:var(--text);">Myself (પોતે)</div>
+                                <div style="font-size:11px;color:var(--text-muted);line-height:1.2;">Candidate Self</div>
+                            </div>
+                            <i class="fa-solid fa-circle-check" id="createdCheckSelf" style="color:var(--primary);font-size:16px;"></i>
+                        </div>
+                        <!-- Parents Card -->
+                        <div class="profile-for-card" id="createdForParents" onclick="pickProfileCreatedBy('Parents')"
+                            style="border:2px solid var(--border);border-radius:14px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;background:#fff;transition:all 0.2s ease;">
+                            <div style="width:36px;height:36px;border-radius:50%;background:rgba(16,185,129,0.12);display:flex;align-items:center;justify-content:center;color:#059669;font-size:17px;flex-shrink:0;">
+                                <i class="fa-solid fa-people-roof"></i>
+                            </div>
+                            <div style="flex:1;">
+                                <div style="font-weight:700;font-size:13.5px;color:var(--text);">Parents (વાલી)</div>
+                                <div style="font-size:11px;color:var(--text-muted);line-height:1.2;">Father / Mother</div>
+                            </div>
+                            <i class="fa-regular fa-circle" id="createdCheckParents" style="color:var(--text-faint);font-size:16px;"></i>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Gender Selection (Boy / Girl) - Mandatory -->
                 <div class="field" id="genderFieldWrap">
                     <label style="display:flex;align-items:center;justify-content:space-between;">
@@ -808,18 +842,41 @@
                     <button class="add-dashed" onclick="addHobby()"><i class="fa-solid fa-plus"></i> Add hobby</button>
                 </div>
 
-                <div class="section-label">Family details</div>
-                <div class="field"><label>Father's name <span style="color:var(--error);">*</span></label><input
-                        class="input" id="regFatherName" placeholder="Father's full name" value="" autocomplete="off">
+                <div class="section-label" id="regFamilySectionTitle" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+                    <span>Family details (પરિવાર વિગત)</span>
+                    <span id="regFamilyOptionalBadge" style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;background:rgba(16,185,129,0.12);color:#059669;">Optional for Self / મરજીયાત</span>
                 </div>
-                <div class="field"><label>Father's occupation</label><input class="input" id="regFatherOcc"
-                        placeholder="Father's occupation" value="" autocomplete="off"></div>
+
+                <!-- Reassuring Dual-Language Privacy Notice for Self Profiles -->
+                <div id="regSelfFamilyNotice" style="margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(123,44,191,0.06);border:1px solid rgba(123,44,191,0.2);display:flex;align-items:flex-start;gap:10px;">
+                    <i class="fa-solid fa-shield-heart" style="color:var(--primary);font-size:18px;margin-top:2px;flex-shrink:0;"></i>
+                    <div style="font-size:12.5px;color:var(--text);line-height:1.5;">
+                        <b style="color:var(--primary-dark);">🔒 100% Privacy Protection (સંપૂર્ણ પ્રાઇવસી સુરક્ષા):</b><br>
+                        સુરક્ષા ખાતર અત્યારે પરિવારની વિગત ખાલી રાખી શકો છો. ચેટિંગમાં પરસ્પર અનુકૂળતા લાગ્યા બાદ તમે દીકરીને પરિવાર વિશે પૂછી શકો છો અથવા દીકરી તમને જણાવી શકે છે. પછીથી Edit Profile માંથી પણ ગમે ત્યારે ઉમેરી શકાશે.<br>
+                        <span style="font-size:11.5px;color:var(--text-muted);display:block;margin-top:3px;">
+                            You may skip family details for privacy. In chat, after mutual comfort, you can ask about family or candidate can share details. Can also be added anytime later via Edit Profile.
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Quick Skip Button for Candidate Self -->
+                <div id="regSkipFamilyBtnWrap" style="margin-bottom:14px;">
+                    <button type="button" class="btn btn-ghost" style="width:100%;border:1.5px dashed var(--primary);border-radius:12px;padding:10px 14px;font-size:13px;font-weight:700;color:var(--primary);background:rgba(123,44,191,0.04);display:flex;align-items:center;justify-content:center;gap:8px;" onclick="skipRegFamilyDetails()">
+                        <i class="fa-solid fa-forward-step"></i> Skip Family Details for Now &amp; Continue ➔ (ફેમિલી વિગત સ્કીપ કરો)
+                    </button>
+                </div>
+
+                <div class="field"><label>Father's name (પિતાનું નામ) <span class="family-req-star" style="color:var(--error);display:none;">*</span></label><input
+                        class="input" id="regFatherName" placeholder="Father's full name (ઓપ્શનલ)" value="" autocomplete="off">
+                </div>
+                <div class="field"><label>Father's occupation (પિતાનો વ્યવસાય)</label><input class="input" id="regFatherOcc"
+                        placeholder="e.g. Business, Agriculture, Job (ઓપ્શનલ)" value="" autocomplete="off"></div>
 
                 <!-- Father's contact number right below Father's name with WhatsApp checkbox -->
-                <div class="field"><label>Father's mobile number (Public Contact) <span
-                            style="color:var(--error);">*</span></label>
+                <div class="field"><label>Father's mobile number (Public Contact) <span class="family-req-star"
+                            style="color:var(--error);display:none;">*</span></label>
                     <div class="input-icon-wrap"><i class="fa-solid fa-phone leading"></i><input class="input"
-                            id="regFatherMobile" placeholder="e.g. 9876543210" type="tel" maxlength="16" value=""
+                            id="regFatherMobile" placeholder="e.g. 9876543210 (ઓપ્શનલ)" type="tel" maxlength="16" value=""
                             autocomplete="off">
                     </div>
                     <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
@@ -833,8 +890,8 @@
                     </div>
                 </div>
 
-                <div class="field"><label>Mother's name <span style="color:var(--error);">*</span></label><input
-                        class="input" id="regMotherName" placeholder="Mother's full name" value="" autocomplete="off">
+                <div class="field"><label>Mother's name (માતાનું નામ) <span class="family-req-star" style="color:var(--error);display:none;">*</span></label><input
+                        class="input" id="regMotherName" placeholder="Mother's full name (ઓપ્શનલ)" value="" autocomplete="off">
                 </div>
                 <div class="field"><label>Mother's occupation</label><input class="input" id="regMotherOcc"
                         placeholder="Mother's occupation" value="" autocomplete="off"></div>
@@ -1273,9 +1330,13 @@
                             placeholder="e.g. B.Tech, B.Com, MBA..." value=""></div>
                 </div>
 
-                <div class="section-label">Family details</div>
+                <div class="section-label">Family details (પરિવાર વિગત)</div>
+                <p class="p-muted" style="font-size:12px;margin-top:-6px;margin-bottom:12px;line-height:1.45;">
+                    <i class="fa-solid fa-shield-heart" style="color:var(--primary);margin-right:4px;"></i>
+                    <b>પ્રાઇવસી સ્પષ્ટતા:</b> જો તમે શરૂઆતમાં ફેમિલી વિગત ન ભરી હોય, તો તમે અહીંથી ગમે ત્યારે ઉમેરી શકો છો. વિગતો સેવ કરવાથી જે સભ્યો સાથે તમારી રિક્વેસ્ટ સ્વીકારેલી (Accepted) હશે તેમને જ પિતાનો સંપર્ક નંબર દેખાશે.
+                </p>
                 <div class="edit-profile-grid">
-                    <div class="field"><label>Father's name</label><input class="input" id="editFatherName"
+                    <div class="field"><label>Father's name (પિતાનું નામ)</label><input class="input" id="editFatherName"
                             placeholder="Father's full name" value=""></div>
                     <div class="field"><label>Father's occupation</label><input class="input" id="editFatherOcc"
                             placeholder="e.g. Business, Agriculture" value=""></div>
@@ -2845,32 +2906,32 @@
     <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Core & State -->
-    <script src="js/core/state.js?v=6.7"></script>
-    <script src="js/core/supabase-client.js?v=6.7"></script>
+    <script src="js/core/state.js?v=6.8"></script>
+    <script src="js/core/supabase-client.js?v=6.8"></script>
     <!-- EmailJS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script src="js/services/email-service.js?v=6.7"></script>
-    <script src="js/core/router.js?v=6.7"></script>
+    <script src="js/services/email-service.js?v=6.8"></script>
+    <script src="js/core/router.js?v=6.8"></script>
     <!-- Data Modules -->
-    <script src="js/data/castes.js?v=6.7"></script>
-    <script src="js/data/help-content.js?v=6.7"></script>
-    <script src="js/data/profiles.js?v=6.7"></script>
+    <script src="js/data/castes.js?v=6.8"></script>
+    <script src="js/data/help-content.js?v=6.8"></script>
+    <script src="js/data/profiles.js?v=6.8"></script>
     <!-- Utilities -->
-    <script src="js/utils/helpers.js?v=6.7"></script>
-    <script src="js/utils/pwa.js?v=6.7"></script>
-    <script src="js/utils/cloudinary.js?v=6.7"></script>
-    <script src="js/utils/cropper.js?v=6.7"></script>
-    <script src="js/utils/datepicker.js?v=6.7"></script>
+    <script src="js/utils/helpers.js?v=6.8"></script>
+    <script src="js/utils/pwa.js?v=6.8"></script>
+    <script src="js/utils/cloudinary.js?v=6.8"></script>
+    <script src="js/utils/cropper.js?v=6.8"></script>
+    <script src="js/utils/datepicker.js?v=6.8"></script>
     <!-- Application Modules -->
-    <script src="js/modules/auth.js?v=6.7"></script>
-    <script src="js/modules/browse.js?v=6.7"></script>
-    <script src="js/modules/chat.js?v=6.7"></script>
-    <script src="js/modules/profile.js?v=6.7"></script>
-    <script src="js/modules/notifications.js?v=6.7"></script>
+    <script src="js/modules/auth.js?v=6.8"></script>
+    <script src="js/modules/browse.js?v=6.8"></script>
+    <script src="js/modules/chat.js?v=6.8"></script>
+    <script src="js/modules/profile.js?v=6.8"></script>
+    <script src="js/modules/notifications.js?v=6.8"></script>
     <!-- Application Entrypoint -->
-    <script src="js/app.js?v=6.7"></script>
+    <script src="js/app.js?v=6.8"></script>
     <!-- Privacy & Anti-Inspect Security Guard -->
-    <script src="js/utils/security-guard.js?v=6.7"></script>
+    <script src="js/utils/security-guard.js?v=6.8"></script>
 
 </body>
 

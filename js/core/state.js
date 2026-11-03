@@ -25,6 +25,7 @@ var state = {
     },
     currentUser: null,
     regData: {
+        profileCreatedBy: 'Self',
         email: '',
         password: '',
         caste: '',

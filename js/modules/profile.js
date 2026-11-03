@@ -87,19 +87,21 @@ async function submitProfileCompletion() {
         physical: state.regData.physical || state.currentUser?.physical || 'Normal',
         community: state.regData.caste || state.currentUser?.caste || '',
         hobbies: (Array.isArray(state.regData.hobbies) && state.regData.hobbies.length > 0) ? state.regData.hobbies : (state.currentUser?.hobbies || []),
-        father: state.regData.fatherName || state.currentUser?.father || 'Father',
-        father_name: state.regData.fatherName || state.currentUser?.father || 'Father',
-        fatherOcc: state.regData.fatherOcc || state.currentUser?.fatherOcc || 'Business',
-        father_occ: state.regData.fatherOcc || state.currentUser?.fatherOcc || 'Business',
+        profileCreatedBy: state.regData.profileCreatedBy || state.currentUser?.profileCreatedBy || 'Self',
+        created_by: state.regData.profileCreatedBy || state.currentUser?.profileCreatedBy || 'Self',
+        father: state.regData.fatherName || state.currentUser?.father || '',
+        father_name: state.regData.fatherName || state.currentUser?.father || '',
+        fatherOcc: state.regData.fatherOcc || state.currentUser?.fatherOcc || '',
+        father_occ: state.regData.fatherOcc || state.currentUser?.fatherOcc || '',
         fatherMobile: state.regData.fatherMobile || state.currentUser?.fatherMobile || '',
         father_mobile: state.regData.fatherMobile || state.currentUser?.fatherMobile || '',
         fatherWhatsapp: state.regData.fatherWhatsapp !== false,
         ownMobile: state.regData.ownMobile || state.currentUser?.mobile || '',
         own_mobile: state.regData.ownMobile || state.currentUser?.mobile || '',
-        mother: state.regData.motherName || state.currentUser?.mother || 'Mother',
-        mother_name: state.regData.motherName || state.currentUser?.mother || 'Mother',
-        motherOcc: state.regData.motherOcc || state.currentUser?.motherOcc || 'Homemaker',
-        mother_occ: state.regData.motherOcc || state.currentUser?.motherOcc || 'Homemaker',
+        mother: state.regData.motherName || state.currentUser?.mother || '',
+        mother_name: state.regData.motherName || state.currentUser?.mother || '',
+        motherOcc: state.regData.motherOcc || state.currentUser?.motherOcc || '',
+        mother_occ: state.regData.motherOcc || state.currentUser?.motherOcc || '',
         sister: state.regData.sister || state.currentUser?.sister || 'None',
         brother: state.regData.brother || state.currentUser?.brother || 'None',
         city: state.regData.city || state.currentUser?.city || '',
@@ -903,22 +905,57 @@ function renderFamilyDetailsSection(p) {
         ? interestStatusFor(p.id)
         : (typeof getEffectiveInterestStatus === 'function' ? getEffectiveInterestStatus(p.id) : null);
 
+    const isParentCreated = (p.profileCreatedBy === 'Parents' || p.created_by === 'Parents' || p.created_by === 'parents');
+    const createdByTag = isParentCreated 
+        ? `<span class="profile-creator-tag parents" style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;background:rgba(16,185,129,0.12);color:#059669;display:inline-flex;align-items:center;gap:4px;"><i class="fa-solid fa-people-roof"></i> Managed by Parents (વાલી દ્વારા)</span>`
+        : `<span class="profile-creator-tag self" style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;background:rgba(123,44,191,0.1);color:var(--primary);display:inline-flex;align-items:center;gap:4px;"><i class="fa-solid fa-user-check"></i> Candidate Self (પોતે)</span>`;
+
+    const hasFather = Boolean(p.father && p.father !== '—' && p.father !== 'Father');
+    const hasMother = Boolean(p.mother && p.mother !== '—' && p.mother !== 'Mother');
+    const hasFamilyDetails = hasFather || hasMother;
+
     if (unlocked) {
+        if (!hasFamilyDetails) {
+            // Unlocked, but girl created Self profile and hasn't filled family details yet
+            return `
+            <div id="profileFamilyDetailsWrap">
+                <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+                    <span><i class="fa-solid fa-people-roof" style="color:var(--primary);margin-right:6px;"></i> Family details (પરિવાર વિગત)</span>
+                    ${createdByTag}
+                </div>
+                <div style="background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:14px;padding:14px 16px;margin-top:6px;">
+                    <div style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:800;color:#166534;margin-bottom:6px;">
+                        <i class="fa-solid fa-shield-heart" style="color:#16A34A;"></i>
+                        <span>Candidate Self Profile (ઉમેદવાર પોતે બનાવેલ પ્રોફાઇલ)</span>
+                    </div>
+                    <div style="font-size:12.5px;color:#15803D;line-height:1.55;">
+                        <b>ચેટિંગમાં પરસ્પર અનુકૂળતા લાગ્યા બાદ તમે દીકરીને પરિવાર વિશે પૂછી શકો છો અથવા દીકરી તમને જણાવી શકે છે.</b>
+                    </div>
+                    <div style="font-size:11.5px;color:#166534;margin-top:4px;line-height:1.45;">
+                        In chat, after mutual comfort, you can ask the candidate about family or candidate can share details with you.
+                    </div>
+                </div>
+            </div>`;
+        }
+
         return `
         <div id="profileFamilyDetailsWrap">
-            <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
-                <span><i class="fa-solid fa-people-roof" style="color:var(--primary);margin-right:6px;"></i> Family details</span>
-                ${isSelf 
-                    ? `<span class="privacy-unlocked-badge" style="background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE;"><i class="fa-solid fa-user-check"></i> Your Profile</span>` 
-                    : `<span class="privacy-unlocked-badge"><i class="fa-solid fa-circle-check"></i> Unlocked</span>`
-                }
+            <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+                <span><i class="fa-solid fa-people-roof" style="color:var(--primary);margin-right:6px;"></i> Family details (પરિવાર વિગત)</span>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    ${createdByTag}
+                    ${isSelf 
+                        ? `<span class="privacy-unlocked-badge" style="background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE;"><i class="fa-solid fa-user-check"></i> Your Profile</span>` 
+                        : `<span class="privacy-unlocked-badge"><i class="fa-solid fa-circle-check"></i> Unlocked</span>`
+                    }
+                </div>
             </div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-user-tie"></i> Father</div><div class="dval">${escapeHtml(p.father || p.father_name || '—')}</div></div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-briefcase"></i> Occupation</div><div class="dval">${escapeHtml(p.fatherOcc || p.father_occ || '—')}</div></div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person-dress"></i> Mother</div><div class="dval">${escapeHtml(p.mother || p.mother_name || '—')}</div></div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-briefcase"></i> Occupation</div><div class="dval">${escapeHtml(p.motherOcc || p.mother_occ || '—')}</div></div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person"></i> Sister</div><div class="dval">${escapeHtml(p.sister || '—')}</div></div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person"></i> Brother</div><div class="dval">${escapeHtml(p.brother || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-user-tie"></i> Father (પિતા)</div><div class="dval">${escapeHtml(p.father || p.father_name || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-briefcase"></i> Occupation (વ્યવસાય)</div><div class="dval">${escapeHtml(p.fatherOcc || p.father_occ || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person-dress"></i> Mother (માતા)</div><div class="dval">${escapeHtml(p.mother || p.mother_name || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-briefcase"></i> Occupation (વ્યવસાય)</div><div class="dval">${escapeHtml(p.motherOcc || p.mother_occ || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person"></i> Sister (બહેન)</div><div class="dval">${escapeHtml(p.sister || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person"></i> Brother (ભાઈ)</div><div class="dval">${escapeHtml(p.brother || '—')}</div></div>
         </div>`;
     }
 
@@ -934,9 +971,12 @@ function renderFamilyDetailsSection(p) {
 
     return `
     <div id="profileFamilyDetailsWrap">
-        <div class="section-label" style="display:flex;align-items:center;gap:6px;">
-            <i class="fa-solid fa-lock" style="color:var(--accent-deep);font-size:13px;"></i>
-            <span>Family details (Protected)</span>
+        <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+                <i class="fa-solid fa-lock" style="color:var(--accent-deep);font-size:13px;"></i>
+                <span>Family details (Protected / ગુપ્ત)</span>
+            </div>
+            ${createdByTag}
         </div>
         <div class="privacy-protected-card">
             <div class="privacy-blur-content" aria-hidden="true">
@@ -950,8 +990,13 @@ function renderFamilyDetailsSection(p) {
             <div class="privacy-lock-overlay">
                 <div class="privacy-lock-icon gold"><i class="fa-solid fa-shield-halved"></i></div>
                 <div class="privacy-lock-title">Family Details Protected</div>
-                <div style="font-size:11.5px;font-weight:700;color:#B45309;margin-bottom:3px;">સુરક્ષા ખાતર પરિવારની વિગતો ગુપ્ત છે</div>
-                <div class="privacy-lock-desc">Parental details unlock automatically once <b>${escapeHtml(p.name || 'member')}</b> accepts your Interest Request.</div>
+                <div style="font-size:12px;font-weight:700;color:#B45309;margin-bottom:4px;line-height:1.4;">
+                    સુરક્ષા ખાતર પરિવારની વિગતો ગુપ્ત છે
+                </div>
+                <div class="privacy-lock-desc" style="line-height:1.45;">
+                    રિકવેસ્ટ સ્વીકારાયા બાદ વિગતો અનલોક થશે અને ચેટિંગમાં પરસ્પર અનુકૂળતા લાગ્યા બાદ તમે દીકરીને પરિવાર વિશે પૂછી શકો છો અથવા દીકરી તમને જણાવી શકે છે.<br>
+                    <span style="font-size:11px;opacity:0.85;">Details unlock once <b>${escapeHtml(p.name || 'member')}</b> accepts your Interest Request.</span>
+                </div>
                 ${actionBtnHtml}
             </div>
         </div>
@@ -1027,16 +1072,17 @@ function renderFatherContactSection(p) {
     const isContactUnlocked = isProfileDetailsUnlocked(p);
 
     if (isSelf) {
+        const contactVal = p.fatherMobile || p.father_mobile || '';
         return `
         <div id="profileFatherContactWrap">
             <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
-                <span><i class="fa-solid fa-phone" style="color:var(--primary);margin-right:6px;"></i> Father's Contact</span>
+                <span><i class="fa-solid fa-phone" style="color:var(--primary);margin-right:6px;"></i> Family Contact (પરિવાર સંપર્ક)</span>
                 <span class="privacy-unlocked-badge" style="background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE;"><i class="fa-solid fa-user-check"></i> Your Profile</span>
             </div>
             <div class="contact-unlocked-banner" style="background:var(--primary-light);border:1.5px solid rgba(123,44,191,0.2);border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
                 <i class="fa-solid fa-eye" style="font-size:16px;color:var(--primary);"></i>
                 <div style="font-size:12.5px;color:var(--primary-dark);line-height:1.45;">
-                    <b>Your Verified Family Contact:</b> ${escapeHtml(p.fatherMobile || p.father_mobile || 'Configured')} (Protected — visible to others only upon accepted interest).
+                    <b>Your Family Contact:</b> ${escapeHtml(contactVal || 'Not added (Optional for Self)')} (Protected — visible to others only upon accepted interest).
                 </div>
             </div>
         </div>`;
@@ -1057,21 +1103,55 @@ function renderFatherContactSection(p) {
             if (cPhone) phone = cPhone;
         }
 
+        const cleanDigits = String(phone || '').replace(/\D/g, '');
+        const hasValidPhone = cleanDigits.length >= 10;
+
+        if (hasValidPhone) {
+            return `
+            <div id="profileFatherContactWrap">
+                <div class="section-label" style="display:flex;align-items:center;gap:8px;">
+                    <i class="fa-solid fa-circle-check" style="color:var(--success);"></i>
+                    <span>Family Contact Unlocked (સંપર્ક અનલોક)</span>
+                </div>
+                <div class="contact-unlocked-banner">
+                    <i class="fa-solid fa-shield-heart" style="font-size:18px;color:#1D7A44;flex-shrink:0;"></i>
+                    <div style="font-size:12.5px;color:#065F46;line-height:1.45;">
+                        <b>Interest Accepted!</b> Connection with ${escapeHtml(p.name)}'s family is verified. Direct WhatsApp, Call &amp; In-App Chat options are unlocked below.
+                    </div>
+                </div>
+                <div class="contact-btn-row">
+                    <button class="contact-btn wa" onclick="quickWhatsApp('${escapeHtml(phone)}','${escapeHtml(p.name)}',${p.id})"><i class="fa-brands fa-whatsapp"></i> WhatsApp Father</button>
+                    <button class="contact-btn call" onclick="quickCall('${escapeHtml(phone)}',${p.id})"><i class="fa-solid fa-phone"></i> Call Father</button>
+                </div>
+                <div style="margin-top:10px;">
+                    <button class="btn btn-outline" style="width:100%;padding:10px;font-size:13px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="openChatFor(${p.id})">
+                        <i class="fa-solid fa-comments" style="color:var(--primary);"></i> Chat on Mangal Setu (ચેટ કરો)
+                    </button>
+                </div>
+            </div>`;
+        }
+
+        // Phone is empty (Candidate Self Profile who skipped family details)
         return `
         <div id="profileFatherContactWrap">
             <div class="section-label" style="display:flex;align-items:center;gap:8px;">
                 <i class="fa-solid fa-circle-check" style="color:var(--success);"></i>
-                <span>Father's Contact (Unlocked)</span>
+                <span>Direct In-App Chat (સુરક્ષિત ચેટ અનલોક)</span>
             </div>
-            <div class="contact-unlocked-banner">
-                <i class="fa-solid fa-shield-heart" style="font-size:18px;color:#1D7A44;flex-shrink:0;"></i>
-                <div style="font-size:12.5px;color:#065F46;line-height:1.45;">
-                    <b>Interest Accepted!</b> Matrimonial connection with ${escapeHtml(p.name)}'s family is verified. Direct WhatsApp &amp; Call options are unlocked below.
+            <div class="contact-unlocked-banner" style="background:#F0FDF4;border:1.5px solid #86EFAC;">
+                <i class="fa-solid fa-comments" style="font-size:20px;color:#16A34A;flex-shrink:0;"></i>
+                <div style="font-size:12.5px;color:#166534;line-height:1.5;">
+                    <b>Interest Accepted! (રિકવેસ્ટ સ્વીકારાઈ ગઈ છે)</b><br>
+                    ચેટિંગમાં પરસ્પર અનુકૂળતા લાગ્યા બાદ તમે દીકરીને પરિવાર વિશે પૂછી શકો છો અથવા દીકરી તમને જણાવી શકે છે.
+                    <div style="font-size:11px;color:#15803D;margin-top:3px;">
+                        In chat, after mutual comfort, you can ask the candidate about family or candidate can share details with you.
+                    </div>
                 </div>
             </div>
-            <div class="contact-btn-row">
-                <button class="contact-btn wa" onclick="quickWhatsApp('${escapeHtml(phone)}','${escapeHtml(p.name)}',${p.id})"><i class="fa-brands fa-whatsapp"></i> WhatsApp Father</button>
-                <button class="contact-btn call" onclick="quickCall('${escapeHtml(phone)}',${p.id})"><i class="fa-solid fa-phone"></i> Call Father</button>
+            <div style="margin-top:12px;">
+                <button class="btn btn-primary" style="width:100%;padding:12px;font-size:14px;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 14px rgba(123,44,191,0.25);" onclick="openChatFor(${p.id})">
+                    <i class="fa-solid fa-comment-dots" style="font-size:17px;"></i> Start In-App Chat (ચેટ શરૂ કરો)
+                </button>
             </div>
         </div>`;
     }
@@ -1081,18 +1161,18 @@ function renderFatherContactSection(p) {
     <div id="profileFatherContactWrap">
         <div class="section-label" style="display:flex;align-items:center;gap:8px;">
             <i class="fa-solid fa-lock" style="color:var(--accent-deep);"></i>
-            <span>Father's Contact (Protected)</span>
+            <span>Family Contact (Protected / ગુપ્ત)</span>
         </div>
         <div class="contact-locked-box">
             <div style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:800;color:#78350F;margin-bottom:6px;">
                 <i class="fa-solid fa-user-shield" style="font-size:16px;color:var(--accent-deep);"></i>
-                <span>Direct Family Contact Protected</span>
+                <span>Direct Contact Protected (સંપર્ક વિગત સુરક્ષિત છે)</span>
             </div>
             <p style="font-size:12.5px;color:#78350F;line-height:1.55;margin:0 0 10px 0;">
-                To safeguard family privacy and prevent unsolicited calls, direct WhatsApp &amp; Call buttons <b>unlock automatically only after ${escapeHtml(p.name)} accepts your Interest Request</b>.
+                To safeguard privacy and prevent unsolicited calls, direct communication unlocks <b>only after ${escapeHtml(p.name)} accepts your Interest Request</b>.
             </p>
             <div style="background:#F8F5FD;border:1px dashed var(--primary);border-radius:10px;padding:10px 12px;font-size:12px;color:#3E384C;line-height:1.5;">
-                <i class="fa-solid fa-language" style="color:var(--primary);margin-right:4px;"></i> <b>સુરક્ષા સ્પષ્ટતા:</b> પરિવાર અને દીકરીઓની સુરક્ષા માટે પિતાનો નંબર ગુપ્ત રાખવામાં આવ્યો છે. સામેવાળી વ્યક્તિ તમારી <b>"I'm interested"</b> રિક્વેસ્ટ સ્વીકારશે (Accept કરશે) ત્યારે જ વોટ્સએપ અને કોલ બટન આપમેળે અનલોક થશે.
+                <i class="fa-solid fa-shield-heart" style="color:var(--primary);margin-right:4px;"></i> <b>સુરક્ષા સ્પષ્ટતા:</b> પરિવાર અને દીકરીઓની સુરક્ષા માટે સંપર્ક વિગત ગુપ્ત રાખવામાં આવી છે. સામેવાળી વ્યક્તિ તમારી <b>"I'm interested"</b> રિક્વેસ્ટ સ્વીકારશે (Accept કરશે) ત્યારે ચેટ અનલોક થશે, અને ચેટિંગમાં પરસ્પર અનુકૂળતા લાગ્યા બાદ તમે દીકરીને પરિવાર વિશે પૂછી શકો છો અથવા દીકરી તમને જણાવી શકે છે.
             </div>
         </div>
     </div>`;

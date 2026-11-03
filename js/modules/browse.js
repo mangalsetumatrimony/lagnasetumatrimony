@@ -582,12 +582,24 @@ function saveEditProfile() {
             ? getUnmaskedContactFromAnywhere('father', myProfile)
             : '';
     }
-    if (!cleanFatherMobile) {
-        highlightFieldError(fMobileEl, "Please enter a valid 10-digit father's mobile number");
+
+    const isParentCreated = myProfile && (myProfile.profileCreatedBy === 'Parents' || myProfile.created_by === 'Parents' || myProfile.created_by === 'parents');
+
+    if (rawFatherMobile && rawFatherMobile !== '+91' && rawFatherMobile !== '+91 ') {
+        if (!cleanFatherMobile || cleanFatherMobile.length !== 10 || !/^[6-9]\d{9}$/.test(cleanFatherMobile)) {
+            highlightFieldError(fMobileEl, "Please enter a valid 10-digit father's mobile number or leave blank");
+            showToast("Please enter a valid 10-digit mobile number for father or leave blank");
+            return;
+        }
+        if (fMobileEl) fMobileEl.value = formatPhoneNumber(cleanFatherMobile);
+    } else if (isParentCreated && !cleanFatherMobile) {
+        highlightFieldError(fMobileEl, "Please enter a valid 10-digit father's mobile number (વાલી દ્વારા પ્રોફાઇલ માટે પિતાનો નંબર જરૂરી છે)");
         showToast("Please enter a valid 10-digit father's mobile number");
         return;
+    } else {
+        // Self profile with empty father mobile - allowed
+        if (!cleanFatherMobile && fMobileEl) fMobileEl.value = '';
     }
-    if (fMobileEl) fMobileEl.value = formatPhoneNumber(cleanFatherMobile);
 
     const rawOwnMobile = ownMobileEl ? ownMobileEl.value.trim() : '';
     let cleanOwnMobile = extract10DigitMobile(rawOwnMobile);

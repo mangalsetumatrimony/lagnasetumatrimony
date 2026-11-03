@@ -439,6 +439,8 @@ function mapProfileFromSupabase(row, forAdmin = false) {
         weight: row.weight || raw.weight || '',
         marital: row.marital || raw.marital || 'Unmarried',
         physical: row.physical || raw.physical || 'Normal',
+        profileCreatedBy: raw.profileCreatedBy || raw.created_by || (raw.fatherMobile || row.father_mobile ? 'Parents' : 'Self'),
+        created_by: raw.profileCreatedBy || raw.created_by || (raw.fatherMobile || row.father_mobile ? 'Parents' : 'Self'),
         community: row.community || raw.community || '',
         hobbies: Array.isArray(row.hobbies) ? row.hobbies : (raw.hobbies || []),
         father: row.father || raw.father || '',
