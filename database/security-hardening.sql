@@ -1,11 +1,11 @@
 -- ==============================================================================
 -- MANGAL SETU — SUPABASE DATABASE SECURITY HARDENING MIGRATION
 -- Fixes:
--- 1. Blocks arbitrary DELETE on all tables by anonymous users
+-- 1. Blocks arbitrary direct DELETE on all tables by anonymous users
 -- 2. Restricts direct SELECT on raw profiles and users tables (prevents contact harvesting)
 -- 3. Grants public SELECT ONLY on community_profiles view (contacts masked at database level)
 -- 4. Secures app_settings from unauthorized modification
--- 5. Revokes public execution of delete_user_account_completely RPC
+-- 5. Enables safe controlled deletion via delete_user_account_completely RPC
 -- 6. Safe & Idempotent (Can be executed multiple times in Supabase SQL Editor)
 -- ==============================================================================
 
@@ -19,7 +19,7 @@ ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.email_logs ENABLE ROW LEVEL SECURITY;
 
--- 2. Revoke dangerous DELETE privileges from anon role
+-- 2. Revoke dangerous direct DELETE privileges from anon role on raw tables
 REVOKE DELETE ON public.profiles FROM anon;
 REVOKE DELETE ON public.users FROM anon;
 REVOKE DELETE ON public.payments FROM anon;
@@ -44,10 +44,7 @@ DROP POLICY IF EXISTS "Messages can be deleted by everyone" ON public.messages;
 DROP POLICY IF EXISTS "Reports can be deleted by everyone" ON public.reports;
 DROP POLICY IF EXISTS "App settings can be updated by everyone" ON public.app_settings;
 
--- 5. Revoke anonymous execution of delete_user_account_completely RPC
-REVOKE EXECUTE ON FUNCTION delete_user_account_completely(TEXT, TEXT) FROM anon;
-
--- 6. Ensure community_profiles view exists with masked contacts
+-- 5. Ensure community_profiles view exists with masked contacts
 CREATE OR REPLACE VIEW public.community_profiles AS
 SELECT 
     id,
@@ -109,11 +106,14 @@ WHERE visible = true
   AND account_status <> 'deleted' 
   AND verify_status <> 'rejected';
 
--- 7. Grant SELECT on community_profiles to public
+-- 6. Grant SELECT on community_profiles to public
 GRANT SELECT ON public.community_profiles TO anon, authenticated, service_role;
 
--- 8. Ensure get_authorized_contact RPC is available for unlocking contacts when interest accepted
+-- 7. Ensure get_authorized_contact RPC is available for unlocking contacts when interest accepted
 GRANT EXECUTE ON FUNCTION public.get_authorized_contact(BIGINT, TEXT) TO anon, authenticated, service_role;
+
+-- 8. Enable controlled account deletion RPC (Protected by client gatekeeper)
+GRANT EXECUTE ON FUNCTION public.delete_user_account_completely(TEXT, TEXT) TO anon, authenticated, service_role;
 
 -- Done!
 SELECT 'Security Hardening Successfully Applied!' AS status;
