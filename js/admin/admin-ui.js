@@ -1449,8 +1449,8 @@
             if (!deleteReason) {
                 if (err) err.style.display = 'block';
                 // Scroll to the pills so user can see what's needed
-                const pills = document.getElementById('deleteReasonPills');
-                if (pills) pills.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const targetEl = document.getElementById('ddDeleteReason') || err;
+                if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 return; // Stop — reason is required
             }
 
