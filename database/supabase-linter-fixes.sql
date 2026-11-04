@@ -8,7 +8,7 @@
 -- ==============================================================================
 
 -- 1. FIX: Security Definer View (CRITICAL)
--- Setting security_invoker = on ensures the view executes with the permissions of the calling user
+-- Setting security_invoker = on ensures the view executes with the permissions of calling user
 ALTER VIEW IF EXISTS public.community_profiles SET (security_invoker = on);
 
 -- 2. FIX: Function Search Path Mutable
@@ -27,28 +27,23 @@ BEGIN
 END $$;
 
 -- 3. FIX: Multiple Permissive Policies on app_settings
--- Clean up overlapping duplicate policies and retain 1 clean read policy + 1 admin policy
+-- Clean up all overlapping duplicate policies and retain exactly 1 clean read policy + 1 admin policy
 DO $$
+DECLARE
+    pol RECORD;
 BEGIN
-    -- Drop old/duplicate policies if they exist
-    DROP POLICY IF EXISTS "Settings viewable by everyone" ON public.app_settings;
-    DROP POLICY IF EXISTS "Settings viewable" ON public.app_settings;
-    DROP POLICY IF EXISTS "Allow public read access" ON public.app_settings;
-    DROP POLICY IF EXISTS "Public can view settings" ON public.app_settings;
-    DROP POLICY IF EXISTS "Allow anon read" ON public.app_settings;
-    DROP POLICY IF EXISTS "Allow authenticated read" ON public.app_settings;
-    DROP POLICY IF EXISTS "Settings modifiable by service role only" ON public.app_settings;
-    DROP POLICY IF EXISTS "Admin full access" ON public.app_settings;
-    DROP POLICY IF EXISTS "app_settings_public_read" ON public.app_settings;
-    DROP POLICY IF EXISTS "app_settings_service_role_all" ON public.app_settings;
+    -- Dynamically drop all existing policies on app_settings to eliminate duplicates
+    FOR pol IN (SELECT policyname FROM pg_policies WHERE tablename = 'app_settings' AND schemaname = 'public') LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.app_settings;', pol.policyname);
+    END LOOP;
 
-    -- Recreate single clean read policy
-    CREATE POLICY "app_settings_public_read" 
+    -- Recreate single clean read policy (Shields admin credentials & secret keys from public read)
+    CREATE POLICY "Public settings viewable by everyone" 
     ON public.app_settings FOR SELECT 
-    USING (true);
+    USING (key NOT IN ('admin_credentials', 'secret_keys', 'api_tokens', 'service_role_key', 'private_config'));
 
     -- Recreate single clean service_role / admin management policy
-    CREATE POLICY "app_settings_service_role_all" 
+    CREATE POLICY "Settings modifiable by service role only" 
     ON public.app_settings FOR ALL 
     TO service_role 
     USING (true) 
@@ -57,17 +52,14 @@ END $$;
 
 -- 4. FIX: Multiple Permissive Policies on castes
 DO $$
+DECLARE
+    pol RECORD;
 BEGIN
-    -- Drop duplicate policies if castes table exists
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'castes') THEN
-        DROP POLICY IF EXISTS "Castes are viewable by everyone" ON public.castes;
-        DROP POLICY IF EXISTS "Castes viewable by everyone" ON public.castes;
-        DROP POLICY IF EXISTS "Allow public read" ON public.castes;
-        DROP POLICY IF EXISTS "Public can view castes" ON public.castes;
-        DROP POLICY IF EXISTS "Castes can be read by all" ON public.castes;
-        DROP POLICY IF EXISTS "castes_public_read" ON public.castes;
+        FOR pol IN (SELECT policyname FROM pg_policies WHERE tablename = 'castes' AND schemaname = 'public') LOOP
+            EXECUTE format('DROP POLICY IF EXISTS %I ON public.castes;', pol.policyname);
+        END LOOP;
 
-        -- Create single clean permissive policy
         CREATE POLICY "castes_public_read" 
         ON public.castes FOR SELECT 
         USING (true);
@@ -76,16 +68,13 @@ END $$;
 
 -- 5. FIX: Duplicate Index on messages
 DO $$
-DECLARE
-    idx_count INT;
 BEGIN
-    -- Check how many indexes exist on messages(sender_id) or similar
-    -- If multiple non-primary indexes exist, remove redundant one
-    SELECT count(*) INTO idx_count FROM pg_indexes WHERE tablename = 'messages' AND schemaname = 'public';
-    IF idx_count > 3 THEN
-        DROP INDEX IF EXISTS public.idx_messages_sender_id_dup;
-        DROP INDEX IF EXISTS public.messages_sender_id_idx1;
-    END IF;
+    DROP INDEX IF EXISTS public.idx_messages_sender_id_dup;
+    DROP INDEX IF EXISTS public.messages_sender_id_idx1;
+    DROP INDEX IF EXISTS public.idx_messages_sender_id;
+    DROP INDEX IF EXISTS public.idx_messages_receiver_id_dup;
+    DROP INDEX IF EXISTS public.messages_receiver_id_idx1;
+    DROP INDEX IF EXISTS public.idx_messages_thread_id_dup;
 END $$;
 
 -- Reload schema cache to apply changes immediately

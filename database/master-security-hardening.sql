@@ -78,7 +78,7 @@ GRANT EXECUTE ON FUNCTION public.admin_verify_credentials(TEXT, TEXT) TO anon, a
 -- 3. COMMUNITY PROFILES VIEW (Database-Level Masking Guard)
 -- Guarantees that public queries NEVER receive unmasked phone numbers or ID documents
 -- ------------------------------------------------------------------------------
-CREATE OR REPLACE VIEW public.community_profiles WITH (security_invoker = false) AS
+CREATE OR REPLACE VIEW public.community_profiles WITH (security_invoker = true) AS
 SELECT 
     p.id,
     p.user_id,
