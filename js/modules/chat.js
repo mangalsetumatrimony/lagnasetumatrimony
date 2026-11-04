@@ -202,32 +202,56 @@ function findProfile(id, email) {
 }
 
 /* ============================================================ INTEREST REQUESTS ============================================================ */
+function findChatThread(profileId) {
+    if (!profileId) return null;
+    const pidNum = Number(profileId);
+    const pidStr = String(profileId).trim();
+    if (!Array.isArray(CHAT_THREADS)) return null;
+    return CHAT_THREADS.find(t => t && (
+        String(t.profileId) === pidStr ||
+        (!isNaN(pidNum) && pidNum > 0 && Number(t.profileId) === pidNum)
+    )) || null;
+}
+window.findChatThread = findChatThread;
+
 function interestStatusFor(profileId) {
     if (!profileId) return null;
     const pid = Number(profileId);
     const p = (typeof findProfile === 'function') ? findProfile(profileId) : null;
-    const pEmail = (p && p.email && !p.email.includes('•')) ? p.email.trim().toLowerCase() : '';
+    const pEmail = (p && p.rawEmail && !p.rawEmail.includes('•'))
+        ? p.rawEmail.trim().toLowerCase()
+        : ((p && p.email && !p.email.includes('•')) ? p.email.trim().toLowerCase() : '');
 
-    // 1. Check outgoing requests sent by me
-    const out = OUTGOING_REQUESTS.find(r => 
-        (!isNaN(pid) && pid > 0 && (Number(r.profileId) === pid || Number(r.receiverId) === pid)) ||
-        (pEmail && r.receiverEmail && r.receiverEmail.trim().toLowerCase() === pEmail)
-    );
-    if (out) return out.status;
+    const matchReq = (r) => {
+        if (!r) return false;
+        if (!isNaN(pid) && pid > 0 && (Number(r.profileId) === pid || Number(r.senderId) === pid || Number(r.receiverId) === pid)) return true;
+        if (pEmail && ((r.senderEmail && r.senderEmail.trim().toLowerCase() === pEmail) || (r.receiverEmail && r.receiverEmail.trim().toLowerCase() === pEmail))) return true;
+        return false;
+    };
 
-    // 2. Check incoming requests received by me
-    const inc = INCOMING_REQUESTS.find(r => 
-        (!isNaN(pid) && pid > 0 && (Number(r.profileId) === pid || Number(r.senderId) === pid)) ||
-        (pEmail && r.senderEmail && r.senderEmail.trim().toLowerCase() === pEmail)
-    );
-    if (inc) return inc.status;
+    const out = Array.isArray(OUTGOING_REQUESTS) ? OUTGOING_REQUESTS.find(matchReq) : null;
+    const inc = Array.isArray(INCOMING_REQUESTS) ? INCOMING_REQUESTS.find(matchReq) : null;
+    const thread = findChatThread(pid) || (Array.isArray(CHAT_THREADS) ? CHAT_THREADS.find(t => t && pEmail && t.peerEmail && t.peerEmail.trim().toLowerCase() === pEmail) : null);
 
-    // 3. Check unlocked threads
-    const thread = CHAT_THREADS.find(t => 
-        (!isNaN(pid) && pid > 0 && Number(t.profileId) === pid) ||
-        (pEmail && t.peerEmail && t.peerEmail.trim().toLowerCase() === pEmail)
-    );
-    if (thread && thread.messages && thread.messages.length > 0) return 'accepted';
+    // PRIORITY 1: Explicit Accepted Match (Requests OR Active Chat Thread)
+    if ((out && out.status === 'accepted') || (inc && inc.status === 'accepted') || (thread && (!out || out.status !== 'disconnected') && (!inc || inc.status !== 'disconnected'))) {
+        return 'accepted';
+    }
+
+    // PRIORITY 2: Disconnected Match
+    if ((out && out.status === 'disconnected') || (inc && inc.status === 'disconnected')) {
+        return 'disconnected';
+    }
+
+    // PRIORITY 3: Declined Request
+    if ((out && out.status === 'declined') || (inc && inc.status === 'declined')) {
+        return 'declined';
+    }
+
+    // PRIORITY 4: Pending Request
+    if ((out && out.status === 'pending') || (inc && inc.status === 'pending')) {
+        return 'pending';
+    }
 
     return null;
 }
@@ -1517,13 +1541,16 @@ function openChatFor(profileId) {
         return;
     }
 
-    let thread = CHAT_THREADS.find(t => Number(t.profileId) === pid);
+    let thread = findChatThread(pid);
     const knownEmail = thread ? thread.peerEmail : '';
     const p = findProfile(pid, knownEmail);
     const myEmail = (state.currentUser.email || '').trim().toLowerCase();
 
     // Strict Gatekeeper: verify that interest between currentUser and profileId is ACCEPTED
-    const status = interestStatusFor(pid);
+    let status = interestStatusFor(pid);
+    if (!status && thread && (!thread.status || thread.status === 'accepted')) {
+        status = 'accepted';
+    }
     if (status !== 'accepted') {
         if (status === 'pending') {
             showToast(`🔒 Chat is locked. Messaging unlocks as soon as ${p ? p.name : 'member'} accepts your interest request.`);
@@ -1694,7 +1721,7 @@ function openChatFor(profileId) {
 }
 
 function renderChatMessages() {
-    const thread = CHAT_THREADS.find(t => t.profileId === state.activeChatId);
+    const thread = findChatThread(state.activeChatId);
     const wrap = document.getElementById('chatMessages');
     if (!wrap) return;
     wrap.innerHTML = '';
@@ -1844,7 +1871,7 @@ function promptDeleteChatMessage(msgId, event) {
     closeAllChatActions();
     pendingDeleteMsgId = msgId;
 
-    const thread = CHAT_THREADS.find(t => t.profileId === state.activeChatId);
+    const thread = findChatThread(state.activeChatId);
     const msg = thread && thread.messages ? thread.messages.find(m => m.id === msgId) : null;
 
     const titleEl = document.getElementById('delModalTitle');
@@ -1873,7 +1900,7 @@ function confirmDeleteChatMessage(mode = 'everyone') {
         closeModal('modalDeleteChatMsg');
         return;
     }
-    const thread = CHAT_THREADS.find(t => t.profileId === state.activeChatId);
+    const thread = findChatThread(state.activeChatId);
     if (!thread || !Array.isArray(thread.messages)) {
         closeModal('modalDeleteChatMsg');
         return;
@@ -2258,7 +2285,7 @@ async function confirmDisconnectConnection(targetPid) {
 function startEditChatMessage(msgId, event) {
     if (event) event.stopPropagation();
     closeAllChatActions();
-    const thread = CHAT_THREADS.find(t => t.profileId === state.activeChatId);
+    const thread = findChatThread(state.activeChatId);
     if (!thread) return;
     const msg = thread.messages.find(m => m.id === msgId);
     if (!msg) return;
@@ -2372,7 +2399,14 @@ function sendChatMessage() {
     }
     if (!state.profileComplete) { openModal('modalCompleteProfile'); return; }
     const activePid = state.activeChatId;
-    const connStatus = (typeof interestStatusFor === 'function') ? interestStatusFor(activePid) : null;
+    let thread = findChatThread(activePid);
+    let connStatus = (typeof interestStatusFor === 'function') ? interestStatusFor(activePid) : null;
+
+    // Robust match fallback: If thread exists and has not been disconnected, ensure messaging is permitted
+    if (thread && connStatus !== 'disconnected' && connStatus !== 'declined') {
+        connStatus = 'accepted';
+    }
+
     if (connStatus !== 'accepted') {
         showToast('Connection ended. Messaging is no longer available.');
         if (typeof go === 'function') go('scr-inbox', true);
@@ -2382,8 +2416,10 @@ function sendChatMessage() {
     if (!input) return;
     const text = input.value.trim();
     if (!text) return;
-    let thread = CHAT_THREADS.find(t => t.profileId === state.activeChatId);
-    if (!thread) { thread = { profileId: state.activeChatId, messages: [] }; CHAT_THREADS.push(thread); }
+    if (!thread) {
+        thread = { profileId: Number(activePid), messages: [] };
+        CHAT_THREADS.push(thread);
+    }
 
     // If in edit mode, save the updated message text
     if (editingMessageId) {
@@ -2444,8 +2480,21 @@ function sendChatMessage() {
                 : ((thread && thread.peerEmail && !thread.peerEmail.includes('•'))
                     ? thread.peerEmail
                     : ''));
+
+        // Fallback: check unmasked email in INCOMING_REQUESTS and OUTGOING_REQUESTS
+        if (!resolvedReceiverEmail) {
+            const allReqs = [...(INCOMING_REQUESTS || []), ...(OUTGOING_REQUESTS || [])];
+            const mReq = allReqs.find(r => r && (
+                Number(r.profileId) === Number(state.activeChatId) ||
+                Number(r.senderId) === Number(state.activeChatId) ||
+                Number(r.receiverId) === Number(state.activeChatId)
+            ));
+            if (mReq) {
+                resolvedReceiverEmail = (Number(mReq.senderId) === Number(state.activeChatId) ? mReq.senderEmail : mReq.receiverEmail) || '';
+            }
+        }
         if (!resolvedReceiverEmail && peer && typeof PROFILES !== 'undefined' && Array.isArray(PROFILES)) {
-            const pMatch = PROFILES.find(x => x && (x.id === state.activeChatId || x.userId === state.activeChatId || x.id == peer.id));
+            const pMatch = PROFILES.find(x => x && (Number(x.id) === Number(state.activeChatId) || Number(x.userId) === Number(state.activeChatId)));
             if (pMatch && pMatch.rawEmail && !pMatch.rawEmail.includes('•')) {
                 resolvedReceiverEmail = pMatch.rawEmail;
             }
@@ -2459,6 +2508,10 @@ function sendChatMessage() {
             text: text,
             time: time,
             edited: false
+        }).then(saveRes => {
+            if (saveRes && saveRes.error) {
+                console.warn('[Chat] Supabase save error:', saveRes.error);
+            }
         }).catch(e => console.warn('[Chat] Supabase save error:', e));
     }
 }

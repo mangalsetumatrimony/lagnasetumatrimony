@@ -1131,7 +1131,10 @@ function renderFatherContactSection(p) {
     );
 
     if (isSelf) {
-        const contactVal = isFamilyExplicitlyDisabled ? 'Hidden (Family details toggle OFF in Edit Profile)' : (p.fatherMobile || p.father_mobile || '');
+        const contactVal = isFamilyExplicitlyDisabled ? '' : (p.fatherMobile || p.father_mobile || '');
+        if (!contactVal || contactVal.trim() === '' || isFamilyExplicitlyDisabled) {
+            return `<div id="profileFatherContactWrap" style="display:none;"></div>`;
+        }
         return `
         <div id="profileFatherContactWrap">
             <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
@@ -1141,116 +1144,80 @@ function renderFatherContactSection(p) {
             <div class="contact-unlocked-banner" style="background:var(--primary-light);border:1.5px solid rgba(123,44,191,0.2);border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
                 <i class="fa-solid fa-eye" style="font-size:16px;color:var(--primary);"></i>
                 <div style="font-size:12.5px;color:var(--primary-dark);line-height:1.45;">
-                    <b>Your Family Contact:</b> ${escapeHtml(contactVal || 'Not added (Optional for Self)')} (Protected — visible to others only upon accepted interest).
+                    <b>Your Family Contact:</b> ${escapeHtml(contactVal)} (Protected — visible to others only upon accepted interest).
                 </div>
             </div>
         </div>`;
     }
 
-    if (isContactUnlocked) {
-        if (isFamilyExplicitlyDisabled) {
-            return `
-            <div id="profileFatherContactWrap">
-                <div class="contact-unlocked-banner" style="background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
-                    <i class="fa-solid fa-comment-dots" style="font-size:18px;color:#1D7A44;flex-shrink:0;"></i>
-                    <div style="font-size:12.5px;color:#065F46;line-height:1.45;">
-                        <b>Interest Accepted!</b> You are connected with ${escapeHtml(p.name)}. You can chat safely using the Message button below.
-                    </div>
-                </div>
-            </div>`;
-        }
+    // ONLY SHOW IF INTEREST IS ACCEPTED (UNLOCKED) AND USER HAS ACTUALLY ADDED FAMILY CONTACT
+    if (!isContactUnlocked || isFamilyExplicitlyDisabled) {
+        return `<div id="profileFatherContactWrap" style="display:none;"></div>`;
+    }
 
-        // Resolve unmasked father mobile if already in cache or memory
-        let phone = '';
-        if (p.rawFatherMobile && !p.rawFatherMobile.includes('•')) {
-            phone = p.rawFatherMobile;
-        } else if (p.fatherMobile && !p.fatherMobile.includes('•')) {
-            phone = p.fatherMobile;
-        } else if (p.father_mobile && !p.father_mobile.includes('•')) {
-            phone = p.father_mobile;
-        } else if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE && window.AUTHORIZED_CONTACT_CACHE.has(Number(p.id))) {
-            const cached = window.AUTHORIZED_CONTACT_CACHE.get(Number(p.id));
-            const cPhone = (cached && cached.fatherMobile && !cached.fatherMobile.includes('•')) ? cached.fatherMobile : (cached?.ownMobile && !cached.ownMobile.includes('•') ? cached.ownMobile : '');
-            if (cPhone) phone = cPhone;
-        }
+    // Resolve unmasked father mobile if already in cache or memory
+    let phone = '';
+    if (p.rawFatherMobile && !p.rawFatherMobile.includes('•')) {
+        phone = p.rawFatherMobile;
+    } else if (p.fatherMobile && !p.fatherMobile.includes('•')) {
+        phone = p.fatherMobile;
+    } else if (p.father_mobile && !p.father_mobile.includes('•')) {
+        phone = p.father_mobile;
+    } else if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE && window.AUTHORIZED_CONTACT_CACHE.has(Number(p.id))) {
+        const cached = window.AUTHORIZED_CONTACT_CACHE.get(Number(p.id));
+        const cPhone = (cached && cached.fatherMobile && !cached.fatherMobile.includes('•')) ? cached.fatherMobile : (cached?.ownMobile && !cached.ownMobile.includes('•') ? cached.ownMobile : '');
+        if (cPhone) phone = cPhone;
+    }
 
-        const cleanDigits = String(phone || '').replace(/\D/g, '');
-        const hasValidPhone = cleanDigits.length >= 10;
-        const hasAnyFatherMobile = Boolean((p.fatherMobile && p.fatherMobile.trim()) || (p.father_mobile && p.father_mobile.trim()) || p.rawFatherMobile || hasValidPhone);
+    const cleanDigits = String(phone || '').replace(/\D/g, '');
+    const hasValidPhone = cleanDigits.length >= 10;
+    const hasAnyFatherMobile = Boolean((p.fatherMobile && p.fatherMobile.trim()) || (p.father_mobile && p.father_mobile.trim()) || p.rawFatherMobile || hasValidPhone);
 
-        if (hasValidPhone) {
-            return `
-            <div id="profileFatherContactWrap">
-                <div class="section-label" style="display:flex;align-items:center;gap:8px;">
-                    <i class="fa-solid fa-circle-check" style="color:var(--success);"></i>
-                    <span>Family Contact Unlocked (સંપર્ક અનલોક)</span>
-                </div>
-                <div class="contact-unlocked-banner" style="background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
-                    <i class="fa-solid fa-shield-heart" style="font-size:18px;color:#1D7A44;flex-shrink:0;"></i>
-                    <div style="font-size:12.5px;color:#065F46;line-height:1.45;">
-                        <b>Interest Accepted!</b> Connection with ${escapeHtml(p.name)}'s family is verified. Direct WhatsApp &amp; Call options are unlocked below.
-                    </div>
-                </div>
-                <div class="detail-row" style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:10px 14px;margin-bottom:12px;">
-                    <div class="dlabel"><i class="fa-solid fa-phone" style="color:var(--primary);"></i> Father's Mobile</div>
-                    <div class="dval" style="font-weight:700;color:var(--primary-dark);font-size:14px;">${escapeHtml(phone)}</div>
-                </div>
-                <div class="contact-btn-row" style="display:flex;gap:10px;margin-top:6px;">
-                    <button class="contact-btn wa" style="flex:1;" onclick="quickWhatsApp('${escapeHtml(phone)}','${escapeHtml(p.name)}',${p.id})"><i class="fa-brands fa-whatsapp"></i> WhatsApp Father</button>
-                    <button class="contact-btn call" style="flex:1;" onclick="quickCall('${escapeHtml(phone)}',${p.id})"><i class="fa-solid fa-phone"></i> Call Father</button>
-                </div>
-            </div>`;
-        } else if (hasAnyFatherMobile) {
-            // Unlocked and has father mobile, but currently resolving unmasked digits from cloud
-            return `
-            <div id="profileFatherContactWrap">
-                <div class="section-label" style="display:flex;align-items:center;gap:8px;">
-                    <i class="fa-solid fa-circle-check" style="color:var(--success);"></i>
-                    <span>Family Contact Unlocked (સંપર્ક અનલોક)</span>
-                </div>
-                <div class="contact-unlocked-banner" style="background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
-                    <i class="fa-solid fa-shield-heart" style="font-size:18px;color:#1D7A44;flex-shrink:0;"></i>
-                    <div style="font-size:12.5px;color:#065F46;line-height:1.45;">
-                        <b>Interest Accepted!</b> Connection with ${escapeHtml(p.name)}'s family is verified. Direct WhatsApp &amp; Call options are unlocked below.
-                    </div>
-                </div>
-                <div class="contact-btn-row" style="display:flex;gap:10px;margin-top:6px;">
-                    <button class="contact-btn wa" style="flex:1;" onclick="quickWhatsApp('','${escapeHtml(p.name)}',${p.id})"><i class="fa-brands fa-whatsapp"></i> WhatsApp Father</button>
-                    <button class="contact-btn call" style="flex:1;" onclick="quickCall('',${p.id})"><i class="fa-solid fa-phone"></i> Call Father</button>
-                </div>
-            </div>`;
-        }
+    // If candidate did NOT add father mobile / family contact details, do NOT show anything!
+    if (!hasValidPhone && !hasAnyFatherMobile) {
+        return `<div id="profileFatherContactWrap" style="display:none;"></div>`;
+    }
 
-        // Candidate Self Profile who skipped family details / father mobile
+    if (hasValidPhone) {
         return `
         <div id="profileFatherContactWrap">
+            <div class="section-label" style="display:flex;align-items:center;gap:8px;">
+                <i class="fa-solid fa-circle-check" style="color:var(--success);"></i>
+                <span>Family Contact Unlocked (સંપર્ક અનલોક)</span>
+            </div>
             <div class="contact-unlocked-banner" style="background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
-                <i class="fa-solid fa-comment-dots" style="font-size:18px;color:#1D7A44;flex-shrink:0;"></i>
+                <i class="fa-solid fa-shield-heart" style="font-size:18px;color:#1D7A44;flex-shrink:0;"></i>
                 <div style="font-size:12.5px;color:#065F46;line-height:1.45;">
-                    <b>Interest Accepted!</b> You are connected with ${escapeHtml(p.name)}. You can chat safely using the Message button below.
+                    <b>Interest Accepted!</b> Connection with ${escapeHtml(p.name)}'s family is verified. Direct WhatsApp &amp; Call options are unlocked below.
                 </div>
+            </div>
+            <div class="detail-row" style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:10px 14px;margin-bottom:12px;">
+                <div class="dlabel"><i class="fa-solid fa-phone" style="color:var(--primary);"></i> Father's Mobile</div>
+                <div class="dval" style="font-weight:700;color:var(--primary-dark);font-size:14px;">${escapeHtml(phone)}</div>
+            </div>
+            <div class="contact-btn-row" style="display:flex;gap:10px;margin-top:6px;">
+                <button class="contact-btn wa" style="flex:1;" onclick="quickWhatsApp('${escapeHtml(phone)}','${escapeHtml(p.name)}',${p.id})"><i class="fa-brands fa-whatsapp"></i> WhatsApp Father</button>
+                <button class="contact-btn call" style="flex:1;" onclick="quickCall('${escapeHtml(phone)}',${p.id})"><i class="fa-solid fa-phone"></i> Call Father</button>
             </div>
         </div>`;
     }
 
-    // LOCKED STATE (Interest not sent or pending or declined)
+    // Has father mobile registered, but resolving digits asynchronously from cloud
     return `
     <div id="profileFatherContactWrap">
         <div class="section-label" style="display:flex;align-items:center;gap:8px;">
-            <i class="fa-solid fa-lock" style="color:var(--accent-deep);"></i>
-            <span>Family Contact (Protected / ગુપ્ત)</span>
+            <i class="fa-solid fa-circle-check" style="color:var(--success);"></i>
+            <span>Family Contact Unlocked (સંપર્ક અનલોક)</span>
         </div>
-        <div class="contact-locked-box">
-            <div style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:800;color:#78350F;margin-bottom:6px;">
-                <i class="fa-solid fa-user-shield" style="font-size:16px;color:var(--accent-deep);"></i>
-                <span>Direct Contact Protected (સંપર્ક વિગત સુરક્ષિત છે)</span>
+        <div class="contact-unlocked-banner" style="background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+            <i class="fa-solid fa-shield-heart" style="font-size:18px;color:#1D7A44;flex-shrink:0;"></i>
+            <div style="font-size:12.5px;color:#065F46;line-height:1.45;">
+                <b>Interest Accepted!</b> Connection with ${escapeHtml(p.name)}'s family is verified. Direct WhatsApp &amp; Call options are unlocked below.
             </div>
-            <p style="font-size:12.5px;color:#78350F;line-height:1.55;margin:0 0 10px 0;">
-                To safeguard privacy and prevent unsolicited calls, direct communication unlocks <b>only after ${escapeHtml(p.name)} accepts your Interest Request</b>.
-            </p>
-            <div style="background:#F8F5FD;border:1px dashed var(--primary);border-radius:10px;padding:10px 12px;font-size:12px;color:#3E384C;line-height:1.5;">
-                <i class="fa-solid fa-shield-heart" style="color:var(--primary);margin-right:4px;"></i> <b>સુરક્ષા સ્પષ્ટતા:</b> પરિવાર અને દીકરીઓની સુરક્ષા માટે સંપર્ક વિગત ગુપ્ત રાખવામાં આવી છે. સામેવાળી વ્યક્તિ તમારી <b>"I'm interested"</b> રિક્વેસ્ટ સ્વીકારશે (Accept કરશે) ત્યારે ચેટ અનલોક થશે, અને ચેટિંગમાં પરસ્પર અનુકૂળતા લાગ્યા બાદ તમે દીકરીને પરિવાર વિશે પૂછી શકો છો અથવા દીકરી તમને જણાવી શકે છે.
-            </div>
+        </div>
+        <div class="contact-btn-row" style="display:flex;gap:10px;margin-top:6px;">
+            <button class="contact-btn wa" style="flex:1;" onclick="quickWhatsApp('','${escapeHtml(p.name)}',${p.id})"><i class="fa-brands fa-whatsapp"></i> WhatsApp Father</button>
+            <button class="contact-btn call" style="flex:1;" onclick="quickCall('',${p.id})"><i class="fa-solid fa-phone"></i> Call Father</button>
         </div>
     </div>`;
 }

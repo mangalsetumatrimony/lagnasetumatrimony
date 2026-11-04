@@ -2272,21 +2272,16 @@ async function supabaseSendInterest(senderProfile, receiverProfile) {
                 return { success: true, reason: 'already_pending' };
             }
 
-            // If reconnecting and a reverse disconnected record exists, clean it up
-            try {
-                await client
-                    .from('interests')
-                    .delete()
-                    .eq('sender_id', receiverId)
-                    .eq('receiver_id', senderId)
-                    .eq('status', 'disconnected');
-            } catch (_) {}
+            // If an existing interest record exists between these two users (e.g. disconnected or declined), reuse its ID to update in-place cleanly
+            if (existingInt && existingInt.id) {
+                interestRow.id = existingInt.id;
+            }
 
             const { data, error } = await client
                 .from('interests')
                 .upsert(interestRow, { onConflict: 'id' });
             if (error) console.warn('[Supabase] Interest upsert note:', error.message);
-            else console.info('[Supabase] Interest saved to database:', interestId);
+            else console.info('[Supabase] Interest saved to database:', interestRow.id);
         } catch (e) {
             if (e && e.message === 'DAILY_LIMIT_EXCEEDED') {
                 throw e;
@@ -2956,16 +2951,32 @@ async function supabaseSaveChatMessage(msgData) {
         // Reject message insertion if the connection between the two users is not currently 'accepted' in Supabase
         const sId = Number(msgData.senderId);
         const rId = Number(msgData.receiverId);
-        if (sId > 0 && rId > 0) {
-            const { data: intRow } = await client
-                .from('interests')
-                .select('status')
-                .or(`and(sender_id.eq.${sId},receiver_id.eq.${rId}),and(sender_id.eq.${rId},receiver_id.eq.${sId})`)
-                .maybeSingle();
+        const sEmail = (msgData.senderEmail || '').trim().toLowerCase();
 
-            if (!intRow || intRow.status !== 'accepted') {
-                console.warn('[Chat Security] Blocked unauthorized message insertion: Connection not accepted in database.');
-                return { success: false, error: 'CONNECTION_NOT_ACCEPTED' };
+        if ((sId > 0 && rId > 0) || (sEmail && rEmail)) {
+            let conditions = [];
+            if (sId > 0 && rId > 0) {
+                conditions.push(`and(sender_id.eq.${sId},receiver_id.eq.${rId})`);
+                conditions.push(`and(sender_id.eq.${rId},receiver_id.eq.${sId})`);
+            }
+            if (sEmail && rEmail && !sEmail.includes('•') && !rEmail.includes('•')) {
+                conditions.push(`and(sender_email.ilike.${sEmail},receiver_email.ilike.${rEmail})`);
+                conditions.push(`and(sender_email.ilike.${rEmail},receiver_email.ilike.${sEmail})`);
+            }
+            if (conditions.length > 0) {
+                const { data: intRows, error: intErr } = await client
+                    .from('interests')
+                    .select('status')
+                    .or(conditions.join(','))
+                    .limit(1);
+
+                if (!intErr && Array.isArray(intRows) && intRows.length > 0) {
+                    const isAccepted = intRows.some(row => row && row.status === 'accepted');
+                    if (!isAccepted) {
+                        console.warn('[Chat Security] Blocked unauthorized message insertion: Connection not accepted in database.');
+                        return { success: false, error: 'CONNECTION_NOT_ACCEPTED' };
+                    }
+                }
             }
         }
 
