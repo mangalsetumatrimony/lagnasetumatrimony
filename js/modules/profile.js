@@ -937,7 +937,7 @@ function renderFamilyDetailsSection(p) {
         ? interestStatusFor(p.id)
         : (typeof getEffectiveInterestStatus === 'function' ? getEffectiveInterestStatus(p.id) : null);
 
-    const isParentCreated = (p.profileCreatedBy === 'Parents' || p.created_by === 'Parents' || p.created_by === 'parents');
+    const isParentCreated = (p.profileCreatedBy === 'Parents' || p.created_by === 'Parents' || p.created_by === 'parents' || p.raw_data?.profileCreatedBy === 'Parents' || p.raw_data?.created_by === 'Parents');
     const createdByTag = isParentCreated 
         ? `<span class="profile-creator-tag parents" style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;background:rgba(16,185,129,0.12);color:#059669;display:inline-flex;align-items:center;gap:4px;"><i class="fa-solid fa-people-roof"></i> Managed by Parents (વાલી દ્વારા)</span>`
         : `<span class="profile-creator-tag self" style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;background:rgba(123,44,191,0.1);color:var(--primary);display:inline-flex;align-items:center;gap:4px;"><i class="fa-solid fa-user-check"></i> Candidate Self (પોતે)</span>`;
@@ -946,9 +946,15 @@ function renderFamilyDetailsSection(p) {
     const personTerm = isGirl ? 'દીકરીને' : 'ઉમેદવારને';
     const personSubject = isGirl ? 'દીકરી' : 'ઉમેદવાર';
 
-    const hasFather = Boolean(p.father && p.father !== '—' && p.father !== 'Father' && String(p.father).trim() !== '');
-    const hasMother = Boolean(p.mother && p.mother !== '—' && p.mother !== 'Mother' && String(p.mother).trim() !== '');
-    const hasFamilyDetails = hasFather || hasMother;
+    const isFamilyExplicitlyDisabled = (
+        p.familyDetailsEnabled === false ||
+        p.raw_data?.familyDetailsEnabled === false ||
+        p.raw_data?.family_details_enabled === false
+    );
+
+    const hasFather = !isFamilyExplicitlyDisabled && Boolean(p.father && p.father !== '—' && p.father !== 'Father' && String(p.father).trim() !== '');
+    const hasMother = !isFamilyExplicitlyDisabled && Boolean(p.mother && p.mother !== '—' && p.mother !== 'Mother' && String(p.mother).trim() !== '');
+    const hasFamilyDetails = !isFamilyExplicitlyDisabled && (hasFather || hasMother);
 
     if (unlocked) {
         if (!hasFamilyDetails) {
@@ -1118,9 +1124,14 @@ function renderFatherContactSection(p) {
     if (!p) return '';
     const isSelf = (typeof isSelfProfile === 'function') ? isSelfProfile(p) : false;
     const isContactUnlocked = isProfileDetailsUnlocked(p);
+    const isFamilyExplicitlyDisabled = (
+        p.familyDetailsEnabled === false ||
+        p.raw_data?.familyDetailsEnabled === false ||
+        p.raw_data?.family_details_enabled === false
+    );
 
     if (isSelf) {
-        const contactVal = p.fatherMobile || p.father_mobile || '';
+        const contactVal = isFamilyExplicitlyDisabled ? 'Hidden (Family details toggle OFF in Edit Profile)' : (p.fatherMobile || p.father_mobile || '');
         return `
         <div id="profileFatherContactWrap">
             <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
@@ -1137,6 +1148,18 @@ function renderFatherContactSection(p) {
     }
 
     if (isContactUnlocked) {
+        if (isFamilyExplicitlyDisabled) {
+            return `
+            <div id="profileFatherContactWrap">
+                <div class="contact-unlocked-banner" style="background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+                    <i class="fa-solid fa-comment-dots" style="font-size:18px;color:#1D7A44;flex-shrink:0;"></i>
+                    <div style="font-size:12.5px;color:#065F46;line-height:1.45;">
+                        <b>Interest Accepted!</b> You are connected with ${escapeHtml(p.name)}. You can chat safely using the Message button below.
+                    </div>
+                </div>
+            </div>`;
+        }
+
         // Resolve unmasked father mobile if already in cache or memory
         let phone = '';
         if (p.rawFatherMobile && !p.rawFatherMobile.includes('•')) {
