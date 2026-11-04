@@ -2966,12 +2966,14 @@ async function supabaseSaveChatMessage(msgData) {
             if (conditions.length > 0) {
                 const { data: intRows, error: intErr } = await client
                     .from('interests')
-                    .select('status')
+                    .select('status, updated_at')
                     .or(conditions.join(','))
-                    .limit(1);
+                    .order('updated_at', { ascending: false })
+                    .limit(5);
 
                 if (!intErr && Array.isArray(intRows) && intRows.length > 0) {
-                    const isAccepted = intRows.some(row => row && row.status === 'accepted');
+                    const latestRow = intRows[0];
+                    const isAccepted = latestRow && latestRow.status === 'accepted';
                     if (!isAccepted) {
                         console.warn('[Chat Security] Blocked unauthorized message insertion: Connection not accepted in database.');
                         return { success: false, error: 'CONNECTION_NOT_ACCEPTED' };
