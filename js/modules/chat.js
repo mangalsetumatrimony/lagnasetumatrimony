@@ -2868,7 +2868,7 @@ function handleIncomingRealtimeMessage(dbMsg) {
                 (async () => {
                     try {
                         const client = getSupabaseClient();
-                        let pQuery = client.from('profiles').select('id, name, email, user_id, img, photo, photos');
+                        let pQuery = client.from('profiles').select('id, name, email, user_id, img, photos, avatar_url');
                         if (peerEmail && !peerEmail.includes('•')) {
                             pQuery = pQuery.ilike('email', peerEmail);
                         } else if (canonicalPeerId) {
@@ -2878,7 +2878,7 @@ function handleIncomingRealtimeMessage(dbMsg) {
                         if (Array.isArray(dbProfs) && dbProfs.length > 0) {
                             const rawP = dbProfs[0];
                             const realName = rawP.name || '';
-                            const realImg = rawP.img || rawP.photo || (Array.isArray(rawP.photos) ? rawP.photos[0] : '');
+                            const realImg = rawP.img || rawP.avatar_url || (Array.isArray(rawP.photos) ? rawP.photos[0] : '');
                             if (realName && realName !== 'Community Match' && realName !== 'Member') {
                                 if (thread) {
                                     thread.name = realName;

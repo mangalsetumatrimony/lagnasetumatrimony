@@ -763,33 +763,54 @@ async function sendMatrimonialEmailNotification(params) {
 
   console.info(`[EmailService] 📧 Dispatching notification: "${type}" to: ${cleanEmail} | Subject: "${subject}"`);
 
+  // Sanitize photos: Never pass large base64 strings to EmailJS (strictly max 50KB payload limit)
+  function sanitizeEmailPhoto(url) {
+    if (!url || typeof url !== 'string') return '';
+    const clean = url.trim();
+    if (clean.startsWith('http://') || clean.startsWith('https://')) {
+      return clean;
+    }
+    return '';
+  }
+
+  const cleanSenderPhoto = sanitizeEmailPhoto(senderData?.photo || senderData?.img);
+  const cleanReceiverPhoto = sanitizeEmailPhoto(receiverData?.photo || receiverData?.img);
+
+  // Strip any inline base64 images from HTML content to guarantee lightweight payload
+  let safeHtml = (typeof html === 'string') ? html : '';
+  if (safeHtml.includes('data:image/')) {
+    safeHtml = safeHtml.replace(/<img[^>]+src=["']data:image\/[^"']+["'][^>]*>/gi, '');
+  }
+
   const templateParams = {
     to_email: cleanEmail,
-    recipient_email: cleanEmail,
-    user_email: cleanEmail,
     email: cleanEmail,
     to: cleanEmail,
     reply_to: EMAIL_CONFIG.fromEmail || 'mangalsetu.in@gmail.com',
     to_name: safeName,
-    recipient_name: safeName,
-    user_name: safeName,
     name: safeName,
     from_name: EMAIL_CONFIG.fromName,
     subject: subject,
-    message: html,
-    message_html: html,
-    html: html,
-    body: html,
-    content: html,
+    message: safeHtml,
+    message_html: safeHtml,
     sender_name: senderData?.name || '',
     sender_caste: senderData?.caste || '',
     sender_city: senderData?.city || '',
-    sender_photo: senderData?.photo || '',
+    sender_photo: cleanSenderPhoto,
     receiver_name: receiverData?.name || '',
     receiver_caste: receiverData?.caste || '',
     receiver_city: receiverData?.city || '',
-    receiver_photo: receiverData?.photo || ''
+    receiver_photo: cleanReceiverPhoto
   };
+
+  // Strict Payload Size Guard: EmailJS has a hard 50KB ceiling across all variables
+  try {
+    let payloadSize = JSON.stringify(templateParams).length;
+    if (payloadSize > 40000) {
+      templateParams.message = safeHtml.replace(/\s+/g, ' ').trim();
+      templateParams.message_html = templateParams.message;
+    }
+  } catch (_) {}
 
   let dispatchSuccess = false;
   let dispatchError = null;
