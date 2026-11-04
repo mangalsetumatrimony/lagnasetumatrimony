@@ -3558,25 +3558,57 @@ function supabaseSubscribeToUserChat(userId, userEmail, handlers = {}) {
     supabaseUnsubscribeUserChat();
 
     try {
-        const numId = Number(userId || 0);
-        const normEmail = (userEmail || '').trim().toLowerCase();
-        const myProfId = (typeof state !== 'undefined' && state.currentUser?.profileId) ? Number(state.currentUser.profileId) : 0;
-        const channelName = `realtime:chat:${numId || Date.now()}`;
+        const curUser = (typeof state !== 'undefined') ? state.currentUser : null;
+        const allMyIds = new Set();
+        if (userId) {
+            const c0 = Number(String(userId).replace(/\D/g, ''));
+            if (c0) allMyIds.add(c0);
+        }
+        if (curUser) {
+            if (curUser.id) {
+                const c1 = Number(String(curUser.id).replace(/\D/g, ''));
+                if (c1) allMyIds.add(c1);
+            }
+            if (curUser.userId) {
+                const c2 = Number(String(curUser.userId).replace(/\D/g, ''));
+                if (c2) allMyIds.add(c2);
+            }
+            if (curUser.profileId) {
+                const c3 = Number(String(curUser.profileId).replace(/\D/g, ''));
+                if (c3) allMyIds.add(c3);
+            }
+        }
+        const allMyEmails = new Set();
+        if (userEmail) allMyEmails.add(String(userEmail).trim().toLowerCase());
+        if (curUser && curUser.email) allMyEmails.add(String(curUser.email).trim().toLowerCase());
+        if (curUser && curUser.rawEmail) allMyEmails.add(String(curUser.rawEmail).trim().toLowerCase());
+
+        const primaryId = Array.from(allMyIds)[0] || Date.now();
+        const channelName = `realtime:chat:${primaryId}`;
+
+        function isForCurrentReceiver(row) {
+            if (!row) return false;
+            const recId = Number(row.receiver_id || 0);
+            const recEmail = (row.receiver_email || '').trim().toLowerCase();
+            return (recId && allMyIds.has(recId)) || (recEmail && allMyEmails.has(recEmail));
+        }
+
+        function isForCurrentSender(row) {
+            if (!row) return false;
+            const sendId = Number(row.sender_id || 0);
+            const sendEmail = (row.sender_email || '').trim().toLowerCase();
+            return (sendId && allMyIds.has(sendId)) || (sendEmail && allMyEmails.has(sendEmail));
+        }
+
+        function isRowForMe(row) {
+            return isForCurrentReceiver(row) || isForCurrentSender(row);
+        }
 
         userChatRealtimeChannel = client.channel(channelName)
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
                 const row = payload.new;
                 if (!row) return;
-                const recId = Number(row.receiver_id || 0);
-                const sendId = Number(row.sender_id || 0);
-                const recEmail = (row.receiver_email || '').trim().toLowerCase();
-                const sendEmail = (row.sender_email || '').trim().toLowerCase();
-
-                // Relevant to current user? (Check user ID, profile ID, and email)
-                const isForMe = (numId && (recId === numId || sendId === numId)) ||
-                                (myProfId && (recId === myProfId || sendId === myProfId)) ||
-                                (normEmail && (recEmail === normEmail || sendEmail === normEmail));
-                if (isForMe) {
+                if (isRowForMe(row)) {
                     if (typeof handlers.onNewMessage === 'function') {
                         handlers.onNewMessage(row);
                     }
@@ -3585,14 +3617,7 @@ function supabaseSubscribeToUserChat(userId, userEmail, handlers = {}) {
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, payload => {
                 const row = payload.new;
                 if (!row) return;
-                const recId = Number(row.receiver_id || 0);
-                const sendId = Number(row.sender_id || 0);
-                const recEmail = (row.receiver_email || '').trim().toLowerCase();
-                const sendEmail = (row.sender_email || '').trim().toLowerCase();
-                const isForMe = (numId && (recId === numId || sendId === numId)) ||
-                                (myProfId && (recId === myProfId || sendId === myProfId)) ||
-                                (normEmail && (recEmail === normEmail || sendEmail === normEmail));
-                if (isForMe) {
+                if (isRowForMe(row)) {
                     if (typeof handlers.onMessageUpdate === 'function') {
                         handlers.onMessageUpdate(row);
                     }
@@ -3606,15 +3631,7 @@ function supabaseSubscribeToUserChat(userId, userEmail, handlers = {}) {
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'interests' }, payload => {
                 const row = payload.new;
                 if (!row) return;
-                const recId = Number(row.receiver_id || 0);
-                const sendId = Number(row.sender_id || 0);
-                const recEmail = (row.receiver_email || '').trim().toLowerCase();
-                const sendEmail = (row.sender_email || '').trim().toLowerCase();
-
-                const isForMe = (numId && (recId === numId || sendId === numId)) ||
-                                (myProfId && (recId === myProfId || sendId === myProfId)) ||
-                                (normEmail && (recEmail === normEmail || sendEmail === normEmail));
-                if (isForMe) {
+                if (isRowForMe(row)) {
                     if (typeof handlers.onInterestUpdate === 'function') {
                         handlers.onInterestUpdate(row);
                     }
@@ -3623,14 +3640,13 @@ function supabaseSubscribeToUserChat(userId, userEmail, handlers = {}) {
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'interests' }, payload => {
                 const row = payload.new;
                 if (!row) return;
-                const recId = Number(row.receiver_id || 0);
-                const recEmail = (row.receiver_email || '').trim().toLowerCase();
-                const isForMe = (numId && recId === numId) ||
-                                (myProfId && recId === myProfId) ||
-                                (normEmail && recEmail === normEmail);
-                if (isForMe) {
+                if (isForCurrentReceiver(row)) {
                     if (typeof handlers.onInterestInsert === 'function') {
                         handlers.onInterestInsert(row);
+                    }
+                } else if (isForCurrentSender(row)) {
+                    if (typeof handlers.onInterestUpdate === 'function') {
+                        handlers.onInterestUpdate(row);
                     }
                 }
             })

@@ -937,7 +937,8 @@ function renderFamilyDetailsSection(p) {
         ? interestStatusFor(p.id)
         : (typeof getEffectiveInterestStatus === 'function' ? getEffectiveInterestStatus(p.id) : null);
 
-    const isParentCreated = (p.profileCreatedBy === 'Parents' || p.created_by === 'Parents' || p.created_by === 'parents' || p.raw_data?.profileCreatedBy === 'Parents' || p.raw_data?.created_by === 'Parents');
+    const createdByRaw = String(p.profileCreatedBy || p.created_by || p.raw_data?.profileCreatedBy || p.raw_data?.created_by || '').trim().toLowerCase();
+    const isParentCreated = createdByRaw === 'parents' || createdByRaw === 'parent' || createdByRaw.includes('parent') || createdByRaw.includes('વાલી');
     const createdByTag = isParentCreated 
         ? `<span class="profile-creator-tag parents" style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;background:rgba(16,185,129,0.12);color:#059669;display:inline-flex;align-items:center;gap:4px;"><i class="fa-solid fa-people-roof"></i> Managed by Parents (વાલી દ્વારા)</span>`
         : `<span class="profile-creator-tag self" style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;background:rgba(123,44,191,0.1);color:var(--primary);display:inline-flex;align-items:center;gap:4px;"><i class="fa-solid fa-user-check"></i> Candidate Self (પોતે)</span>`;
@@ -995,6 +996,37 @@ function renderFamilyDetailsSection(p) {
             </div>`;
         }
 
+        // Resolve unmasked father mobile if already in cache or memory
+        let phone = '';
+        if (p.rawFatherMobile && !p.rawFatherMobile.includes('•')) {
+            phone = p.rawFatherMobile;
+        } else if (p.fatherMobile && !p.fatherMobile.includes('•')) {
+            phone = p.fatherMobile;
+        } else if (p.father_mobile && !p.father_mobile.includes('•')) {
+            phone = p.father_mobile;
+        } else if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE && window.AUTHORIZED_CONTACT_CACHE.has(Number(p.id))) {
+            const cached = window.AUTHORIZED_CONTACT_CACHE.get(Number(p.id));
+            const cPhone = (cached && cached.fatherMobile && !cached.fatherMobile.includes('•')) ? cached.fatherMobile : (cached?.ownMobile && !cached.ownMobile.includes('•') ? cached.ownMobile : '');
+            if (cPhone) phone = cPhone;
+        }
+
+        const cleanDigits = String(phone || '').replace(/\D/g, '');
+        const hasValidPhone = cleanDigits.length >= 10;
+        const hasAnyFatherMobile = Boolean((p.fatherMobile && p.fatherMobile.trim()) || (p.father_mobile && p.father_mobile.trim()) || p.rawFatherMobile || hasValidPhone);
+
+        let contactButtonsHtml = '';
+        if (!isSelf && (hasValidPhone || hasAnyFatherMobile)) {
+            contactButtonsHtml = `
+            <div class="contact-btn-row" style="display:flex;gap:10px;margin-top:14px;padding-top:12px;border-top:1px dashed #E5E7EB;">
+                <button class="contact-btn wa" style="flex:1;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:12px;cursor:pointer;" onclick="quickWhatsApp('${escapeHtml(phone)}','${escapeHtml(p.name)}',${p.id})">
+                    <i class="fa-brands fa-whatsapp" style="font-size:18px;"></i> <span>WhatsApp Father</span>
+                </button>
+                <button class="contact-btn call" style="flex:1;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:12px;cursor:pointer;" onclick="quickCall('${escapeHtml(phone)}',${p.id})">
+                    <i class="fa-solid fa-phone" style="font-size:16px;"></i> <span>Call Father</span>
+                </button>
+            </div>`;
+        }
+
         return `
         <div id="profileFamilyDetailsWrap">
             <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
@@ -1013,6 +1045,7 @@ function renderFamilyDetailsSection(p) {
             <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-briefcase"></i> Occupation (વ્યવસાય)</div><div class="dval">${escapeHtml(p.motherOcc || p.mother_occ || '—')}</div></div>
             <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person"></i> Sister (બહેન)</div><div class="dval">${escapeHtml(p.sister || '—')}</div></div>
             <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person"></i> Brother (ભાઈ)</div><div class="dval">${escapeHtml(p.brother || '—')}</div></div>
+            ${contactButtonsHtml}
         </div>`;
     }
 
@@ -1121,105 +1154,9 @@ function renderLocationSection(p) {
 window.renderLocationSection = renderLocationSection;
 
 function renderFatherContactSection(p) {
-    if (!p) return '';
-    const isSelf = (typeof isSelfProfile === 'function') ? isSelfProfile(p) : false;
-    const isContactUnlocked = isProfileDetailsUnlocked(p);
-    const isFamilyExplicitlyDisabled = (
-        p.familyDetailsEnabled === false ||
-        p.raw_data?.familyDetailsEnabled === false ||
-        p.raw_data?.family_details_enabled === false
-    );
-
-    if (isSelf) {
-        const contactVal = isFamilyExplicitlyDisabled ? '' : (p.fatherMobile || p.father_mobile || '');
-        if (!contactVal || contactVal.trim() === '' || isFamilyExplicitlyDisabled) {
-            return `<div id="profileFatherContactWrap" style="display:none;"></div>`;
-        }
-        return `
-        <div id="profileFatherContactWrap">
-            <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
-                <span><i class="fa-solid fa-phone" style="color:var(--primary);margin-right:6px;"></i> Family Contact (પરિવાર સંપર્ક)</span>
-                <span class="privacy-unlocked-badge" style="background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE;"><i class="fa-solid fa-user-check"></i> Your Profile</span>
-            </div>
-            <div class="contact-unlocked-banner" style="background:var(--primary-light);border:1.5px solid rgba(123,44,191,0.2);border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
-                <i class="fa-solid fa-eye" style="font-size:16px;color:var(--primary);"></i>
-                <div style="font-size:12.5px;color:var(--primary-dark);line-height:1.45;">
-                    <b>Your Family Contact:</b> ${escapeHtml(contactVal)} (Protected — visible to others only upon accepted interest).
-                </div>
-            </div>
-        </div>`;
-    }
-
-    // ONLY SHOW IF INTEREST IS ACCEPTED (UNLOCKED) AND USER HAS ACTUALLY ADDED FAMILY CONTACT
-    if (!isContactUnlocked || isFamilyExplicitlyDisabled) {
-        return `<div id="profileFatherContactWrap" style="display:none;"></div>`;
-    }
-
-    // Resolve unmasked father mobile if already in cache or memory
-    let phone = '';
-    if (p.rawFatherMobile && !p.rawFatherMobile.includes('•')) {
-        phone = p.rawFatherMobile;
-    } else if (p.fatherMobile && !p.fatherMobile.includes('•')) {
-        phone = p.fatherMobile;
-    } else if (p.father_mobile && !p.father_mobile.includes('•')) {
-        phone = p.father_mobile;
-    } else if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE && window.AUTHORIZED_CONTACT_CACHE.has(Number(p.id))) {
-        const cached = window.AUTHORIZED_CONTACT_CACHE.get(Number(p.id));
-        const cPhone = (cached && cached.fatherMobile && !cached.fatherMobile.includes('•')) ? cached.fatherMobile : (cached?.ownMobile && !cached.ownMobile.includes('•') ? cached.ownMobile : '');
-        if (cPhone) phone = cPhone;
-    }
-
-    const cleanDigits = String(phone || '').replace(/\D/g, '');
-    const hasValidPhone = cleanDigits.length >= 10;
-    const hasAnyFatherMobile = Boolean((p.fatherMobile && p.fatherMobile.trim()) || (p.father_mobile && p.father_mobile.trim()) || p.rawFatherMobile || hasValidPhone);
-
-    // If candidate did NOT add father mobile / family contact details, do NOT show anything!
-    if (!hasValidPhone && !hasAnyFatherMobile) {
-        return `<div id="profileFatherContactWrap" style="display:none;"></div>`;
-    }
-
-    if (hasValidPhone) {
-        return `
-        <div id="profileFatherContactWrap">
-            <div class="section-label" style="display:flex;align-items:center;gap:8px;">
-                <i class="fa-solid fa-circle-check" style="color:var(--success);"></i>
-                <span>Family Contact Unlocked (સંપર્ક અનલોક)</span>
-            </div>
-            <div class="contact-unlocked-banner" style="background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
-                <i class="fa-solid fa-shield-heart" style="font-size:18px;color:#1D7A44;flex-shrink:0;"></i>
-                <div style="font-size:12.5px;color:#065F46;line-height:1.45;">
-                    <b>Interest Accepted!</b> Connection with ${escapeHtml(p.name)}'s family is verified. Direct WhatsApp &amp; Call options are unlocked below.
-                </div>
-            </div>
-            <div class="detail-row" style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:10px 14px;margin-bottom:12px;">
-                <div class="dlabel"><i class="fa-solid fa-phone" style="color:var(--primary);"></i> Father's Mobile</div>
-                <div class="dval" style="font-weight:700;color:var(--primary-dark);font-size:14px;">${escapeHtml(phone)}</div>
-            </div>
-            <div class="contact-btn-row" style="display:flex;gap:10px;margin-top:6px;">
-                <button class="contact-btn wa" style="flex:1;" onclick="quickWhatsApp('${escapeHtml(phone)}','${escapeHtml(p.name)}',${p.id})"><i class="fa-brands fa-whatsapp"></i> WhatsApp Father</button>
-                <button class="contact-btn call" style="flex:1;" onclick="quickCall('${escapeHtml(phone)}',${p.id})"><i class="fa-solid fa-phone"></i> Call Father</button>
-            </div>
-        </div>`;
-    }
-
-    // Has father mobile registered, but resolving digits asynchronously from cloud
-    return `
-    <div id="profileFatherContactWrap">
-        <div class="section-label" style="display:flex;align-items:center;gap:8px;">
-            <i class="fa-solid fa-circle-check" style="color:var(--success);"></i>
-            <span>Family Contact Unlocked (સંપર્ક અનલોક)</span>
-        </div>
-        <div class="contact-unlocked-banner" style="background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
-            <i class="fa-solid fa-shield-heart" style="font-size:18px;color:#1D7A44;flex-shrink:0;"></i>
-            <div style="font-size:12.5px;color:#065F46;line-height:1.45;">
-                <b>Interest Accepted!</b> Connection with ${escapeHtml(p.name)}'s family is verified. Direct WhatsApp &amp; Call options are unlocked below.
-            </div>
-        </div>
-        <div class="contact-btn-row" style="display:flex;gap:10px;margin-top:6px;">
-            <button class="contact-btn wa" style="flex:1;" onclick="quickWhatsApp('','${escapeHtml(p.name)}',${p.id})"><i class="fa-brands fa-whatsapp"></i> WhatsApp Father</button>
-            <button class="contact-btn call" style="flex:1;" onclick="quickCall('',${p.id})"><i class="fa-solid fa-phone"></i> Call Father</button>
-        </div>
-    </div>`;
+    // Action buttons are integrated directly inside Family details (renderFamilyDetailsSection)
+    // Hidden container preserved to avoid breaking legacy DOM references
+    return `<div id="profileFatherContactWrap" style="display:none;"></div>`;
 }
 window.renderFatherContactSection = renderFatherContactSection;
 
@@ -1411,6 +1348,10 @@ function openProfile(id) {
                     p.fullAddress = contact.fullAddress;
                     const addrEl = document.querySelector('#profileLocationWrap .detail-row [style*="max-width:60%"]');
                     if (addrEl) addrEl.textContent = contact.fullAddress;
+                }
+                const famWrap = document.getElementById('profileFamilyDetailsWrap');
+                if (famWrap && typeof renderFamilyDetailsSection === 'function') {
+                    famWrap.outerHTML = renderFamilyDetailsSection(p);
                 }
                 const wrap = document.getElementById('profileFatherContactWrap');
                 if (wrap && typeof renderFatherContactSection === 'function') {
@@ -1753,6 +1694,11 @@ function refreshProfileContactState(profileId) {
             if (discWrap) {
                 discWrap.style.display = isConnAccepted ? 'block' : 'none';
             }
+            // 6. Refresh Main Full Interest Button
+            const fullBtn = document.getElementById('fullInterestBtn');
+            if (fullBtn && typeof setInterestBtnState === 'function') {
+                setInterestBtnState(fullBtn, p.id);
+            }
             if (unlocked && typeof supabaseFetchAuthorizedContact === 'function') {
                 supabaseFetchAuthorizedContact(p.id).then(contact => {
                     if (contact) {
@@ -1771,6 +1717,10 @@ function refreshProfileContactState(profileId) {
                             p.fullAddress = contact.fullAddress;
                             const addrEl = document.querySelector('#profileLocationWrap .detail-row [style*="max-width:60%"]');
                             if (addrEl) addrEl.textContent = contact.fullAddress;
+                        }
+                        const updatedFamWrap = document.getElementById('profileFamilyDetailsWrap');
+                        if (updatedFamWrap && typeof renderFamilyDetailsSection === 'function') {
+                            updatedFamWrap.outerHTML = renderFamilyDetailsSection(p);
                         }
                         const updatedWrap = document.getElementById('profileFatherContactWrap');
                         if (updatedWrap && typeof renderFatherContactSection === 'function') {

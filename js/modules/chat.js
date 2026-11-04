@@ -2943,18 +2943,28 @@ function handleRealtimeInterestUpdate(dbInterest) {
     if (!dbInterest || !state.currentUser) return;
     const myIdStr = String(state.currentUser.id || '');
     const myProfId = (state.currentUser && state.currentUser.profileId) ? Number(state.currentUser.profileId) : 0;
-    const myCleanId = Number(myIdStr.replace(/\D/g, '')) || myProfId || 0;
+    const myUserId = (state.currentUser && state.currentUser.userId) ? Number(String(state.currentUser.userId).replace(/\D/g, '')) : 0;
+    const myCleanId = Number(myIdStr.replace(/\D/g, '')) || myProfId || myUserId || 0;
     const myEmail = (state.currentUser.email || '').trim().toLowerCase();
+    const myRawEmail = (state.currentUser.rawEmail || '').trim().toLowerCase();
 
     const sendId = Number(dbInterest.sender_id || 0);
     const recId = Number(dbInterest.receiver_id || 0);
     const sendEmail = (dbInterest.sender_email || '').trim().toLowerCase();
     const recEmail = (dbInterest.receiver_email || '').trim().toLowerCase();
 
-    const isMeSender = (myCleanId && sendId === myCleanId) || (myProfId && sendId === myProfId) || (myEmail && sendEmail && myEmail === sendEmail);
-    const isMeReceiver = (myCleanId && recId === myCleanId) || (myProfId && recId === myProfId) || (myEmail && recEmail && myEmail === recEmail);
+    const isMeSender = (myCleanId && sendId === myCleanId) || (myProfId && sendId === myProfId) || (myUserId && sendId === myUserId) ||
+                       (myEmail && sendEmail && myEmail === sendEmail) || (myRawEmail && sendEmail && myRawEmail === sendEmail);
+    const isMeReceiver = (myCleanId && recId === myCleanId) || (myProfId && recId === myProfId) || (myUserId && recId === myUserId) ||
+                         (myEmail && recEmail && myEmail === recEmail) || (myRawEmail && recEmail && myRawEmail === recEmail);
 
     if (!isMeSender && !isMeReceiver) return;
+
+    // If an interest request was received or updated to pending, trigger receiver notification immediately
+    if (isMeReceiver && dbInterest.status === 'pending') {
+        handleRealtimeInterestInsert(dbInterest);
+        return;
+    }
 
     const peerId = isMeSender ? recId : sendId;
 
@@ -3098,15 +3108,19 @@ function handleRealtimeInterestInsert(dbInterest) {
     if (!dbInterest || !state.currentUser) return;
     const myIdStr = String(state.currentUser.id || '');
     const myProfId = (state.currentUser && state.currentUser.profileId) ? Number(state.currentUser.profileId) : 0;
-    const myCleanId = Number(myIdStr.replace(/\D/g, '')) || myProfId || 0;
+    const myUserId = (state.currentUser && state.currentUser.userId) ? Number(String(state.currentUser.userId).replace(/\D/g, '')) : 0;
+    const myCleanId = Number(myIdStr.replace(/\D/g, '')) || myProfId || myUserId || 0;
     const myEmail = (state.currentUser.email || '').trim().toLowerCase();
+    const myRawEmail = (state.currentUser.rawEmail || '').trim().toLowerCase();
 
     const recId = Number(dbInterest.receiver_id || 0);
     const recEmail = (dbInterest.receiver_email || '').trim().toLowerCase();
 
     const isMeReceiver = (myCleanId && recId === myCleanId) ||
                          (myProfId && recId === myProfId) ||
-                         (myEmail && recEmail && myEmail === recEmail);
+                         (myUserId && recId === myUserId) ||
+                         (myEmail && recEmail && myEmail === recEmail) ||
+                         (myRawEmail && recEmail && myRawEmail === recEmail);
 
     if (isMeReceiver) {
         const pid = Number(dbInterest.sender_id);
@@ -3329,5 +3343,28 @@ if (typeof regFn === 'function') {
             }
         }
     });
+}
+
+// Instant sync on browser tab focus & visibility change (ensures 0-delay updates when testing across tabs)
+if (typeof window !== 'undefined') {
+    window.addEventListener('focus', () => {
+        if (typeof state !== 'undefined' && state.currentUser && state.currentUser.email) {
+            if (typeof syncUserChatAndInterests === 'function') {
+                syncUserChatAndInterests();
+            }
+        }
+    });
+
+    if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                if (typeof state !== 'undefined' && state.currentUser && state.currentUser.email) {
+                    if (typeof syncUserChatAndInterests === 'function') {
+                        syncUserChatAndInterests();
+                    }
+                }
+            }
+        });
+    }
 }
 
