@@ -314,7 +314,7 @@ async function submitProfileCompletion() {
 }
 
 var selectedUpiApp = 'Google Pay';
-window.RAZORPAY_KEY_ID = window.RAZORPAY_KEY_ID || 'rzp_test_TvbuB5B2Ts4muf';
+window.RAZORPAY_KEY_ID = window.RAZORPAY_KEY_ID || 'rzp_test_Tw25YYQHJqbeOA';
 
 function selectUpiApp(appName, el) {
     selectedUpiApp = appName;
