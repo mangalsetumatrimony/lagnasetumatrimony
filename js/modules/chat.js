@@ -915,9 +915,12 @@ async function syncUserChatAndInterests() {
                             }
                         }
 
-                        const key = pEmail || pid;
-                        if (!seenIn.has(key)) {
-                            seenIn.add(key);
+                        const pidKey = pid ? String(pid) : '';
+                        const emailKey = (pEmail && !pEmail.includes('•')) ? pEmail : '';
+                        const isAlreadySeen = (pidKey && seenIn.has(pidKey)) || (emailKey && seenIn.has(emailKey));
+                        if (!isAlreadySeen) {
+                            if (pidKey) seenIn.add(pidKey);
+                            if (emailKey) seenIn.add(emailKey);
                             r.profileId = pid;
                             mergedIn.push(r);
                         }
@@ -926,9 +929,12 @@ async function syncUserChatAndInterests() {
                         if (!lr) return;
                         const lPid = Number(lr.profileId || lr.senderId);
                         const lEmail = (lr.senderEmail || '').trim().toLowerCase();
-                        const lKey = lEmail || lPid;
-                        if (!seenIn.has(lKey)) {
-                            seenIn.add(lKey);
+                        const lPidKey = lPid ? String(lPid) : '';
+                        const lEmailKey = (lEmail && !lEmail.includes('•')) ? lEmail : '';
+                        const isAlreadySeen = (lPidKey && seenIn.has(lPidKey)) || (lEmailKey && seenIn.has(lEmailKey));
+                        if (!isAlreadySeen) {
+                            if (lPidKey) seenIn.add(lPidKey);
+                            if (lEmailKey) seenIn.add(lEmailKey);
                             mergedIn.push(lr);
                         }
                     });
@@ -972,20 +978,26 @@ async function syncUserChatAndInterests() {
                             }
                         }
 
-                        const key = pEmail || pid;
-                        if (!seenOut.has(key)) {
-                            seenOut.add(key);
+                        const pidKey = pid ? String(pid) : '';
+                        const emailKey = (pEmail && !pEmail.includes('•')) ? pEmail : '';
+                        const isAlreadySeen = (pidKey && seenOut.has(pidKey)) || (emailKey && seenOut.has(emailKey));
+                        if (!isAlreadySeen) {
+                            if (pidKey) seenOut.add(pidKey);
+                            if (emailKey) seenOut.add(emailKey);
                             r.profileId = pid;
                             mergedOut.push(r);
                         }
                     });
                     OUTGOING_REQUESTS.forEach(lr => {
                         if (!lr) return;
-                        const lPid = Number(lr.profileId);
+                        const lPid = Number(lr.profileId || lr.receiverId);
                         const lEmail = (lr.receiverEmail || '').trim().toLowerCase();
-                        const lKey = lEmail || lPid;
-                        if (!seenOut.has(lKey)) {
-                            seenOut.add(lKey);
+                        const lPidKey = lPid ? String(lPid) : '';
+                        const lEmailKey = (lEmail && !lEmail.includes('•')) ? lEmail : '';
+                        const isAlreadySeen = (lPidKey && seenOut.has(lPidKey)) || (lEmailKey && seenOut.has(lEmailKey));
+                        if (!isAlreadySeen) {
+                            if (lPidKey) seenOut.add(lPidKey);
+                            if (lEmailKey) seenOut.add(lEmailKey);
                             mergedOut.push(lr);
                         }
                     });
