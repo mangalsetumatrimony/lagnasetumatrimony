@@ -512,13 +512,29 @@ function populateEditProfile() {
     const brotherVal = (myProfile.brother && myProfile.brother !== '—' && myProfile.brother !== 'None') ? myProfile.brother : (state.currentUser?.brother && state.currentUser.brother !== 'None' ? state.currentUser.brother : '');
     if (brotherEl) brotherEl.value = brotherVal;
 
-    // Toggle Family Details based on whether user has existing family details
-    const hasFamilyDetails = Boolean(fNameVal || fOccVal || cleanFM || mNameVal || mOccVal || sisterVal || brotherVal);
+    // Toggle Family Details based on explicit flag and whether user has existing family details
+    const isFamilyExplicitlyDisabled = (
+        myProfile.familyDetailsEnabled === false ||
+        state.currentUser?.familyDetailsEnabled === false ||
+        myProfile.raw_data?.familyDetailsEnabled === false ||
+        myProfile.raw_data?.family_details_enabled === false
+    );
+
+    const hasFamilyDetails = !isFamilyExplicitlyDisabled && Boolean(
+        (fNameVal && fNameVal.trim() !== '' && fNameVal !== '—') ||
+        (fOccVal && fOccVal.trim() !== '' && fOccVal !== '—') ||
+        (cleanFM && cleanFM.trim() !== '') ||
+        (mNameVal && mNameVal.trim() !== '' && mNameVal !== '—') ||
+        (mOccVal && mOccVal.trim() !== '' && mOccVal !== '—') ||
+        (sisterVal && sisterVal.trim() !== '' && sisterVal !== '—' && sisterVal !== 'None') ||
+        (brotherVal && brotherVal.trim() !== '' && brotherVal !== '—' && brotherVal !== 'None')
+    );
+
     const tglEditFam = document.getElementById('tglEditFamily');
     const editFamContainer = document.getElementById('editFamilyInputsContainer');
     const editFamSubtext = document.getElementById('editFamilyToggleSubtext');
     if (tglEditFam && editFamContainer) {
-        if (hasFamilyDetails) {
+        if (!isFamilyExplicitlyDisabled && hasFamilyDetails) {
             tglEditFam.classList.add('on');
             editFamContainer.style.display = 'block';
             if (editFamSubtext) editFamSubtext.textContent = 'Family details enabled • Turn OFF if you wish to skip (પરિવારની વિગત ચાલુ છે • છુપાવવા માટે બંધ કરો)';
@@ -769,12 +785,13 @@ function saveEditProfile() {
         myProfile.income = incomeVal;
         myProfile.education = eduVal;
 
+        myProfile.familyDetailsEnabled = Boolean(isFamilyOn);
         myProfile.father = fatherNameVal;
         myProfile.fatherName = fatherNameVal;
         myProfile.father_name = fatherNameVal;
         myProfile.fatherOcc = fatherOccVal;
         myProfile.father_occ = fatherOccVal;
-        myProfile.fatherMobile = formatPhoneNumber(cleanFatherMobile);
+        myProfile.fatherMobile = cleanFatherMobile ? formatPhoneNumber(cleanFatherMobile) : '';
         myProfile.rawFatherMobile = cleanFatherMobile;
         myProfile.father_mobile = cleanFatherMobile;
         myProfile.mother = motherNameVal;
@@ -803,7 +820,29 @@ function saveEditProfile() {
             myProfile.photos = photos;
             myProfile.img = photos[0];
         }
-        myProfile.raw_data = { ...(myProfile.raw_data || {}), ...myProfile };
+        myProfile.raw_data = {
+            ...(myProfile.raw_data || {}),
+            ...myProfile,
+            familyDetailsEnabled: Boolean(isFamilyOn),
+            family_details_enabled: Boolean(isFamilyOn)
+        };
+        if (!isFamilyOn && myProfile.raw_data) {
+            myProfile.raw_data.father = '';
+            myProfile.raw_data.fatherName = '';
+            myProfile.raw_data.father_name = '';
+            myProfile.raw_data.fatherOcc = '';
+            myProfile.raw_data.father_occ = '';
+            myProfile.raw_data.fatherMobile = '';
+            myProfile.raw_data.rawFatherMobile = '';
+            myProfile.raw_data.father_mobile = '';
+            myProfile.raw_data.mother = '';
+            myProfile.raw_data.motherName = '';
+            myProfile.raw_data.mother_name = '';
+            myProfile.raw_data.motherOcc = '';
+            myProfile.raw_data.mother_occ = '';
+            myProfile.raw_data.sister = '—';
+            myProfile.raw_data.brother = '—';
+        }
     }
 
     if (state.currentUser) {
@@ -819,9 +858,22 @@ function saveEditProfile() {
         state.currentUser.income = incomeVal;
         state.currentUser.marital = maritalVal;
         state.currentUser.physical = physicalVal;
+        state.currentUser.familyDetailsEnabled = Boolean(isFamilyOn);
         state.currentUser.father = fatherNameVal;
         state.currentUser.fatherName = fatherNameVal;
         state.currentUser.father_name = fatherNameVal;
+        state.currentUser.fatherOcc = fatherOccVal;
+        state.currentUser.father_occ = fatherOccVal;
+        state.currentUser.fatherMobile = cleanFatherMobile ? formatPhoneNumber(cleanFatherMobile) : '';
+        state.currentUser.rawFatherMobile = cleanFatherMobile;
+        state.currentUser.father_mobile = cleanFatherMobile;
+        state.currentUser.mother = motherNameVal;
+        state.currentUser.motherName = motherNameVal;
+        state.currentUser.mother_name = motherNameVal;
+        state.currentUser.motherOcc = motherOccVal;
+        state.currentUser.mother_occ = motherOccVal;
+        state.currentUser.sister = sisterVal;
+        state.currentUser.brother = brotherVal;
         state.currentUser.fatherOcc = fatherOccVal;
         state.currentUser.father_occ = fatherOccVal;
         state.currentUser.fatherMobile = formatPhoneNumber(cleanFatherMobile);
@@ -881,12 +933,13 @@ function saveEditProfile() {
                 accounts[uIdx].income = incomeVal;
                 accounts[uIdx].marital = maritalVal;
                 accounts[uIdx].physical = physicalVal;
+                accounts[uIdx].familyDetailsEnabled = Boolean(isFamilyOn);
                 accounts[uIdx].father = fatherNameVal;
                 accounts[uIdx].fatherName = fatherNameVal;
                 accounts[uIdx].father_name = fatherNameVal;
                 accounts[uIdx].fatherOcc = fatherOccVal;
                 accounts[uIdx].father_occ = fatherOccVal;
-                accounts[uIdx].fatherMobile = formatPhoneNumber(cleanFatherMobile);
+                accounts[uIdx].fatherMobile = cleanFatherMobile ? formatPhoneNumber(cleanFatherMobile) : '';
                 accounts[uIdx].rawFatherMobile = cleanFatherMobile;
                 accounts[uIdx].father_mobile = cleanFatherMobile;
                 accounts[uIdx].mother = motherNameVal;

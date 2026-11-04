@@ -149,24 +149,24 @@ function mapProfileForSupabase(p) {
         physical: p.physical || 'Normal',
         community: p.community || p.caste || '',
         hobbies: Array.isArray(p.hobbies) ? p.hobbies : [],
-        father: p.father || p.father_name || p.fatherName || '',
-        father_name: p.father || p.father_name || p.fatherName || '',
-        father_occ: p.fatherOcc || p.father_occ || '',
-        father_mobile: (!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
+        father: p.familyDetailsEnabled === false ? '' : (p.father || p.father_name || p.fatherName || ''),
+        father_name: p.familyDetailsEnabled === false ? '' : (p.father || p.father_name || p.fatherName || ''),
+        father_occ: p.familyDetailsEnabled === false ? '' : (p.fatherOcc || p.father_occ || ''),
+        father_mobile: p.familyDetailsEnabled === false ? '' : ((!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
                        (!p.father_mobile?.includes('•') && p.father_mobile) ||
                        (!p.fatherMobile?.includes('•') && p.fatherMobile) ||
-                       '',
+                       ''),
         father_whatsapp: p.fatherWhatsapp !== false && p.father_whatsapp !== false,
         own_mobile: (!p.rawOwnMobile?.includes('•') && p.rawOwnMobile) ||
                     (!p.own_mobile?.includes('•') && p.own_mobile) ||
                     (!p.ownMobile?.includes('•') && p.ownMobile) ||
                     (!p.mobile?.includes('•') && p.mobile) ||
                     '',
-        mother: p.mother || p.mother_name || p.motherName || '',
-        mother_name: p.mother || p.mother_name || p.motherName || '',
-        mother_occ: p.motherOcc || p.mother_occ || '',
-        sister: p.sister || 'None',
-        brother: p.brother || 'None',
+        mother: p.familyDetailsEnabled === false ? '' : (p.mother || p.mother_name || p.motherName || ''),
+        mother_name: p.familyDetailsEnabled === false ? '' : (p.mother || p.mother_name || p.motherName || ''),
+        mother_occ: p.familyDetailsEnabled === false ? '' : (p.motherOcc || p.mother_occ || ''),
+        sister: p.familyDetailsEnabled === false ? '—' : (p.sister || 'None'),
+        brother: p.familyDetailsEnabled === false ? '—' : (p.brother || 'None'),
         village: p.village || p.city || '',
         taluka: p.taluka || '',
         district: p.district || '',
@@ -192,6 +192,8 @@ function mapProfileForSupabase(p) {
         featured: !!p.featured,
         raw_data: {
             ...p,
+            familyDetailsEnabled: p.familyDetailsEnabled !== false,
+            family_details_enabled: p.familyDetailsEnabled !== false,
             id: cleanId,
             userId: userIdStr,
             user_id: userIdStr,
@@ -441,22 +443,23 @@ function mapProfileFromSupabase(row, forAdmin = false) {
         physical: row.physical || raw.physical || 'Normal',
         profileCreatedBy: raw.profileCreatedBy || raw.created_by || (raw.fatherMobile || row.father_mobile ? 'Parents' : 'Self'),
         created_by: raw.profileCreatedBy || raw.created_by || (raw.fatherMobile || row.father_mobile ? 'Parents' : 'Self'),
+        familyDetailsEnabled: raw.familyDetailsEnabled !== false && raw.family_details_enabled !== false,
         community: row.community || raw.community || '',
         hobbies: Array.isArray(row.hobbies) ? row.hobbies : (raw.hobbies || []),
-        father: (row.father && String(row.father).trim()) || (raw.father && String(raw.father).trim()) || (raw.fatherName && String(raw.fatherName).trim()) || '',
-        fatherOcc: (row.father_occ && String(row.father_occ).trim()) || (raw.fatherOcc && String(raw.fatherOcc).trim()) || (raw.father_occ && String(raw.father_occ).trim()) || '',
-        fatherMobile: fatherMobile,
+        father: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : ((row.father && String(row.father).trim()) || (raw.father && String(raw.father).trim()) || (raw.fatherName && String(raw.fatherName).trim()) || ''),
+        fatherOcc: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : ((row.father_occ && String(row.father_occ).trim()) || (raw.fatherOcc && String(raw.fatherOcc).trim()) || (raw.father_occ && String(raw.father_occ).trim()) || ''),
+        fatherMobile: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : fatherMobile,
         ownMobile: ownMobile,
-        rawFatherMobile: canViewUnmasked ? rawFatherMobile : null,
+        rawFatherMobile: (canViewUnmasked && raw.familyDetailsEnabled !== false && raw.family_details_enabled !== false) ? rawFatherMobile : null,
         rawOwnMobile: canViewUnmasked ? rawOwnMobile : null,
         rawEmail: canViewUnmasked ? rawEmail : null,
         rawFullAddress: canViewUnmasked ? rawFullAddress : null,
         mobile: mobile,
         email: email,
-        mother: (row.mother && String(row.mother).trim()) || (raw.mother && String(raw.mother).trim()) || (raw.motherName && String(raw.motherName).trim()) || '',
-        motherOcc: (row.mother_occ && String(row.mother_occ).trim()) || (raw.motherOcc && String(raw.motherOcc).trim()) || (raw.mother_occ && String(raw.mother_occ).trim()) || '',
-        sister: (row.sister && String(row.sister).trim()) || (raw.sister && String(raw.sister).trim()) || '—',
-        brother: (row.brother && String(row.brother).trim()) || (raw.brother && String(raw.brother).trim()) || '—',
+        mother: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : ((row.mother && String(row.mother).trim()) || (raw.mother && String(raw.mother).trim()) || (raw.motherName && String(raw.motherName).trim()) || ''),
+        motherOcc: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : ((row.mother_occ && String(row.mother_occ).trim()) || (raw.motherOcc && String(raw.motherOcc).trim()) || (raw.mother_occ && String(raw.mother_occ).trim()) || ''),
+        sister: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '—' : ((row.sister && String(row.sister).trim()) || (raw.sister && String(raw.sister).trim()) || '—'),
+        brother: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '—' : ((row.brother && String(row.brother).trim()) || (raw.brother && String(raw.brother).trim()) || '—'),
         img: (function() {
             const isG = (row.gender === 'girls' || row.gender === 'girls' || row.gender === 'Girl' || (typeof isGirlGender === 'function' && isGirlGender(row.gender || raw.gender)));
             const def = isG ? 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=800&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=800&auto=format&fit=crop';
