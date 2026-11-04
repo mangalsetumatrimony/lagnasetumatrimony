@@ -1684,6 +1684,8 @@ function refreshProfileContactState(profileId) {
     if (state.activeProfileId && Number(state.activeProfileId) === pid) {
         const p = (typeof findProfile === 'function') ? findProfile(pid) : null;
         if (p) {
+            const unlocked = (typeof isProfileDetailsUnlocked === 'function') ? isProfileDetailsUnlocked(p) : false;
+
             // 1. Refresh Family details
             const famWrap = document.getElementById('profileFamilyDetailsWrap');
             if (famWrap && typeof renderFamilyDetailsSection === 'function') {
@@ -1697,7 +1699,6 @@ function refreshProfileContactState(profileId) {
             // 3. Refresh Hero Location text
             const heroLoc = document.getElementById('profileHeroLoc');
             if (heroLoc) {
-                const unlocked = (typeof isProfileDetailsUnlocked === 'function') ? isProfileDetailsUnlocked(p) : false;
                 if (unlocked) {
                     heroLoc.innerHTML = `<i class="fa-solid fa-location-dot"></i> ${escapeHtml(p.village || p.city || '')}${p.district ? ', ' + escapeHtml(p.district) : ''}`;
                 } else {
@@ -1715,7 +1716,7 @@ function refreshProfileContactState(profileId) {
             if (discWrap) {
                 discWrap.style.display = isConnAccepted ? 'block' : 'none';
             }
-            if (isUnlocked && typeof supabaseFetchAuthorizedContact === 'function') {
+            if (unlocked && typeof supabaseFetchAuthorizedContact === 'function') {
                 supabaseFetchAuthorizedContact(p.id).then(contact => {
                     if (contact) {
                         if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE) {

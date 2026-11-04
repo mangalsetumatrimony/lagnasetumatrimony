@@ -2,9 +2,9 @@
 window.INCOMING_REQUESTS = window.INCOMING_REQUESTS || [];
 window.OUTGOING_REQUESTS = window.OUTGOING_REQUESTS || [];
 window.CHAT_THREADS = window.CHAT_THREADS || [];
-let INCOMING_REQUESTS = window.INCOMING_REQUESTS;
-let OUTGOING_REQUESTS = window.OUTGOING_REQUESTS;
-let CHAT_THREADS = window.CHAT_THREADS;
+var INCOMING_REQUESTS = window.INCOMING_REQUESTS;
+var OUTGOING_REQUESTS = window.OUTGOING_REQUESTS;
+var CHAT_THREADS = window.CHAT_THREADS;
 
 // Immediate boot hydration from storage so interests never disappear on reload
 (function hydrateFromStorageImmediate() {
@@ -709,8 +709,13 @@ function setInboxTab(t) {
     state.inboxTab = t;
     const rT = document.getElementById('inboxTabRequests'), cT = document.getElementById('inboxTabChats');
     if (rT && cT) { rT.classList.toggle('active', t === 'requests'); cT.classList.toggle('active', t === 'chats'); }
-    renderInbox();
+    try {
+        renderInbox();
+    } catch (e) {
+        console.warn('[Inbox] setInboxTab render error:', e);
+    }
 }
+window.setInboxTab = setInboxTab;
 
 /**
  * Compute total unread count for badges (pending incoming requests + unread chat messages)
@@ -1117,17 +1122,6 @@ async function syncUserChatAndInterests() {
         }
     } catch (e) {
         console.warn('[Chat] syncUserChatAndInterests error:', e);
-    }
-}
-
-function setInboxTab(t) {
-    state.inboxTab = t;
-    const rT = document.getElementById('inboxTabRequests'), cT = document.getElementById('inboxTabChats');
-    if (rT && cT) { rT.classList.toggle('active', t === 'requests'); cT.classList.toggle('active', t === 'chats'); }
-    try {
-        renderInbox();
-    } catch (e) {
-        console.warn('[Inbox] setInboxTab render error:', e);
     }
 }
 
@@ -3222,6 +3216,8 @@ if (typeof showChatToast !== 'undefined') window.showChatToast = showChatToast;
 if (typeof openChatFromToast !== 'undefined') window.openChatFromToast = openChatFromToast;
 if (typeof closeChatToast !== 'undefined') window.closeChatToast = closeChatToast;
 if (typeof interestStatusFor !== 'undefined') window.interestStatusFor = interestStatusFor;
+if (typeof openInterestModal !== 'undefined') window.openInterestModal = openInterestModal;
+if (typeof setInterestBtnState !== 'undefined') window.setInterestBtnState = setInterestBtnState;
 if (typeof confirmSendInterest !== 'undefined') window.confirmSendInterest = confirmSendInterest;
 if (typeof acceptRequest !== 'undefined') window.acceptRequest = acceptRequest;
 if (typeof declineRequest !== 'undefined') window.declineRequest = declineRequest;

@@ -203,29 +203,29 @@ function go(id, replace = false) {
     }
 
     if (id === 'scr-home') {
-        renderHome();
-        updateHeaderUserDisplay();
+        if (typeof renderHome === 'function') renderHome();
+        if (typeof updateHeaderUserDisplay === 'function') updateHeaderUserDisplay();
         if (typeof triggerSilentProfilesSync === 'function') {
             triggerSilentProfilesSync(6000);
         }
     }
-    if (id === 'scr-browse') renderBrowse();
-    if (id === 'scr-favorites') renderFavorites();
-    if (id === 'scr-inbox') renderInbox();
+    if (id === 'scr-browse' && typeof renderBrowse === 'function') renderBrowse();
+    if (id === 'scr-favorites' && typeof renderFavorites === 'function') renderFavorites();
+    if (id === 'scr-inbox' && typeof renderInbox === 'function') renderInbox();
     if (id === 'scr-notifs') {
         if (typeof renderUserNotifs === 'function') renderUserNotifs();
         if (typeof markAllUserNotifsAsRead === 'function') {
             setTimeout(() => { markAllUserNotifsAsRead(true); }, 400);
         }
     }
-    if (id === 'scr-help') renderFaqs();
-    if (id === 'scr-howitworks') renderHowItWorks();
-    if (id === 'scr-membership') updateMembershipScreen();
-    if (id === 'scr-editprofile') populateEditProfile();
+    if (id === 'scr-help' && typeof renderFaqs === 'function') renderFaqs();
+    if (id === 'scr-howitworks' && typeof renderHowItWorks === 'function') renderHowItWorks();
+    if (id === 'scr-membership' && typeof updateMembershipScreen === 'function') updateMembershipScreen();
+    if (id === 'scr-editprofile' && typeof populateEditProfile === 'function') populateEditProfile();
     if (id === 'scr-welcome' && typeof renderSmartWelcomeScreen === 'function') renderSmartWelcomeScreen();
 
-    updateDesktopNav(id);
-    updateInboxBadge();
+    if (typeof updateDesktopNav === 'function') updateDesktopNav(id);
+    if (typeof updateInboxBadge === 'function') updateInboxBadge();
     if (typeof updateUserNotifBadge === 'function') updateUserNotifBadge();
     saveSessionState();
     window.scrollTo(0, 0);
