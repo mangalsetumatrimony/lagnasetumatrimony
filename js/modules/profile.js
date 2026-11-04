@@ -942,30 +942,49 @@ function renderFamilyDetailsSection(p) {
         ? `<span class="profile-creator-tag parents" style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;background:rgba(16,185,129,0.12);color:#059669;display:inline-flex;align-items:center;gap:4px;"><i class="fa-solid fa-people-roof"></i> Managed by Parents (વાલી દ્વારા)</span>`
         : `<span class="profile-creator-tag self" style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;background:rgba(123,44,191,0.1);color:var(--primary);display:inline-flex;align-items:center;gap:4px;"><i class="fa-solid fa-user-check"></i> Candidate Self (પોતે)</span>`;
 
-    const hasFather = Boolean(p.father && p.father !== '—' && p.father !== 'Father');
-    const hasMother = Boolean(p.mother && p.mother !== '—' && p.mother !== 'Mother');
+    const isGirl = typeof isGirlGender === 'function' ? isGirlGender(p.gender) : (p.gender === 'girls' || p.gender === 'Girl');
+    const personTerm = isGirl ? 'દીકરીને' : 'ઉમેદવારને';
+    const personSubject = isGirl ? 'દીકરી' : 'ઉમેદવાર';
+
+    const hasFather = Boolean(p.father && p.father !== '—' && p.father !== 'Father' && String(p.father).trim() !== '');
+    const hasMother = Boolean(p.mother && p.mother !== '—' && p.mother !== 'Mother' && String(p.mother).trim() !== '');
     const hasFamilyDetails = hasFather || hasMother;
 
     if (unlocked) {
         if (!hasFamilyDetails) {
-            // Unlocked, but girl created Self profile and hasn't filled family details yet
+            // Unlocked, but profile hasn't filled family details yet
+            const noticeContent = isParentCreated ? `
+                <div style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:800;color:#166534;margin-bottom:6px;">
+                    <i class="fa-solid fa-people-roof" style="color:#16A34A;"></i>
+                    <span>Managed by Parents (વાલી દ્વારા સંચાલિત)</span>
+                </div>
+                <div style="font-size:12.5px;color:#15803D;line-height:1.55;">
+                    <b>વાલી દ્વારા પરિવારની વિગતો પ્રોફાઇલમાં ઉમેરવામાં આવી નથી. ચેટિંગમાં પરસ્પર વાતચીત દ્વારા તમે વાલી/પરિવાર સાથે વિગતો જાણી શકો છો.</b>
+                </div>
+                <div style="font-size:11.5px;color:#166534;margin-top:4px;line-height:1.45;">
+                    Family details were not added in this profile. You can inquire directly in chat after connecting with the family.
+                </div>
+            ` : `
+                <div style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:800;color:#166534;margin-bottom:6px;">
+                    <i class="fa-solid fa-shield-heart" style="color:#16A34A;"></i>
+                    <span>Candidate Self Profile (ઉમેદવાર પોતે બનાવેલ પ્રોફાઇલ)</span>
+                </div>
+                <div style="font-size:12.5px;color:#15803D;line-height:1.55;">
+                    <b>ચેટિંગમાં પરસ્પર અનુકૂળતા લાગ્યા બાદ તમે ${personTerm} પરિવાર વિશે પૂછી શકો છો અથવા ${personSubject} તમને જણાવી શકે છે.</b>
+                </div>
+                <div style="font-size:11.5px;color:#166534;margin-top:4px;line-height:1.45;">
+                    In chat, after mutual comfort, you can ask the candidate about family or candidate can share details with you.
+                </div>
+            `;
+
             return `
             <div id="profileFamilyDetailsWrap">
                 <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
                     <span><i class="fa-solid fa-people-roof" style="color:var(--primary);margin-right:6px;"></i> Family details (પરિવાર વિગત)</span>
                     ${createdByTag}
                 </div>
-                <div style="background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:14px;padding:14px 16px;margin-top:6px;">
-                    <div style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:800;color:#166534;margin-bottom:6px;">
-                        <i class="fa-solid fa-shield-heart" style="color:#16A34A;"></i>
-                        <span>Candidate Self Profile (ઉમેદવાર પોતે બનાવેલ પ્રોફાઇલ)</span>
-                    </div>
-                    <div style="font-size:12.5px;color:#15803D;line-height:1.55;">
-                        <b>ચેટિંગમાં પરસ્પર અનુકૂળતા લાગ્યા બાદ તમે દીકરીને પરિવાર વિશે પૂછી શકો છો અથવા દીકરી તમને જણાવી શકે છે.</b>
-                    </div>
-                    <div style="font-size:11.5px;color:#166534;margin-top:4px;line-height:1.45;">
-                        In chat, after mutual comfort, you can ask the candidate about family or candidate can share details with you.
-                    </div>
+                <div style="background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:14px;padding:14px 16px;margin:8px 0 20px 0;">
+                    ${noticeContent}
                 </div>
             </div>`;
         }
@@ -1049,10 +1068,7 @@ function renderLocationSection(p) {
         <div id="profileLocationWrap">
             <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
                 <span><i class="fa-solid fa-map-location-dot" style="color:var(--primary);margin-right:6px;"></i> Location</span>
-                ${isSelf 
-                    ? `<span class="privacy-unlocked-badge" style="background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE;"><i class="fa-solid fa-user-check"></i> Your Profile</span>` 
-                    : `<span class="privacy-unlocked-badge"><i class="fa-solid fa-circle-check"></i> Unlocked</span>`
-                }
+                ${isSelf ? `<span class="privacy-unlocked-badge" style="background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE;"><i class="fa-solid fa-user-check"></i> Your Profile</span>` : ''}
             </div>
             <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-location-dot"></i> Village / City</div><div class="dval">${escapeHtml(p.village || p.city || '—')}</div></div>
             <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-map"></i> Taluka</div><div class="dval">${escapeHtml(p.taluka || '—')}</div></div>

@@ -443,8 +443,8 @@ function mapProfileFromSupabase(row, forAdmin = false) {
         created_by: raw.profileCreatedBy || raw.created_by || (raw.fatherMobile || row.father_mobile ? 'Parents' : 'Self'),
         community: row.community || raw.community || '',
         hobbies: Array.isArray(row.hobbies) ? row.hobbies : (raw.hobbies || []),
-        father: row.father || raw.father || '',
-        fatherOcc: row.father_occ || raw.fatherOcc || raw.father_occ || '',
+        father: (row.father && String(row.father).trim()) || (raw.father && String(raw.father).trim()) || (raw.fatherName && String(raw.fatherName).trim()) || '',
+        fatherOcc: (row.father_occ && String(row.father_occ).trim()) || (raw.fatherOcc && String(raw.fatherOcc).trim()) || (raw.father_occ && String(raw.father_occ).trim()) || '',
         fatherMobile: fatherMobile,
         ownMobile: ownMobile,
         rawFatherMobile: canViewUnmasked ? rawFatherMobile : null,
@@ -453,10 +453,10 @@ function mapProfileFromSupabase(row, forAdmin = false) {
         rawFullAddress: canViewUnmasked ? rawFullAddress : null,
         mobile: mobile,
         email: email,
-        mother: row.mother || raw.mother || '',
-        motherOcc: row.mother_occ || raw.motherOcc || raw.mother_occ || '',
-        sister: row.sister || raw.sister || '—',
-        brother: row.brother || raw.brother || '—',
+        mother: (row.mother && String(row.mother).trim()) || (raw.mother && String(raw.mother).trim()) || (raw.motherName && String(raw.motherName).trim()) || '',
+        motherOcc: (row.mother_occ && String(row.mother_occ).trim()) || (raw.motherOcc && String(raw.motherOcc).trim()) || (raw.mother_occ && String(raw.mother_occ).trim()) || '',
+        sister: (row.sister && String(row.sister).trim()) || (raw.sister && String(raw.sister).trim()) || '—',
+        brother: (row.brother && String(row.brother).trim()) || (raw.brother && String(raw.brother).trim()) || '—',
         img: (function() {
             const isG = (row.gender === 'girls' || row.gender === 'girls' || row.gender === 'Girl' || (typeof isGirlGender === 'function' && isGirlGender(row.gender || raw.gender)));
             const def = isG ? 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=800&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=800&auto=format&fit=crop';
