@@ -1017,7 +1017,7 @@ function renderFamilyDetailsSection(p) {
         let contactButtonsHtml = '';
         if (!isSelf && (hasValidPhone || hasAnyFatherMobile)) {
             contactButtonsHtml = `
-            <div class="contact-btn-row" style="display:flex;gap:10px;margin-top:14px;padding-top:12px;border-top:1px dashed #E5E7EB;">
+            <div class="contact-btn-row" style="display:flex;gap:10px;margin-top:14px;margin-bottom:18px;padding-top:12px;border-top:1px dashed #E5E7EB;">
                 <button class="contact-btn wa" style="flex:1;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:12px;cursor:pointer;" onclick="quickWhatsApp('${escapeHtml(phone)}','${escapeHtml(p.name)}',${p.id})">
                     <i class="fa-brands fa-whatsapp" style="font-size:18px;"></i> <span>WhatsApp Father</span>
                 </button>
