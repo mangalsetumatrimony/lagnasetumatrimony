@@ -233,14 +233,20 @@ function interestStatusFor(profileId) {
     const inc = Array.isArray(INCOMING_REQUESTS) ? INCOMING_REQUESTS.find(matchReq) : null;
     const thread = findChatThread(pid) || (Array.isArray(CHAT_THREADS) ? CHAT_THREADS.find(t => t && pEmail && t.peerEmail && t.peerEmail.trim().toLowerCase() === pEmail) : null);
 
-    // PRIORITY 1: Disconnected Match (Disconnection is absolute and revokes all access!)
-    if ((out && out.status === 'disconnected') || (inc && inc.status === 'disconnected')) {
-        return 'disconnected';
+    // PRIORITY 1: Explicit Accepted Match (Requests OR Active Chat Thread)
+    // If either party has an active accepted connection in database/requests, they are connected
+    if ((out && out.status === 'accepted') || (inc && inc.status === 'accepted')) {
+        return 'accepted';
     }
 
-    // PRIORITY 2: Explicit Accepted Match (Requests OR Active Chat Thread)
-    if ((out && out.status === 'accepted') || (inc && inc.status === 'accepted') || (thread && (!out || out.status !== 'disconnected') && (!inc || inc.status !== 'disconnected'))) {
+    // Active Chat Thread with no active disconnection
+    if (thread && (!out || out.status !== 'disconnected') && (!inc || inc.status !== 'disconnected')) {
         return 'accepted';
+    }
+
+    // PRIORITY 2: Disconnected Match (Disconnection takes precedence over old pending/declined)
+    if ((out && out.status === 'disconnected') || (inc && inc.status === 'disconnected')) {
+        return 'disconnected';
     }
 
     // PRIORITY 3: Declined Request
@@ -2227,16 +2233,23 @@ async function confirmDisconnectConnection(targetPid) {
                 }
             });
         }
+        const normPeerEmail = p?.email?.trim()?.toLowerCase() || p?.rawEmail?.trim()?.toLowerCase() || '';
         if (typeof INCOMING_REQUESTS !== 'undefined' && Array.isArray(INCOMING_REQUESTS)) {
             INCOMING_REQUESTS.forEach(i => {
-                if (Number(i.profileId) === numPid || Number(i.senderId) === numPid) {
+                const sEm = i.senderEmail?.trim()?.toLowerCase();
+                const rEm = i.receiverEmail?.trim()?.toLowerCase();
+                if (Number(i.profileId) === numPid || Number(i.senderId) === numPid || Number(i.receiverId) === numPid ||
+                    (normPeerEmail && (sEm === normPeerEmail || rEm === normPeerEmail))) {
                     i.status = 'disconnected';
                 }
             });
         }
         if (typeof OUTGOING_REQUESTS !== 'undefined' && Array.isArray(OUTGOING_REQUESTS)) {
             OUTGOING_REQUESTS.forEach(i => {
-                if (Number(i.profileId) === numPid || Number(i.receiverId) === numPid) {
+                const sEm = i.senderEmail?.trim()?.toLowerCase();
+                const rEm = i.receiverEmail?.trim()?.toLowerCase();
+                if (Number(i.profileId) === numPid || Number(i.senderId) === numPid || Number(i.receiverId) === numPid ||
+                    (normPeerEmail && (sEm === normPeerEmail || rEm === normPeerEmail))) {
                     i.status = 'disconnected';
                 }
             });
