@@ -38,6 +38,9 @@ WITH CHECK (true);
 -- 2. SECURE ADMIN CREDENTIAL VERIFICATION RPC
 -- Verifies admin password hash INSIDE PostgreSQL, preventing hash download to clients
 -- ------------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.admin_verify_credentials(TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.admin_verify_credentials;
+
 CREATE OR REPLACE FUNCTION public.admin_verify_credentials(p_email TEXT, p_hash TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -340,6 +343,9 @@ USING (id IS NOT NULL);
 -- ------------------------------------------------------------------------------
 -- 9. AUTHORIZED CONTACT UNLOCK RPC (Strict Interest-Accepted Verification)
 -- ------------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_authorized_contact(BIGINT, TEXT);
+DROP FUNCTION IF EXISTS public.get_authorized_contact;
+
 CREATE OR REPLACE FUNCTION public.get_authorized_contact(target_profile_id BIGINT, viewer_email TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -351,6 +357,7 @@ DECLARE
     is_matched BOOLEAN := FALSE;
     is_self BOOLEAN := FALSE;
     norm_viewer TEXT := LOWER(TRIM(COALESCE(viewer_email, '')));
+    is_family_disabled BOOLEAN := FALSE;
 BEGIN
     SELECT * INTO target_row FROM public.profiles WHERE id = target_profile_id;
     IF NOT FOUND THEN
@@ -360,6 +367,12 @@ BEGIN
     -- Check if viewer is viewing their own profile
     IF norm_viewer <> '' AND LOWER(TRIM(COALESCE(target_row.email, ''))) = norm_viewer THEN
         is_self := TRUE;
+    END IF;
+
+    -- Check if candidate has explicitly disabled family details in settings
+    IF (target_row.raw_data->>'familyDetailsEnabled')::text = 'false' OR
+       (target_row.raw_data->>'family_details_enabled')::text = 'false' THEN
+        is_family_disabled := TRUE;
     END IF;
 
     -- Check if mutual interest request has been ACCEPTED by both parties
@@ -376,9 +389,22 @@ BEGIN
     END IF;
 
     IF is_matched OR is_self THEN
+        -- If family details toggle is explicitly disabled by the candidate, father's mobile remains strictly hidden
+        IF NOT is_self AND is_family_disabled THEN
+            RETURN jsonb_build_object(
+                'authorized', true,
+                'father_mobile', NULL,
+                'family_details_enabled', false,
+                'own_mobile', target_row.own_mobile,
+                'email', target_row.email,
+                'message', 'Candidate has kept family contact details private. You may connect directly via in-app chat.'
+            );
+        END IF;
+
         RETURN jsonb_build_object(
             'authorized', true,
             'father_mobile', target_row.father_mobile,
+            'family_details_enabled', true,
             'own_mobile', target_row.own_mobile,
             'email', target_row.email,
             'full_address', target_row.full_address
@@ -387,6 +413,7 @@ BEGIN
         RETURN jsonb_build_object(
             'authorized', false,
             'father_mobile', NULL,
+            'family_details_enabled', NOT is_family_disabled,
             'message', 'Direct family contact details unlock only after Interest is accepted by member.'
         );
     END IF;
@@ -399,6 +426,9 @@ GRANT EXECUTE ON FUNCTION public.get_authorized_contact(BIGINT, TEXT) TO anon, a
 -- ------------------------------------------------------------------------------
 -- 10. PROTECTED ACCOUNT PURGE RPC (Block Rogue Anonymous Purging)
 -- ------------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.delete_user_account_completely(TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.delete_user_account_completely;
+
 CREATE OR REPLACE FUNCTION public.delete_user_account_completely(target_email TEXT, target_user_id TEXT DEFAULT NULL)
 RETURNS jsonb
 LANGUAGE plpgsql
