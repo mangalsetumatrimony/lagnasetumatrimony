@@ -233,14 +233,14 @@ function interestStatusFor(profileId) {
     const inc = Array.isArray(INCOMING_REQUESTS) ? INCOMING_REQUESTS.find(matchReq) : null;
     const thread = findChatThread(pid) || (Array.isArray(CHAT_THREADS) ? CHAT_THREADS.find(t => t && pEmail && t.peerEmail && t.peerEmail.trim().toLowerCase() === pEmail) : null);
 
-    // PRIORITY 1: Explicit Accepted Match (Requests OR Active Chat Thread)
-    if ((out && out.status === 'accepted') || (inc && inc.status === 'accepted') || (thread && (!out || out.status !== 'disconnected') && (!inc || inc.status !== 'disconnected'))) {
-        return 'accepted';
-    }
-
-    // PRIORITY 2: Disconnected Match
+    // PRIORITY 1: Disconnected Match (Disconnection is absolute and revokes all access!)
     if ((out && out.status === 'disconnected') || (inc && inc.status === 'disconnected')) {
         return 'disconnected';
+    }
+
+    // PRIORITY 2: Explicit Accepted Match (Requests OR Active Chat Thread)
+    if ((out && out.status === 'accepted') || (inc && inc.status === 'accepted') || (thread && (!out || out.status !== 'disconnected') && (!inc || inc.status !== 'disconnected'))) {
+        return 'accepted';
     }
 
     // PRIORITY 3: Declined Request
@@ -890,15 +890,29 @@ async function syncUserChatAndInterests() {
                         if (typeof isSelfProfile === 'function' && isSelfProfile(pid)) return;
                         if (typeof isUserPurged === 'function' && (isUserPurged(pid) || isUserPurged(pEmail))) return;
 
-                        // Security & Consistency Guard: If locally this connection was already accepted, NEVER downgrade to pending!
-                        const localAccepted = INCOMING_REQUESTS.find(lr => {
-                            if (!lr) return false;
-                            const lPid = Number(lr.profileId || lr.senderId);
-                            const lEmail = (lr.senderEmail || '').trim().toLowerCase();
-                            return ((pid && lPid === pid) || (pEmail && lEmail && pEmail === lEmail)) && lr.status === 'accepted';
-                        });
-                        if (localAccepted) {
-                            r.status = 'accepted';
+                        // Security & Consistency Guard: Database disconnection/declination takes absolute precedence!
+                        if (r.status === 'disconnected') {
+                            if (Array.isArray(CHAT_THREADS)) {
+                                CHAT_THREADS = CHAT_THREADS.filter(t => Number(t.profileId) !== pid && (!pEmail || t.peerEmail?.toLowerCase() !== pEmail));
+                            }
+                            if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE) {
+                                window.AUTHORIZED_CONTACT_CACHE.delete(pid);
+                            }
+                            const activeScreen = document.querySelector('.screen.active');
+                            if (activeScreen && activeScreen.id === 'scr-chat' && Number(state.activeChatId) === pid) {
+                                showToast('Connection ended. Chat closed.');
+                                go('scr-inbox', true);
+                            }
+                        } else if (r.status === 'pending') {
+                            const localAccepted = INCOMING_REQUESTS.find(lr => {
+                                if (!lr) return false;
+                                const lPid = Number(lr.profileId || lr.senderId);
+                                const lEmail = (lr.senderEmail || '').trim().toLowerCase();
+                                return ((pid && lPid === pid) || (pEmail && lEmail && pEmail === lEmail)) && lr.status === 'accepted';
+                            });
+                            if (localAccepted) {
+                                r.status = 'accepted';
+                            }
                         }
 
                         const key = pEmail || pid;
@@ -933,15 +947,29 @@ async function syncUserChatAndInterests() {
                         if (typeof isSelfProfile === 'function' && isSelfProfile(pid)) return;
                         if (typeof isUserPurged === 'function' && (isUserPurged(pid) || isUserPurged(pEmail))) return;
 
-                        // Security & Consistency Guard: If locally this connection was already accepted, NEVER downgrade to pending!
-                        const localAccepted = OUTGOING_REQUESTS.find(lr => {
-                            if (!lr) return false;
-                            const lPid = Number(lr.profileId || lr.receiverId);
-                            const lEmail = (lr.receiverEmail || '').trim().toLowerCase();
-                            return ((pid && lPid === pid) || (pEmail && lEmail && pEmail === lEmail)) && lr.status === 'accepted';
-                        });
-                        if (localAccepted) {
-                            r.status = 'accepted';
+                        // Security & Consistency Guard: Database disconnection/declination takes absolute precedence!
+                        if (r.status === 'disconnected') {
+                            if (Array.isArray(CHAT_THREADS)) {
+                                CHAT_THREADS = CHAT_THREADS.filter(t => Number(t.profileId) !== pid && (!pEmail || t.peerEmail?.toLowerCase() !== pEmail));
+                            }
+                            if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE) {
+                                window.AUTHORIZED_CONTACT_CACHE.delete(pid);
+                            }
+                            const activeScreen = document.querySelector('.screen.active');
+                            if (activeScreen && activeScreen.id === 'scr-chat' && Number(state.activeChatId) === pid) {
+                                showToast('Connection ended. Chat closed.');
+                                go('scr-inbox', true);
+                            }
+                        } else if (r.status === 'pending') {
+                            const localAccepted = OUTGOING_REQUESTS.find(lr => {
+                                if (!lr) return false;
+                                const lPid = Number(lr.profileId || lr.receiverId);
+                                const lEmail = (lr.receiverEmail || '').trim().toLowerCase();
+                                return ((pid && lPid === pid) || (pEmail && lEmail && pEmail === lEmail)) && lr.status === 'accepted';
+                            });
+                            if (localAccepted) {
+                                r.status = 'accepted';
+                            }
                         }
 
                         const key = pEmail || pid;
@@ -2510,9 +2538,21 @@ function sendChatMessage() {
             edited: false
         }).then(saveRes => {
             if (saveRes && saveRes.error) {
-                console.warn('[Chat] Supabase save error:', saveRes.error);
+                if (saveRes.error === 'CONNECTION_NOT_ACCEPTED') {
+                    showToast('Connection ended. Chat closed.');
+                    go('scr-inbox', true);
+                } else {
+                    console.warn('[Chat] Supabase save error:', saveRes.error);
+                }
             }
-        }).catch(e => console.warn('[Chat] Supabase save error:', e));
+        }).catch(e => {
+            if (e === 'CONNECTION_NOT_ACCEPTED' || e?.message === 'CONNECTION_NOT_ACCEPTED') {
+                showToast('Connection ended. Chat closed.');
+                go('scr-inbox', true);
+            } else {
+                console.warn('[Chat] Supabase save error:', e);
+            }
+        });
     }
 }
 
@@ -3029,19 +3069,44 @@ function handleRealtimeInterestUpdate(dbInterest) {
         }
     } else if (dbInterest.status === 'disconnected') {
         // Disconnected match handling in realtime
+        if (Array.isArray(OUTGOING_REQUESTS)) {
+            OUTGOING_REQUESTS.forEach(r => {
+                if (Number(r.profileId) === peerId || (peerEmail && r.receiverEmail?.toLowerCase() === peerEmail)) {
+                    r.status = 'disconnected';
+                }
+            });
+        }
+        if (Array.isArray(INCOMING_REQUESTS)) {
+            INCOMING_REQUESTS.forEach(r => {
+                if (Number(r.profileId) === peerId || Number(r.senderId) === peerId || (peerEmail && r.senderEmail?.toLowerCase() === peerEmail)) {
+                    r.status = 'disconnected';
+                }
+            });
+        }
+        if (Array.isArray(state.interests)) {
+            state.interests.forEach(r => {
+                if (Number(r.profileId) === peerId || Number(r.senderId) === peerId || Number(r.receiverId) === peerId ||
+                    (peerEmail && (r.senderEmail?.toLowerCase() === peerEmail || r.receiverEmail?.toLowerCase() === peerEmail))) {
+                    r.status = 'disconnected';
+                }
+            });
+        }
         CHAT_THREADS = CHAT_THREADS.filter(t => Number(t.profileId) !== peerId && (!peerEmail || t.peerEmail?.toLowerCase() !== peerEmail.toLowerCase()));
+        if (typeof window !== 'undefined') window.CHAT_THREADS = CHAT_THREADS;
         if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE) {
             window.AUTHORIZED_CONTACT_CACHE.delete(peerId);
         }
         if (peerProf) {
             peerProf.fatherMobile = '••••••';
             peerProf.ownMobile = '••••••';
+            peerProf.rawFatherMobile = '••••••';
+            peerProf.rawOwnMobile = '••••••';
         }
-        const activeScreen = document.querySelector('.screen.active');
-        if (activeScreen && activeScreen.id === 'scr-chat' && Number(state.activeChatId) === peerId) {
+        const isChatScreen = (document.getElementById('scr-chat')?.classList.contains('active')) && (Number(state.activeChatId) === peerId || String(state.activeChatId) === String(peerId));
+        if (isChatScreen) {
             showToast(`${resolvedName} ended the connection. Chat closed.`);
             go('scr-inbox', true);
-        } else if (activeScreen && activeScreen.id === 'scr-profile') {
+        } else if (document.getElementById('scr-profile')?.classList.contains('active')) {
             const curViewId = window.currentViewingProfileId || state.activeProfileId;
             if (Number(curViewId) === peerId) {
                 if (typeof refreshProfileContactState === 'function') {
@@ -3052,6 +3117,9 @@ function handleRealtimeInterestUpdate(dbInterest) {
                 const discWrap = document.getElementById('profileDisconnectActionWrap');
                 if (discWrap) discWrap.style.display = 'none';
             }
+        }
+        if (document.getElementById('scr-inbox')?.classList.contains('active')) {
+            renderInbox();
         }
     }
 

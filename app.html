@@ -1300,6 +1300,40 @@
                 <input type="file" id="editPhotoSlotInput" accept="image/*" style="display:none;"
                     onchange="handleEditPhotoSlotSelect(event)">
 
+                <!-- Profile Managed By Selection (Myself vs Parents) - Dual Language -->
+                <div class="field" id="editProfileCreatedByFieldWrap" style="margin-top:14px;margin-bottom:16px;">
+                    <label style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                        <span>Profile managed by (પ્રોફાઇલ કોના દ્વારા સંચાલિત છે?) <span style="color:var(--error);">*</span></span>
+                        <span style="font-size:11px;font-weight:700;color:var(--primary);"><i class="fa-solid fa-id-card"></i> Candidate / Parents</span>
+                    </label>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="editProfileCreatedByGrid">
+                        <!-- Myself Card -->
+                        <div class="profile-for-card active-pick" id="editCreatedForSelf" onclick="pickEditProfileCreatedBy('Self')"
+                            style="border:2px solid var(--primary);border-radius:14px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--primary-light);transition:all 0.2s ease;">
+                            <div style="width:36px;height:36px;border-radius:50%;background:rgba(123,44,191,0.15);display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:17px;flex-shrink:0;">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <div style="flex:1;">
+                                <div style="font-weight:700;font-size:13.5px;color:var(--text);">Myself (પોતે)</div>
+                                <div style="font-size:11px;color:var(--text-muted);line-height:1.2;">Candidate Self</div>
+                            </div>
+                            <i class="fa-solid fa-circle-check" id="editCreatedCheckSelf" style="color:var(--primary);font-size:16px;"></i>
+                        </div>
+                        <!-- Parents Card -->
+                        <div class="profile-for-card" id="editCreatedForParents" onclick="pickEditProfileCreatedBy('Parents')"
+                            style="border:2px solid var(--border);border-radius:14px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;background:#fff;transition:all 0.2s ease;">
+                            <div style="width:36px;height:36px;border-radius:50%;background:rgba(16,185,129,0.12);display:flex;align-items:center;justify-content:center;color:#059669;font-size:17px;flex-shrink:0;">
+                                <i class="fa-solid fa-people-roof"></i>
+                            </div>
+                            <div style="flex:1;">
+                                <div style="font-weight:700;font-size:13.5px;color:var(--text);">Parents (વાલી)</div>
+                                <div style="font-size:11px;color:var(--text-muted);line-height:1.2;">Father / Mother</div>
+                            </div>
+                            <i class="fa-solid fa-circle-check" id="editCreatedCheckParents" style="color:transparent;font-size:16px;"></i>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="section-label">Personal details</div>
                 <div class="edit-profile-grid">
                     <div class="field"><label>Full name</label><input class="input" id="editFullName"
@@ -2956,32 +2990,32 @@
     <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Core & State -->
-    <script src="js/core/state.js?v=7.8"></script>
-    <script src="js/core/supabase-client.js?v=7.8"></script>
+    <script src="js/core/state.js?v=7.9"></script>
+    <script src="js/core/supabase-client.js?v=7.9"></script>
     <!-- EmailJS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script src="js/services/email-service.js?v=7.8"></script>
-    <script src="js/core/router.js?v=7.8"></script>
+    <script src="js/services/email-service.js?v=7.9"></script>
+    <script src="js/core/router.js?v=7.9"></script>
     <!-- Utilities (Loaded before Data Modules so escapeHtml & helpers are available globally) -->
-    <script src="js/utils/helpers.js?v=7.8"></script>
-    <script src="js/utils/pwa.js?v=7.8"></script>
-    <script src="js/utils/cloudinary.js?v=7.8"></script>
-    <script src="js/utils/cropper.js?v=7.8"></script>
-    <script src="js/utils/datepicker.js?v=7.8"></script>
+    <script src="js/utils/helpers.js?v=7.9"></script>
+    <script src="js/utils/pwa.js?v=7.9"></script>
+    <script src="js/utils/cloudinary.js?v=7.9"></script>
+    <script src="js/utils/cropper.js?v=7.9"></script>
+    <script src="js/utils/datepicker.js?v=7.9"></script>
     <!-- Data Modules -->
-    <script src="js/data/castes.js?v=7.8"></script>
-    <script src="js/data/help-content.js?v=7.8"></script>
-    <script src="js/data/profiles.js?v=7.8"></script>
+    <script src="js/data/castes.js?v=7.9"></script>
+    <script src="js/data/help-content.js?v=7.9"></script>
+    <script src="js/data/profiles.js?v=7.9"></script>
     <!-- Application Modules -->
-    <script src="js/modules/auth.js?v=7.8"></script>
-    <script src="js/modules/browse.js?v=7.8"></script>
-    <script src="js/modules/chat.js?v=7.8"></script>
-    <script src="js/modules/profile.js?v=7.8"></script>
-    <script src="js/modules/notifications.js?v=7.8"></script>
+    <script src="js/modules/auth.js?v=7.9"></script>
+    <script src="js/modules/browse.js?v=7.9"></script>
+    <script src="js/modules/chat.js?v=7.9"></script>
+    <script src="js/modules/profile.js?v=7.9"></script>
+    <script src="js/modules/notifications.js?v=7.9"></script>
     <!-- Application Entrypoint -->
-    <script src="js/app.js?v=7.8"></script>
+    <script src="js/app.js?v=7.9"></script>
     <!-- Privacy & Anti-Inspect Security Guard -->
-    <script src="js/utils/security-guard.js?v=7.8"></script>
+    <script src="js/utils/security-guard.js?v=7.9"></script>
 
 </body>
 

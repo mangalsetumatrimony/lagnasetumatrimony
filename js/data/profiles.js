@@ -83,29 +83,56 @@ async function syncProfilesFromSupabase(force = false, silent = false) {
                     if (myProf.marital !== undefined) state.currentUser.marital = myProf.marital || 'Unmarried';
                     if (myProf.physical !== undefined) state.currentUser.physical = myProf.physical || 'Normal';
                     if (Array.isArray(myProf.hobbies)) state.currentUser.hobbies = myProf.hobbies;
-                    if (myProf.father !== undefined || myProf.fatherName !== undefined) {
-                        state.currentUser.father = myProf.father || myProf.fatherName || '';
-                        state.currentUser.fatherName = myProf.father || myProf.fatherName || '';
+
+                    const isFamDisabled = (
+                        myProf.familyDetailsEnabled === false ||
+                        myProf.raw_data?.familyDetailsEnabled === false ||
+                        myProf.raw_data?.family_details_enabled === false
+                    );
+                    state.currentUser.familyDetailsEnabled = !isFamDisabled;
+
+                    if (myProf.profileCreatedBy !== undefined || myProf.created_by !== undefined) {
+                        state.currentUser.profileCreatedBy = myProf.profileCreatedBy || myProf.created_by || 'Self';
+                        state.currentUser.created_by = myProf.profileCreatedBy || myProf.created_by || 'Self';
                     }
-                    if (myProf.fatherOcc !== undefined) state.currentUser.fatherOcc = myProf.fatherOcc || '';
-                    const cleanIncomingFM = (!String(myProf.rawFatherMobile || '').includes('•') && myProf.rawFatherMobile) ||
-                                            (!String(myProf.father_mobile || '').includes('•') && myProf.father_mobile) ||
-                                            (!String(myProf.fatherMobile || '').includes('•') && myProf.fatherMobile) ||
-                                            (!String(myProf.raw_data?.rawFatherMobile || '').includes('•') && myProf.raw_data?.rawFatherMobile) ||
-                                            (!String(myProf.raw_data?.father_mobile || '').includes('•') && myProf.raw_data?.father_mobile) ||
-                                            (!String(myProf.raw_data?.fatherMobile || '').includes('•') && myProf.raw_data?.fatherMobile);
-                    if (cleanIncomingFM) {
-                        state.currentUser.fatherMobile = cleanIncomingFM;
-                        state.currentUser.rawFatherMobile = cleanIncomingFM;
-                        state.currentUser.father_mobile = cleanIncomingFM;
+
+                    if (isFamDisabled) {
+                        state.currentUser.father = '';
+                        state.currentUser.fatherName = '';
+                        state.currentUser.fatherOcc = '';
+                        state.currentUser.fatherMobile = '';
+                        state.currentUser.rawFatherMobile = '';
+                        state.currentUser.father_mobile = '';
+                        state.currentUser.mother = '';
+                        state.currentUser.motherName = '';
+                        state.currentUser.motherOcc = '';
+                        state.currentUser.sister = '—';
+                        state.currentUser.brother = '—';
+                    } else {
+                        if (myProf.father !== undefined || myProf.fatherName !== undefined) {
+                            state.currentUser.father = myProf.father || myProf.fatherName || '';
+                            state.currentUser.fatherName = myProf.father || myProf.fatherName || '';
+                        }
+                        if (myProf.fatherOcc !== undefined) state.currentUser.fatherOcc = myProf.fatherOcc || '';
+                        const cleanIncomingFM = (!String(myProf.rawFatherMobile || '').includes('•') && myProf.rawFatherMobile) ||
+                                                (!String(myProf.father_mobile || '').includes('•') && myProf.father_mobile) ||
+                                                (!String(myProf.fatherMobile || '').includes('•') && myProf.fatherMobile) ||
+                                                (!String(myProf.raw_data?.rawFatherMobile || '').includes('•') && myProf.raw_data?.rawFatherMobile) ||
+                                                (!String(myProf.raw_data?.father_mobile || '').includes('•') && myProf.raw_data?.father_mobile) ||
+                                                (!String(myProf.raw_data?.fatherMobile || '').includes('•') && myProf.raw_data?.fatherMobile);
+                        if (cleanIncomingFM) {
+                            state.currentUser.fatherMobile = cleanIncomingFM;
+                            state.currentUser.rawFatherMobile = cleanIncomingFM;
+                            state.currentUser.father_mobile = cleanIncomingFM;
+                        }
+                        if (myProf.mother !== undefined || myProf.motherName !== undefined) {
+                            state.currentUser.mother = myProf.mother || myProf.motherName || '';
+                            state.currentUser.motherName = myProf.mother || myProf.motherName || '';
+                        }
+                        if (myProf.motherOcc !== undefined) state.currentUser.motherOcc = myProf.motherOcc || '';
+                        if (myProf.sister !== undefined) state.currentUser.sister = myProf.sister || 'None';
+                        if (myProf.brother !== undefined) state.currentUser.brother = myProf.brother || 'None';
                     }
-                    if (myProf.mother !== undefined || myProf.motherName !== undefined) {
-                        state.currentUser.mother = myProf.mother || myProf.motherName || '';
-                        state.currentUser.motherName = myProf.mother || myProf.motherName || '';
-                    }
-                    if (myProf.motherOcc !== undefined) state.currentUser.motherOcc = myProf.motherOcc || '';
-                    if (myProf.sister !== undefined) state.currentUser.sister = myProf.sister || 'None';
-                    if (myProf.brother !== undefined) state.currentUser.brother = myProf.brother || 'None';
                     if (myProf.village !== undefined || myProf.city !== undefined) {
                         state.currentUser.village = myProf.village || myProf.city || '';
                         state.currentUser.city = myProf.village || myProf.city || '';

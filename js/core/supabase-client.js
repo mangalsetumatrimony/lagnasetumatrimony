@@ -441,8 +441,8 @@ function mapProfileFromSupabase(row, forAdmin = false) {
         weight: row.weight || raw.weight || '',
         marital: row.marital || raw.marital || 'Unmarried',
         physical: row.physical || raw.physical || 'Normal',
-        profileCreatedBy: raw.profileCreatedBy || raw.created_by || (raw.fatherMobile || row.father_mobile ? 'Parents' : 'Self'),
-        created_by: raw.profileCreatedBy || raw.created_by || (raw.fatherMobile || row.father_mobile ? 'Parents' : 'Self'),
+        profileCreatedBy: (raw.profileCreatedBy || raw.created_by || 'Self'),
+        created_by: (raw.profileCreatedBy || raw.created_by || 'Self'),
         familyDetailsEnabled: raw.familyDetailsEnabled !== false && raw.family_details_enabled !== false,
         community: row.community || raw.community || '',
         hobbies: Array.isArray(row.hobbies) ? row.hobbies : (raw.hobbies || []),
@@ -3321,7 +3321,7 @@ async function supabaseDisconnectConnection(myId, peerId, myEmail, peerEmail) {
             const intQuery = client.from('interests').update({
                 status: 'disconnected',
                 updated_at: new Date().toISOString()
-            }).or(compositeFilter);
+            }).or(compositeFilter).select();
 
             // 2. Permanently delete all chat messages between the two users
             const msgQuery = client.from('messages').delete().or(compositeFilter);

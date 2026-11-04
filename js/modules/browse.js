@@ -309,15 +309,49 @@ function getCurrentUserProfile() {
         if (!myProfile.marital && src.marital) myProfile.marital = src.marital;
         if (!myProfile.physical && src.physical) myProfile.physical = src.physical;
         if ((!myProfile.hobbies || !myProfile.hobbies.length) && Array.isArray(src.hobbies)) myProfile.hobbies = src.hobbies;
-        if (!myProfile.father && (src.father || src.fatherName || src.father_name)) myProfile.father = src.father || src.fatherName || src.father_name;
-        if (!myProfile.fatherName && (src.father || src.fatherName || src.father_name)) myProfile.fatherName = src.father || src.fatherName || src.father_name;
-        if (!myProfile.fatherOcc && (src.fatherOcc || src.father_occ)) myProfile.fatherOcc = src.fatherOcc || src.father_occ;
-        if (!myProfile.father_occ && (src.fatherOcc || src.father_occ)) myProfile.father_occ = src.fatherOcc || src.father_occ;
 
-        if (cleanFM) {
-            myProfile.rawFatherMobile = cleanFM;
-            myProfile.father_mobile = cleanFM;
-            myProfile.fatherMobile = (typeof formatPhoneNumber === 'function') ? formatPhoneNumber(cleanFM) : cleanFM;
+        const isFamDisabled = (
+            myProfile.familyDetailsEnabled === false ||
+            myProfile.family_details_enabled === false ||
+            myProfile.raw_data?.familyDetailsEnabled === false ||
+            myProfile.raw_data?.family_details_enabled === false ||
+            src.familyDetailsEnabled === false ||
+            src.family_details_enabled === false
+        );
+
+        if (isFamDisabled) {
+            myProfile.familyDetailsEnabled = false;
+            myProfile.father = '';
+            myProfile.fatherName = '';
+            myProfile.fatherOcc = '';
+            myProfile.father_occ = '';
+            myProfile.fatherMobile = '';
+            myProfile.rawFatherMobile = '';
+            myProfile.father_mobile = '';
+            myProfile.mother = '';
+            myProfile.motherName = '';
+            myProfile.motherOcc = '';
+            myProfile.mother_occ = '';
+            myProfile.sister = '—';
+            myProfile.brother = '—';
+        } else {
+            if (!myProfile.father && (src.father || src.fatherName || src.father_name)) myProfile.father = src.father || src.fatherName || src.father_name;
+            if (!myProfile.fatherName && (src.father || src.fatherName || src.father_name)) myProfile.fatherName = src.father || src.fatherName || src.father_name;
+            if (!myProfile.fatherOcc && (src.fatherOcc || src.father_occ)) myProfile.fatherOcc = src.fatherOcc || src.father_occ;
+            if (!myProfile.father_occ && (src.fatherOcc || src.father_occ)) myProfile.father_occ = src.fatherOcc || src.father_occ;
+
+            if (cleanFM) {
+                myProfile.rawFatherMobile = cleanFM;
+                myProfile.father_mobile = cleanFM;
+                myProfile.fatherMobile = (typeof formatPhoneNumber === 'function') ? formatPhoneNumber(cleanFM) : cleanFM;
+            }
+
+            if (!myProfile.mother && (src.mother || src.motherName || src.mother_name)) myProfile.mother = src.mother || src.motherName || src.mother_name;
+            if (!myProfile.motherName && (src.mother || src.motherName || src.mother_name)) myProfile.motherName = src.mother || src.motherName || src.mother_name;
+            if (!myProfile.motherOcc && (src.motherOcc || src.mother_occ)) myProfile.motherOcc = src.motherOcc || src.mother_occ;
+            if (!myProfile.mother_occ && (src.motherOcc || src.mother_occ)) myProfile.mother_occ = src.motherOcc || src.mother_occ;
+            if ((!myProfile.sister || myProfile.sister === '—') && src.sister) myProfile.sister = src.sister;
+            if ((!myProfile.brother || myProfile.brother === '—') && src.brother) myProfile.brother = src.brother;
         }
 
         if (cleanOM) {
@@ -327,12 +361,10 @@ function getCurrentUserProfile() {
             myProfile.mobile = (typeof formatPhoneNumber === 'function') ? formatPhoneNumber(cleanOM) : cleanOM;
         }
 
-        if (!myProfile.mother && (src.mother || src.motherName || src.mother_name)) myProfile.mother = src.mother || src.motherName || src.mother_name;
-        if (!myProfile.motherName && (src.mother || src.motherName || src.mother_name)) myProfile.motherName = src.mother || src.motherName || src.mother_name;
-        if (!myProfile.motherOcc && (src.motherOcc || src.mother_occ)) myProfile.motherOcc = src.motherOcc || src.mother_occ;
-        if (!myProfile.mother_occ && (src.motherOcc || src.mother_occ)) myProfile.mother_occ = src.motherOcc || src.mother_occ;
-        if ((!myProfile.sister || myProfile.sister === '—') && src.sister) myProfile.sister = src.sister;
-        if ((!myProfile.brother || myProfile.brother === '—') && src.brother) myProfile.brother = src.brother;
+        if (!myProfile.profileCreatedBy && (src.profileCreatedBy || src.created_by)) {
+            myProfile.profileCreatedBy = src.profileCreatedBy || src.created_by;
+            myProfile.created_by = src.profileCreatedBy || src.created_by;
+        }
         if (!myProfile.village && (src.village || src.city)) myProfile.village = src.village || src.city;
         if (!myProfile.city && (src.city || src.village)) myProfile.city = src.city || src.village;
         if (!myProfile.taluka && src.taluka) myProfile.taluka = src.taluka;
@@ -394,6 +426,45 @@ function getCurrentUserProfile() {
     return myProfile;
 }
 
+/**
+ * Handle selection of Profile Managed By in Edit Profile (Myself vs Parents)
+ * @param {'Self'|'Parents'} type
+ */
+function pickEditProfileCreatedBy(type) {
+    const val = (type === 'Parents' || String(type).toLowerCase().includes('parent') || String(type).includes('વાલી')) ? 'Parents' : 'Self';
+    window._editProfileCreatedBy = val;
+
+    const selfCard = document.getElementById('editCreatedForSelf');
+    const parentsCard = document.getElementById('editCreatedForParents');
+    const checkSelf = document.getElementById('editCreatedCheckSelf');
+    const checkParents = document.getElementById('editCreatedCheckParents');
+
+    if (val === 'Self') {
+        if (selfCard) {
+            selfCard.style.borderColor = 'var(--primary)';
+            selfCard.style.background = 'var(--primary-light)';
+        }
+        if (parentsCard) {
+            parentsCard.style.borderColor = 'var(--border)';
+            parentsCard.style.background = '#fff';
+        }
+        if (checkSelf) checkSelf.style.color = 'var(--primary)';
+        if (checkParents) checkParents.style.color = 'transparent';
+    } else {
+        if (parentsCard) {
+            parentsCard.style.borderColor = '#059669';
+            parentsCard.style.background = 'rgba(16,185,129,0.12)';
+        }
+        if (selfCard) {
+            selfCard.style.borderColor = 'var(--border)';
+            selfCard.style.background = '#fff';
+        }
+        if (checkParents) checkParents.style.color = '#059669';
+        if (checkSelf) checkSelf.style.color = 'transparent';
+    }
+}
+window.pickEditProfileCreatedBy = pickEditProfileCreatedBy;
+
 function populateEditProfile() {
     if (!state.currentUser || !state.currentUser.email) {
         if (typeof go === 'function') go('scr-welcome', true);
@@ -401,6 +472,19 @@ function populateEditProfile() {
     }
     const myProfile = getCurrentUserProfile();
     if (!myProfile) return;
+
+    // Profile Managed By Selection (Myself vs Parents)
+    const rawCreator = String(
+        myProfile.profileCreatedBy ||
+        myProfile.created_by ||
+        myProfile.raw_data?.profileCreatedBy ||
+        myProfile.raw_data?.created_by ||
+        state.currentUser?.profileCreatedBy ||
+        state.currentUser?.created_by ||
+        'Self'
+    ).trim();
+    const isParentManaged = rawCreator.toLowerCase().includes('parent') || rawCreator.includes('વાલી');
+    pickEditProfileCreatedBy(isParentManaged ? 'Parents' : 'Self');
 
     // Photos (3 Slots)
     const photos = (myProfile.photos && myProfile.photos.length > 0) ? myProfile.photos : (myProfile.img ? [myProfile.img] : []);
@@ -542,6 +626,15 @@ function populateEditProfile() {
             tglEditFam.classList.remove('on');
             editFamContainer.style.display = 'none';
             if (editFamSubtext) editFamSubtext.textContent = 'Optional • Turn ON to add or update family details (મરજીયાત • પરિવાર વિગત ઉમેરવા ચાલુ કરો)';
+            if (isFamilyExplicitlyDisabled) {
+                if (fNameEl) fNameEl.value = '';
+                if (fOccEl) fOccEl.value = '';
+                if (fMobileEl) fMobileEl.value = '';
+                if (mNameEl) mNameEl.value = '';
+                if (mOccEl) mOccEl.value = '';
+                if (sisterEl) sisterEl.value = '';
+                if (brotherEl) brotherEl.value = '';
+            }
         }
     }
 
@@ -771,8 +864,13 @@ function saveEditProfile() {
     const visibleToggle = document.getElementById('editVisibleToggle');
     const isVisible = visibleToggle ? visibleToggle.classList.contains('on') : true;
 
+    // Profile Created / Managed By (Self vs Parents)
+    const selectedCreator = window._editProfileCreatedBy || 'Self';
+
     if (myProfile) {
         myProfile.visible = isVisible;
+        myProfile.profileCreatedBy = selectedCreator;
+        myProfile.created_by = selectedCreator;
         myProfile.name = fullName;
         myProfile.dob = dobVal;
         myProfile.age = calculatedAge;
@@ -823,6 +921,8 @@ function saveEditProfile() {
         myProfile.raw_data = {
             ...(myProfile.raw_data || {}),
             ...myProfile,
+            profileCreatedBy: selectedCreator,
+            created_by: selectedCreator,
             familyDetailsEnabled: Boolean(isFamilyOn),
             family_details_enabled: Boolean(isFamilyOn)
         };
@@ -847,6 +947,8 @@ function saveEditProfile() {
 
     if (state.currentUser) {
         state.currentUser.visible = isVisible;
+        state.currentUser.profileCreatedBy = selectedCreator;
+        state.currentUser.created_by = selectedCreator;
         state.currentUser.name = fullName;
         state.currentUser.dob = dobVal;
         state.currentUser.age = calculatedAge;
@@ -865,18 +967,6 @@ function saveEditProfile() {
         state.currentUser.fatherOcc = fatherOccVal;
         state.currentUser.father_occ = fatherOccVal;
         state.currentUser.fatherMobile = cleanFatherMobile ? formatPhoneNumber(cleanFatherMobile) : '';
-        state.currentUser.rawFatherMobile = cleanFatherMobile;
-        state.currentUser.father_mobile = cleanFatherMobile;
-        state.currentUser.mother = motherNameVal;
-        state.currentUser.motherName = motherNameVal;
-        state.currentUser.mother_name = motherNameVal;
-        state.currentUser.motherOcc = motherOccVal;
-        state.currentUser.mother_occ = motherOccVal;
-        state.currentUser.sister = sisterVal;
-        state.currentUser.brother = brotherVal;
-        state.currentUser.fatherOcc = fatherOccVal;
-        state.currentUser.father_occ = fatherOccVal;
-        state.currentUser.fatherMobile = formatPhoneNumber(cleanFatherMobile);
         state.currentUser.rawFatherMobile = cleanFatherMobile;
         state.currentUser.father_mobile = cleanFatherMobile;
         state.currentUser.mother = motherNameVal;
@@ -922,6 +1012,8 @@ function saveEditProfile() {
             const uIdx = accounts.findIndex(u => (u.email && state.currentUser?.email && u.email.toLowerCase() === state.currentUser.email.toLowerCase()) || (state.currentUser && u.id === state.currentUser.id));
             if (uIdx !== -1) {
                 accounts[uIdx].visible = isVisible;
+                accounts[uIdx].profileCreatedBy = selectedCreator;
+                accounts[uIdx].created_by = selectedCreator;
                 accounts[uIdx].name = fullName;
                 accounts[uIdx].dob = dobVal;
                 accounts[uIdx].age = calculatedAge;
