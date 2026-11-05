@@ -455,102 +455,7 @@
             </div>
         </section>
 
-        <!-- ============================================================ LOGIN ============================================================ -->
-        <section class="screen auth-screen" id="scr-login">
-            <div class="topbar"><button class="icon-btn" onclick="goBack()"><i
-                        class="fa-solid fa-arrow-left"></i></button></div>
-            <div class="screen-pad no-tab">
-                <div
-                    style="width:64px;height:64px;border-radius:20px;background:var(--grad-primary);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;box-shadow:var(--shadow-soft);margin-bottom:20px;">
-                    <i class="fa-solid fa-heart"></i>
-                </div>
-                <div class="h-display h-xl">Welcome back</div>
-                <p class="p-muted" style="margin-top:6px;">Log in to continue your search.</p>
 
-                <div style="margin-top:20px;">
-                    <button type="button" class="btn-social" onclick="handleSocialLogin('google')">
-                        <svg width="20" height="20" viewBox="0 0 24 24" style="flex-shrink:0;">
-                            <path fill="#4285F4"
-                                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                            <path fill="#34A853"
-                                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                            <path fill="#FBBC05"
-                                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                            <path fill="#EA4335"
-                                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                        </svg>
-                        <span>Continue with Google</span>
-                    </button>
-                    <div style="margin-top:20px;text-align:center;">
-                        <button class="btn btn-ghost btn-sm" onclick="go('scr-welcome')"
-                            style="font-size:12px;color:var(--text-muted);"><i class="fa-solid fa-arrow-left"></i> Back
-                            to Welcome</button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ============================================================ REGISTER ACCOUNT ============================================================ -->
-        <section class="screen auth-screen" id="scr-reg1">
-            <div class="topbar"><button class="icon-btn" onclick="goBack()"><i
-                        class="fa-solid fa-arrow-left"></i></button>
-                <h1>Create account</h1>
-            </div>
-            <div class="screen-pad no-tab">
-                <div class="h-display h-lg" style="margin-top:4px;">Join Mangal Setu</div>
-                <p class="p-muted" style="margin-top:4px;">Continue with your Google account to get started.</p>
-
-                <div style="margin-top:22px;">
-                    <button type="button" class="btn-social" onclick="handleSocialLogin('google')">
-                        <svg width="20" height="20" viewBox="0 0 24 24" style="flex-shrink:0;">
-                            <path fill="#4285F4"
-                                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                            <path fill="#34A853"
-                                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                            <path fill="#FBBC05"
-                                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                            <path fill="#EA4335"
-                                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                        </svg>
-                        <span>Continue with Google</span>
-                    </button>
-                    <div style="margin-top:20px;text-align:center;">
-                        <button class="btn btn-ghost btn-sm" onclick="go('scr-welcome')"
-                            style="font-size:12px;color:var(--text-muted);"><i class="fa-solid fa-arrow-left"></i> Back
-                            to Welcome</button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ============================================================ OTP RIGHT AFTER ACCOUNT CREATION ============================================================ -->
-        <section class="screen auth-screen" id="scr-otp-signup">
-            <div class="topbar"><button class="icon-btn" onclick="goBack()"><i
-                        class="fa-solid fa-arrow-left"></i></button></div>
-            <div class="screen-pad no-tab center-txt"
-                style="justify-content:center;flex:1;display:flex;flex-direction:column;">
-                <div
-                    style="width:78px;height:78px;border-radius:50%;background:var(--primary-light);display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:30px;margin:0 auto 18px;">
-                    <i class="fa-solid fa-envelope-circle-check"></i>
-                </div>
-                <div class="h-display h-lg">Verify your email</div>
-                <p class="p-muted" style="margin-top:6px;">We sent a 6-digit verification code to <b
-                        id="signupOtpEmailDisplay">your registered Gmail</b> (valid for 10 minutes).</p>
-                <div class="otp-boxes" onpaste="handleOtpPaste(event, 'regOtp')">
-                    <input maxlength="1" inputmode="numeric" id="regOtp1" onkeyup="otpMove(this, event)"
-                        autocomplete="one-time-code">
-                    <input maxlength="1" inputmode="numeric" id="regOtp2" onkeyup="otpMove(this, event)">
-                    <input maxlength="1" inputmode="numeric" id="regOtp3" onkeyup="otpMove(this, event)">
-                    <input maxlength="1" inputmode="numeric" id="regOtp4" onkeyup="otpMove(this, event)">
-                    <input maxlength="1" inputmode="numeric" id="regOtp5" onkeyup="otpMove(this, event)">
-                    <input maxlength="1" inputmode="numeric" id="regOtp6" onkeyup="otpMove(this, event)">
-                </div>
-                <div class="p-muted" style="margin-bottom:24px;">Didn't get it? <span class="link-txt"
-                        id="btnResendSignupOtp" onclick="handleResendSignupOtp()">Resend OTP</span></div>
-                <button class="btn btn-primary" onclick="signupOtpVerified()"><i class="fa-solid fa-check"></i> Verify
-                    &amp; Complete Profile</button>
-            </div>
-        </section>
 
         <!-- ============================================================ REGISTER STEP 1 : CASTE SELECTION (33%) ============================================================ -->
         <section class="screen auth-screen" id="scr-reg-caste">
@@ -1848,21 +1753,7 @@
             </div>
         </div>
 
-        <!-- Account created (right after signup OTP) -->
-        <div class="modal-backdrop modal-center" id="modalAccountCreated">
-            <div class="modal-card">
-                <div class="modal-icon-circle" style="background:var(--success-bg);color:var(--success);"><i
-                        class="fa-solid fa-circle-check"></i></div>
-                <div class="h-display h-lg">Account created!</div>
-                <p class="p-muted" style="margin-top:8px;">Your email is verified. Add your personal, family and
-                    address details next so families can discover and match with you.</p>
-                <button class="btn btn-primary" style="margin-top:18px;"
-                    onclick="closeModal('modalAccountCreated');go('scr-reg2')"><i class="fa-solid fa-arrow-right"></i>
-                    Complete my profile now</button>
-                <button class="btn btn-ghost" style="margin-top:4px;" onclick="chooseCompleteLater()"><i
-                        class="fa-solid fa-arrow-right-from-bracket"></i> Exit &amp; Complete Later</button>
-            </div>
-        </div>
+
 
         <!-- Complete profile gate (blocks viewing other profiles / any other action) -->
         <div class="modal-backdrop modal-center" id="modalCompleteProfile">
@@ -3036,32 +2927,32 @@
     <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Core & State -->
-    <script src="js/core/state.js?v=8.4"></script>
-    <script src="js/core/supabase-client.js?v=8.4"></script>
+    <script src="js/core/state.js?v=8.5"></script>
+    <script src="js/core/supabase-client.js?v=8.5"></script>
     <!-- EmailJS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script src="js/services/email-service.js?v=8.4"></script>
-    <script src="js/core/router.js?v=8.4"></script>
+    <script src="js/services/email-service.js?v=8.5"></script>
+    <script src="js/core/router.js?v=8.5"></script>
     <!-- Utilities (Loaded before Data Modules so escapeHtml & helpers are available globally) -->
-    <script src="js/utils/helpers.js?v=8.4"></script>
-    <script src="js/utils/pwa.js?v=8.4"></script>
-    <script src="js/utils/cloudinary.js?v=8.4"></script>
-    <script src="js/utils/cropper.js?v=8.4"></script>
-    <script src="js/utils/datepicker.js?v=8.4"></script>
+    <script src="js/utils/helpers.js?v=8.5"></script>
+    <script src="js/utils/pwa.js?v=8.5"></script>
+    <script src="js/utils/cloudinary.js?v=8.5"></script>
+    <script src="js/utils/cropper.js?v=8.5"></script>
+    <script src="js/utils/datepicker.js?v=8.5"></script>
     <!-- Data Modules -->
-    <script src="js/data/castes.js?v=8.4"></script>
-    <script src="js/data/help-content.js?v=8.4"></script>
-    <script src="js/data/profiles.js?v=8.4"></script>
+    <script src="js/data/castes.js?v=8.5"></script>
+    <script src="js/data/help-content.js?v=8.5"></script>
+    <script src="js/data/profiles.js?v=8.5"></script>
     <!-- Application Modules -->
-    <script src="js/modules/auth.js?v=8.4"></script>
-    <script src="js/modules/browse.js?v=8.4"></script>
-    <script src="js/modules/chat.js?v=8.4"></script>
-    <script src="js/modules/profile.js?v=8.4"></script>
-    <script src="js/modules/notifications.js?v=8.4"></script>
+    <script src="js/modules/auth.js?v=8.5"></script>
+    <script src="js/modules/browse.js?v=8.5"></script>
+    <script src="js/modules/chat.js?v=8.5"></script>
+    <script src="js/modules/profile.js?v=8.5"></script>
+    <script src="js/modules/notifications.js?v=8.5"></script>
     <!-- Application Entrypoint -->
-    <script src="js/app.js?v=8.4"></script>
+    <script src="js/app.js?v=8.5"></script>
     <!-- Privacy & Anti-Inspect Security Guard -->
-    <script src="js/utils/security-guard.js?v=8.4"></script>
+    <script src="js/utils/security-guard.js?v=8.5"></script>
 
 </body>
 

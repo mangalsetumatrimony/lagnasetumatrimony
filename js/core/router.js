@@ -34,7 +34,7 @@ function goToCompleteProfile() {
 }
 
 function go(id, replace = false) {
-    // Legacy password screens are redirected to 1-click Google Welcome screen
+    // Legacy auth screens redirect directly to Google Welcome screen
     if (id === 'scr-login' || id === 'scr-reg1' || id === 'scr-otp-signup' || id === 'scr-forgot' || id === 'scr-forgot-otp' || id === 'scr-newpass') {
         id = 'scr-welcome';
     }
@@ -140,7 +140,7 @@ function go(id, replace = false) {
             state.currentUser.paymentStatus = (passCheck.reason === 'expired') ? 'Expired' : 'Unpaid';
             const UNPAID_ALLOWED = new Set([
                 'scr-membership', 'scr-welcome', 'scr-login', 'scr-howitworks', 'scr-help', 
-                'scr-editprofile', 'scr-splash', 'scr-reg1', 'scr-otp-signup', 'scr-reg-caste', 
+                'scr-editprofile', 'scr-splash', 'scr-reg1', 'scr-reg-caste', 
                 'scr-reg2', 'scr-reg3', 'scr-reg4'
             ]);
             if (!UNPAID_ALLOWED.has(id)) {
@@ -262,8 +262,8 @@ function goBack() {
         let prev = state.history[state.history.length - 1];
 
         // If user already completed profile, never navigate back into registration screens
-        if (state.currentUser && state.profileComplete && prev && (prev.startsWith('scr-reg') || prev.startsWith('scr-otp'))) {
-            state.history = state.history.filter(h => !h.startsWith('scr-reg') && !h.startsWith('scr-otp'));
+        if (state.currentUser && state.profileComplete && prev && prev.startsWith('scr-reg')) {
+            state.history = state.history.filter(h => !h.startsWith('scr-reg'));
             prev = state.history[state.history.length - 1];
         }
 
@@ -275,7 +275,7 @@ function goBack() {
 
     if (!state.currentUser || !state.currentUser.email) {
         go('scr-welcome', true);
-    } else if (current && (current.startsWith('scr-reg') || current.startsWith('scr-login') || current.startsWith('scr-forgot') || current.startsWith('scr-otp'))) {
+    } else if (current && (current.startsWith('scr-reg') || current.startsWith('scr-login') || current.startsWith('scr-welcome'))) {
         go('scr-welcome', true);
     } else {
         go('scr-home', true);

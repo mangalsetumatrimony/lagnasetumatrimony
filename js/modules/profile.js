@@ -34,7 +34,7 @@ async function submitProfileCompletion() {
     const userGender = state.regData.gender || state.currentUser?.gender;
     if (!userGender || (userGender !== 'Boy' && userGender !== 'Girl')) {
         showToast('Gender is mandatory. Please select Boy or Girl.');
-        navTo('scr-reg');
+        go('scr-reg2');
         const grid = document.getElementById('genderCardGrid');
         const err = document.getElementById('genderErrorMsg');
         if (err) err.style.display = 'block';
