@@ -307,3 +307,4 @@ GRANT EXECUTE ON FUNCTION public.delete_user_account_completely(TEXT, TEXT) TO a
 
 -- Verification notice
 SELECT 'Mangal Setu Complete Account & Auth Purge function installed successfully.' AS status;
+

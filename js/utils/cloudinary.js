@@ -6,8 +6,13 @@
 const CLOUDINARY_CONFIG = {
     cloudName: window.CLOUDINARY_CLOUD_NAME || 'yohel4bd',
     uploadPreset: window.CLOUDINARY_UPLOAD_PRESET || 'mangal_setu_profiles',
+    apiKey: window.CLOUDINARY_API_KEY || '291872119936329',
+    apiSecret: window.CLOUDINARY_API_SECRET || 'Iv-UiwGFrG3h2nUk4rdbf6av_gQ',
     apiBase: 'https://api.cloudinary.com/v1_1'
 };
+
+window.CLOUDINARY_API_KEY = window.CLOUDINARY_API_KEY || CLOUDINARY_CONFIG.apiKey;
+window.CLOUDINARY_API_SECRET = window.CLOUDINARY_API_SECRET || CLOUDINARY_CONFIG.apiSecret;
 
 /**
  * Upload a cropped image (Blob or Base64 data URL) directly to Cloudinary CDN
@@ -292,7 +297,12 @@ async function resolveCloudinaryCredentials() {
             }
         }
     } catch(e) {}
-    return { apiKey: '', apiSecret: '' };
+    // 3. Fallback to production credentials
+    const defaultKey = CLOUDINARY_CONFIG.apiKey || '291872119936329';
+    const defaultSecret = CLOUDINARY_CONFIG.apiSecret || 'Iv-UiwGFrG3h2nUk4rdbf6av_gQ';
+    window.CLOUDINARY_API_KEY = defaultKey;
+    window.CLOUDINARY_API_SECRET = defaultSecret;
+    return { apiKey: defaultKey, apiSecret: defaultSecret };
 }
 
 /**

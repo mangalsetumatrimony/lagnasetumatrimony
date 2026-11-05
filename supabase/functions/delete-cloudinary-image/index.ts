@@ -24,8 +24,8 @@ serve(async (req) => {
     const { publicIds, imageUrls } = await req.json();
 
     const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME") || "yohel4bd";
-    const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
-    const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
+    const apiKey = Deno.env.get("CLOUDINARY_API_KEY") || "291872119936329";
+    const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET") || "Iv-UiwGFrG3h2nUk4rdbf6av_gQ";
 
     if (!apiKey || !apiSecret) {
       console.warn("[Cloudinary Edge] API credentials not set in environment secrets.");
