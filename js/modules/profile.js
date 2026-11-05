@@ -370,10 +370,38 @@ function openRazorpayCheckout() {
                 prefill: {
                     name: boyName,
                     email: boyEmail,
-                    contact: boyPhone
+                    contact: boyPhone,
+                    method: 'upi'
                 },
                 theme: {
                     color: '#7B2CBF'
+                },
+                // STRICT 100% UPI ONLY: Cards, Netbanking, Wallets, EMI, Paylater are permanently disabled
+                method: {
+                    netbanking: false,
+                    card: false,
+                    wallet: false,
+                    emi: false,
+                    paylater: false,
+                    upi: true
+                },
+                config: {
+                    display: {
+                        blocks: {
+                            upi_block: {
+                                name: 'Pay via UPI (Google Pay, PhonePe, Paytm, BHIM)',
+                                instruments: [
+                                    {
+                                        method: 'upi'
+                                    }
+                                ]
+                            }
+                        },
+                        sequence: ['block.upi_block'],
+                        preferences: {
+                            show_default_blocks: false
+                        }
+                    }
                 },
                 handler: function(response) {
                     const txnId = response.razorpay_payment_id || ('RZP_UPI_' + Math.floor(10000 + Math.random() * 90000));
@@ -389,7 +417,9 @@ function openRazorpayCheckout() {
 
             const rzp = new window.Razorpay(options);
             rzp.on('payment.failed', function(resp) {
-                showToast('Payment failed: ' + (resp.error ? resp.error.description : 'Please try again'));
+                console.warn('[Razorpay] Payment failed / notice:', resp);
+                const desc = resp.error ? resp.error.description : '';
+                showToast('Payment notice: ' + (desc || 'Payment window closed. You can retry or use Test Pass.'));
             });
             rzp.open();
             return;
@@ -405,40 +435,19 @@ function openRazorpayCheckout() {
 function processSuccessfulPayment(txnId, upiMethod) {
     if (typeof state === 'undefined' || !state.currentUser) return;
 
-    state.currentUser.paymentStatus = 'Active';
-    state.membershipPaid = true;
-    state.profileComplete = true;
-    state.currentUser.profileComplete = true;
-
-    const today = new Date();
-    const expiry = new Date();
-    expiry.setDate(today.getDate() + 30);
-    state.currentUser.planStart = today.toISOString().split('T')[0];
-    state.currentUser.planExpiry = expiry.toISOString().split('T')[0];
-
-    // Cryptographic anti-tamper signature generation
-    if (typeof computeSecureToken === 'function') {
-        state.currentUser.paymentToken = computeSecureToken('payment', state.currentUser.id, state.currentUser.email, state.currentUser.planExpiry);
-        state.currentUser.genderToken = computeSecureToken('gender', state.currentUser.id, state.currentUser.email, state.currentUser.gender || 'Boy');
-    }
-    state.currentUser.lastTxnId = txnId;
-
-    // Auto-heal currentUser from window.PROFILES or state.regData if missing details
+    // 1. Auto-heal currentUser from window.PROFILES or state.regData FIRST before sealing security tokens
     if (typeof PROFILES !== 'undefined' && Array.isArray(PROFILES)) {
         const uEmail = (state.currentUser.email || '').trim().toLowerCase();
         const curId = state.currentUser.id || state.currentUser.profileId;
         const myProf = PROFILES.find(p => p && ((uEmail && p.email && p.email.trim().toLowerCase() === uEmail) || (curId && (p.id == curId || p.userId == curId))));
         if (myProf) {
             myProf.paymentStatus = 'paid';
-            myProf.planStart = state.currentUser.planStart;
-            myProf.planExpiry = state.currentUser.planExpiry;
             if (!state.currentUser.name || state.currentUser.name === 'Member') state.currentUser.name = myProf.name;
             if (!state.currentUser.gender) state.currentUser.gender = (myProf.gender === 'girls' || myProf.gender === 'Girl') ? 'Girl' : 'Boy';
             if (!state.currentUser.caste) state.currentUser.caste = myProf.community || myProf.caste;
             if (!state.currentUser.city) state.currentUser.city = myProf.city || myProf.village || '';
             if (!state.currentUser.district) state.currentUser.district = myProf.district || '';
             if (!state.currentUser.profileId) state.currentUser.profileId = myProf.id;
-            if (typeof saveCommunityProfiles === 'function') saveCommunityProfiles();
         }
     }
 
@@ -450,7 +459,42 @@ function processSuccessfulPayment(txnId, upiMethod) {
         if (!state.currentUser.district) state.currentUser.district = state.regData.district || '';
     }
 
-    // Persist to stored accounts in localStorage
+    // 2. Set plan dates & active state
+    state.currentUser.paymentStatus = 'Active';
+    state.membershipPaid = true;
+    state.profileComplete = true;
+    state.currentUser.profileComplete = true;
+    if (!state.currentUser.gender) state.currentUser.gender = 'Boy';
+
+    const today = new Date();
+    const expiry = new Date();
+    expiry.setDate(today.getDate() + 30);
+    state.currentUser.planStart = today.toISOString().split('T')[0];
+    state.currentUser.planExpiry = expiry.toISOString().split('T')[0];
+
+    // 3. Cryptographic anti-tamper signature generation
+    if (typeof computeSecureToken === 'function') {
+        state.currentUser.paymentToken = computeSecureToken('payment', state.currentUser.id, state.currentUser.email, state.currentUser.planExpiry);
+        state.currentUser.genderToken = computeSecureToken('gender', state.currentUser.id, state.currentUser.email, state.currentUser.gender);
+    }
+    state.currentUser.lastTxnId = txnId;
+
+    // Sync with PROFILES in memory
+    if (typeof PROFILES !== 'undefined' && Array.isArray(PROFILES)) {
+        const uEmail = (state.currentUser.email || '').trim().toLowerCase();
+        const curId = state.currentUser.id || state.currentUser.profileId;
+        const myProf = PROFILES.find(p => p && ((uEmail && p.email && p.email.trim().toLowerCase() === uEmail) || (curId && (p.id == curId || p.userId == curId))));
+        if (myProf) {
+            myProf.paymentStatus = 'paid';
+            myProf.planStart = state.currentUser.planStart;
+            myProf.planExpiry = state.currentUser.planExpiry;
+            myProf.accountStatus = 'active';
+            myProf.visible = true;
+            if (typeof saveCommunityProfiles === 'function') saveCommunityProfiles();
+        }
+    }
+
+    // 4. Persist to stored accounts in localStorage
     if (typeof getStoredAccounts === 'function' && typeof saveStoredAccounts === 'function') {
         try {
             const accounts = getStoredAccounts();
@@ -470,6 +514,13 @@ function processSuccessfulPayment(txnId, upiMethod) {
             }
         } catch (_) {}
     }
+
+    try {
+        localStorage.setItem('mangalSetu_membershipPaid', 'true');
+        localStorage.setItem('mangalSetu_profileComplete', 'true');
+        sessionStorage.setItem('mangalSetu_membershipPaid', 'true');
+        sessionStorage.setItem('mangalSetu_profileComplete', 'true');
+    } catch (_) {}
 
     if (typeof saveSessionState === 'function') saveSessionState();
 
@@ -605,6 +656,7 @@ function activateDemoTestPass() {
     closeModal('modalPaywall');
     closeModal('modalBoyComplete');
     closeModal('modalRazorpayCheckout');
+    closeModal('modalCompleteProfile');
 
     if (typeof state === 'undefined' || !state.currentUser) {
         showToast('Please log in or register first');
@@ -616,12 +668,13 @@ function activateDemoTestPass() {
     showToast('🧪 30-Day Testing Pass Activated! Full access unlocked 🎉');
 
     setTimeout(() => {
+        closeModal('modalPaySuccess');
         if (typeof enterHome === 'function') {
             enterHome();
         } else if (typeof go === 'function') {
             go('scr-home');
         }
-    }, 450);
+    }, 500);
 }
 window.activateDemoTestPass = activateDemoTestPass;
 

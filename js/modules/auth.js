@@ -1,4 +1,8 @@
 /* ============================================================ REGISTRATION & AUTH ============================================================ */
+// Cryptographic Secret Salt (Pepper) for anti-tamper security signatures
+const AUTH_PEPPER = 'LS_MATRIMONY_SECURE_2026_@v9#';
+if (typeof window !== 'undefined') window.AUTH_PEPPER = AUTH_PEPPER;
+
 // Sanitization helper: NEVER expose password or passwordHash in state or sessionStorage
 function createSafeUserSession(user) {
     if (!user) return null;
@@ -436,7 +440,8 @@ window.toggleRegSubmitButton = toggleRegSubmitButton;
 
 // Robust 64-bit HMAC-like Anti-Tamper Token Generator with Secret Salt
 function computeSecureToken(type, id, email, value) {
-    const raw = `${type}:${id}:${String(email || '').trim().toLowerCase()}:${value}:${AUTH_PEPPER}`;
+    const pepper = (typeof AUTH_PEPPER !== 'undefined') ? AUTH_PEPPER : ((typeof window !== 'undefined' && window.AUTH_PEPPER) ? window.AUTH_PEPPER : 'LS_MATRIMONY_SECURE_2026_@v9#');
+    const raw = `${type}:${id}:${String(email || '').trim().toLowerCase()}:${value}:${pepper}`;
     let h1 = 0xdeadbeef, h2 = 0x41c64e6d;
     for (let i = 0; i < raw.length; i++) {
         const ch = raw.charCodeAt(i);
