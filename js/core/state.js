@@ -495,7 +495,9 @@ function updateHeaderUserDisplay() {
         state.currentUser.photo = photo;
     }
 
-    checkCurrentUserStatus();
+    if (typeof checkCurrentUserStatus === 'function') {
+        checkCurrentUserStatus();
+    }
 
     const avatarThumb = (typeof getAvatarThumbUrl === 'function') ? getAvatarThumbUrl(photo, 120) : photo;
 
