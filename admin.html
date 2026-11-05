@@ -727,6 +727,32 @@
                 <button class="btn btn-primary" type="button" onclick="savePlatformSettings()"><i
                         class="fa-solid fa-floppy-disk"></i> Save settings</button>
 
+                <div class="section-label">Cloudinary Image CDN (Automatic Photo Wipe)</div>
+                <div class="card"
+                    style="margin-bottom:14px;background:var(--bg-card);border:1px solid var(--border);padding:14px;">
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">
+                        Configure Cloudinary API Key &amp; Secret so that when an account is deleted (by admin or member), all photos are permanently destroyed from Cloudinary CDN.
+                    </div>
+                    <div class="field" style="margin-bottom:8px;"><label>Cloud Name</label>
+                        <input class="input" id="settingsCloudinaryCloud" type="text" value="yohel4bd" placeholder="yohel4bd">
+                    </div>
+                    <div class="row-2">
+                        <div class="field" style="margin-bottom:8px;"><label>API Key</label>
+                            <input class="input" id="settingsCloudinaryKey" type="text" placeholder="e.g. 123456789012345">
+                        </div>
+                        <div class="field" style="margin-bottom:8px;"><label>API Secret</label>
+                            <div class="input-icon-wrap">
+                                <input class="input" id="settingsCloudinarySecret" type="password" placeholder="••••••••••••••••">
+                                <button class="trailing-btn" type="button" onclick="togglePw('settingsCloudinarySecret', this)"
+                                    title="Show/Hide password"><i class="fa-solid fa-eye"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-outline" type="button" onclick="saveCloudinarySettings()" style="margin-top:6px;">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Save Cloudinary CDN Keys
+                    </button>
+                </div>
+
                 <div class="section-label">Cache &amp; Storage Reset</div>
                 <div class="card"
                     style="margin-bottom:14px;background:var(--bg-elevated);border:1px dashed var(--border);padding:14px;">
@@ -1494,20 +1520,20 @@
         <!-- Supabase JS SDK -->
         <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
         <!-- Cloudinary Image CDN -->
-        <script src="js/utils/cloudinary.js?v=7.9"></script>
-        <script src="js/utils/helpers.js?v=7.9"></script>
+        <script src="js/utils/cloudinary.js?v=8.3"></script>
+        <script src="js/utils/helpers.js?v=8.3"></script>
         <!-- Admin Modular Scripts -->
-        <script src="js/core/supabase-client.js?v=7.9"></script>
-        <script src="js/admin/admin-security.js?v=7.9"></script>
-        <script src="js/admin/admin-data.js?v=7.9"></script>
-        <script src="js/admin/admin-charts.js?v=7.9"></script>
-        <script src="js/admin/admin-actions.js?v=7.9"></script>
-        <script src="js/admin/admin-analytics.js?v=7.9"></script>
+        <script src="js/core/supabase-client.js?v=8.3"></script>
+        <script src="js/admin/admin-security.js?v=8.3"></script>
+        <script src="js/admin/admin-data.js?v=8.3"></script>
+        <script src="js/admin/admin-charts.js?v=8.3"></script>
+        <script src="js/admin/admin-actions.js?v=8.3"></script>
+        <script src="js/admin/admin-analytics.js?v=8.3"></script>
         <!-- EmailJS SDK (for account deletion email notification) -->
         <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
         <!-- Email Notification Service -->
-        <script src="js/services/email-service.js?v=7.9"></script>
-        <script src="js/admin/admin-ui.js?v=7.9"></script>
+        <script src="js/services/email-service.js?v=8.3"></script>
+        <script src="js/admin/admin-ui.js?v=8.3"></script>
 
 </body>
 

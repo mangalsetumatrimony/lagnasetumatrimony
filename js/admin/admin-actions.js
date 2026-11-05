@@ -1494,6 +1494,30 @@ function syncSettingsUI() {
         }).catch(err => console.warn('[Admin] Sync settings error:', err));
     }
 
+    // Cloudinary settings sync
+    const cCloud = document.getElementById('settingsCloudinaryCloud');
+    const cKey = document.getElementById('settingsCloudinaryKey');
+    const cSecret = document.getElementById('settingsCloudinarySecret');
+    if (cCloud || cKey || cSecret) {
+        const applyCloudinaryCfg = (cfg) => {
+            if (!cfg) return;
+            if (cCloud && cfg.cloudName) cCloud.value = cfg.cloudName;
+            if (cKey && cfg.apiKey) cKey.value = cfg.apiKey;
+            if (cSecret && cfg.apiSecret) cSecret.value = cfg.apiSecret;
+            if (cfg.apiKey) window.CLOUDINARY_API_KEY = cfg.apiKey;
+            if (cfg.apiSecret) window.CLOUDINARY_API_SECRET = cfg.apiSecret;
+        };
+        try {
+            const localCfg = JSON.parse(localStorage.getItem('mangalSetu_cloudinary_config') || '{}');
+            applyCloudinaryCfg(localCfg);
+        } catch(e) {}
+        if (typeof supabaseGetAppSetting === 'function') {
+            supabaseGetAppSetting('cloudinary_credentials').then(remoteCfg => {
+                applyCloudinaryCfg(remoteCfg);
+            }).catch(() => {});
+        }
+    }
+
     // Maintenance mode toggle sync
     const maintToggle = document.getElementById('toggleMaintenance');
     if (maintToggle) {
@@ -1613,6 +1637,49 @@ async function toggleMaintenanceMode(btn) {
     }
 }
 
+async function saveCloudinarySettings() {
+    const cloudInput = document.getElementById('settingsCloudinaryCloud');
+    const keyInput = document.getElementById('settingsCloudinaryKey');
+    const secretInput = document.getElementById('settingsCloudinarySecret');
+
+    const cloudName = cloudInput ? cloudInput.value.trim() : 'yohel4bd';
+    const apiKey = keyInput ? keyInput.value.trim() : '';
+    const apiSecret = secretInput ? secretInput.value.trim() : '';
+
+    if (!apiKey || !apiSecret) {
+        showToast('Please enter both Cloudinary API Key and API Secret');
+        return;
+    }
+
+    const cfg = {
+        cloudName: cloudName || 'yohel4bd',
+        apiKey: apiKey,
+        apiSecret: apiSecret,
+        updated_at: new Date().toISOString()
+    };
+
+    window.CLOUDINARY_API_KEY = apiKey;
+    window.CLOUDINARY_API_SECRET = apiSecret;
+    if (window.CLOUDINARY_CONFIG) {
+        window.CLOUDINARY_CONFIG.cloudName = cfg.cloudName;
+    }
+
+    try {
+        localStorage.setItem('mangalSetu_cloudinary_config', JSON.stringify(cfg));
+    } catch(e) {}
+
+    if (typeof supabaseSetAppSetting === 'function') {
+        try {
+            await supabaseSetAppSetting('cloudinary_credentials', cfg);
+            console.info('[Admin] Cloudinary credentials saved to Supabase app_settings');
+        } catch(e) {
+            console.warn('[Admin] Failed saving Cloudinary credentials to Supabase:', e);
+        }
+    }
+
+    showToast('Cloudinary CDN keys saved! Automatic photo wipe is now active. ✨');
+}
+
 // Global Window Exports
 if (typeof renderUsers !== 'undefined') window.renderUsers = renderUsers;
 if (typeof renderInterests !== 'undefined') window.renderInterests = renderInterests;
@@ -1632,3 +1699,4 @@ if (typeof openResolveReportModal !== 'undefined') window.openResolveReportModal
 if (typeof doResolveReport !== 'undefined') window.doResolveReport = doResolveReport;
 if (typeof openDeleteReportModal !== 'undefined') window.openDeleteReportModal = openDeleteReportModal;
 if (typeof doDeleteReport !== 'undefined') window.doDeleteReport = doDeleteReport;
+if (typeof saveCloudinarySettings !== 'undefined') window.saveCloudinarySettings = saveCloudinarySettings;

@@ -1,19 +1,9 @@
 -- ==============================================================================
--- MANGAL SETU — 100% BULLETPROOF COMPLETE USER & AUTH PURGE FUNCTION
+-- MANGAL SETU — 100% COMPLETE ACCOUNT, DATA & AUTH PURGE FUNCTION
 -- ==============================================================================
--- Description:
--- When a user deletes their account OR an admin deletes a user:
--- 1. Permanently wipes user from Supabase Authentication (auth.users Dashboard + identities, sessions)
--- 2. Permanently wipes user from all database tables:
---    - profiles (Matrimonial profiles - automatically clears community_profiles view)
---    - users (Account records)
---    - messages (All chat messages sent & received)
---    - interests (All match requests sent & received)
---    - payments (All transaction history & receipts)
---    - email_logs (All email delivery logs)
---    - reports (All reports filed by or against the user)
--- Zero trace is left behind in the database, freeing 100% of storage and auth slots.
--- ==============================================================================
+DROP FUNCTION IF EXISTS public.delete_user_account_completely(TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.delete_user_account_completely(TEXT);
+DROP FUNCTION IF EXISTS public.delete_user_account_completely();
 
 CREATE OR REPLACE FUNCTION public.delete_user_account_completely(
     target_email TEXT DEFAULT NULL,
@@ -24,6 +14,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, auth, pg_temp
 AS $$
+#variable_conflict use_column
 DECLARE
     found_auth_uid UUID := NULL;
     norm_email TEXT;
@@ -50,7 +41,7 @@ BEGIN
         num_id := norm_id::bigint;
     END IF;
 
-    -- Cross-resolve identifiers across tables
+    -- Cross-resolve identifiers across tables BEFORE deleting anything
     IF norm_email = '' AND num_id IS NOT NULL THEN
         SELECT LOWER(TRIM(prof.email)) INTO norm_email FROM public.profiles prof WHERE prof.id = num_id LIMIT 1;
         IF norm_email IS NULL OR norm_email = '' THEN
@@ -69,7 +60,7 @@ BEGIN
         SELECT prof.user_id INTO norm_id FROM public.profiles prof WHERE prof.id = num_id AND prof.user_id IS NOT NULL AND prof.user_id <> '' LIMIT 1;
     END IF;
 
-    -- Locate UUID in auth.users by target_user_id (if UUID format)
+    -- Locate in auth.users by target_user_id (if UUID format)
     IF norm_id IS NOT NULL AND norm_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
         BEGIN
             SELECT au.id INTO found_auth_uid FROM auth.users au WHERE au.id = norm_id::uuid LIMIT 1;
@@ -78,7 +69,7 @@ BEGIN
         END;
     END IF;
 
-    -- Locate UUID in auth.users by email
+    -- Locate in auth.users by email
     IF found_auth_uid IS NULL AND norm_email <> '' THEN
         BEGIN
             SELECT au.id INTO found_auth_uid FROM auth.users au WHERE LOWER(TRIM(au.email)) = norm_email LIMIT 1;
@@ -88,10 +79,9 @@ BEGIN
     END IF;
 
     -- --------------------------------------------------------------------------
-    -- STEP 1: PERMANENTLY DELETE FROM SUPABASE AUTHENTICATION (auth.users & sub-tables)
-    -- This guarantees user is immediately wiped from Supabase Auth Dashboard
+    -- STEP 1: PURGE FROM SUPABASE AUTH (auth.users and all cascading sub-tables)
+    -- Wipes user immediately from Supabase Dashboard > Authentication > Users
     -- --------------------------------------------------------------------------
-    -- Sub-step A: Iterate through matching auth.users by email or UUID
     FOR auth_rec IN 
         SELECT au.id FROM auth.users au 
         WHERE (found_auth_uid IS NOT NULL AND au.id = found_auth_uid)
@@ -100,13 +90,13 @@ BEGIN
     LOOP
         BEGIN
             IF to_regclass('auth.mfa_amr_claims') IS NOT NULL AND to_regclass('auth.sessions') IS NOT NULL THEN
-                DELETE FROM auth.mfa_amr_claims WHERE session_id IN (SELECT id FROM auth.sessions WHERE user_id = auth_rec.id);
+                DELETE FROM auth.mfa_amr_claims WHERE session_id IN (SELECT s.id FROM auth.sessions s WHERE s.user_id = auth_rec.id);
             END IF;
         EXCEPTION WHEN OTHERS THEN NULL; END;
 
         BEGIN
             IF to_regclass('auth.mfa_challenges') IS NOT NULL AND to_regclass('auth.mfa_factors') IS NOT NULL THEN
-                DELETE FROM auth.mfa_challenges WHERE factor_id IN (SELECT id FROM auth.mfa_factors WHERE user_id = auth_rec.id);
+                DELETE FROM auth.mfa_challenges WHERE factor_id IN (SELECT f.id FROM auth.mfa_factors f WHERE f.user_id = auth_rec.id);
             END IF;
         EXCEPTION WHEN OTHERS THEN NULL; END;
 
@@ -118,7 +108,7 @@ BEGIN
 
         BEGIN
             IF to_regclass('auth.refresh_tokens') IS NOT NULL AND to_regclass('auth.sessions') IS NOT NULL THEN
-                DELETE FROM auth.refresh_tokens WHERE session_id IN (SELECT id FROM auth.sessions WHERE user_id = auth_rec.id);
+                DELETE FROM auth.refresh_tokens WHERE session_id IN (SELECT s.id FROM auth.sessions s WHERE s.user_id = auth_rec.id);
                 del_tokens_count := del_tokens_count + 1;
             END IF;
         EXCEPTION WHEN OTHERS THEN NULL; END;
@@ -197,7 +187,7 @@ BEGIN
     BEGIN
         IF to_regclass('public.payments') IS NOT NULL THEN
             DELETE FROM public.payments p
-            WHERE (norm_email <> '' AND (LOWER(TRIM(p.user_id)) = norm_email))
+            WHERE (norm_email <> '' AND LOWER(TRIM(p.user_id)) = norm_email)
                OR (norm_id <> '' AND (p.user_id = norm_id OR p.id = norm_id))
                OR (num_id IS NOT NULL AND p.user_id = num_id::text)
                OR (found_auth_uid IS NOT NULL AND p.user_id = found_auth_uid::text);
@@ -232,6 +222,7 @@ BEGIN
 
     -- --------------------------------------------------------------------------
     -- STEP 7: DELETE FROM PUBLIC.PROFILES (Matrimonial Profiles)
+    -- Automatically clears community_profiles view
     -- --------------------------------------------------------------------------
     BEGIN
         IF to_regclass('public.profiles') IS NOT NULL THEN
@@ -308,6 +299,3 @@ GRANT EXECUTE ON FUNCTION public.delete_user_account_completely(TEXT, TEXT) TO a
 
 -- Verification notice
 SELECT 'Mangal Setu Complete Account & Auth Purge function installed successfully.' AS status;
-
--- Immediately purge the test user from your screenshot (auth.users + all tables):
-SELECT public.delete_user_account_completely('mit.parmar55@gmail.com', '13f1cbca-00b5-4871-95dc-a5ccdf1310b4');

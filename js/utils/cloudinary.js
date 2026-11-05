@@ -266,6 +266,36 @@ async function generateSha1Hex(message) {
 }
 
 /**
+ * Dynamically resolve Cloudinary API credentials from memory, cache, or Supabase app_settings
+ */
+async function resolveCloudinaryCredentials() {
+    if (window.CLOUDINARY_API_KEY && window.CLOUDINARY_API_SECRET) {
+        return { apiKey: window.CLOUDINARY_API_KEY, apiSecret: window.CLOUDINARY_API_SECRET };
+    }
+    // 1. Check LocalStorage
+    try {
+        const localCfg = JSON.parse(localStorage.getItem('mangalSetu_cloudinary_config') || '{}');
+        if (localCfg.apiKey && localCfg.apiSecret) {
+            window.CLOUDINARY_API_KEY = localCfg.apiKey;
+            window.CLOUDINARY_API_SECRET = localCfg.apiSecret;
+            return { apiKey: localCfg.apiKey, apiSecret: localCfg.apiSecret };
+        }
+    } catch(e) {}
+    // 2. Check Supabase app_settings (Single Source of Truth)
+    try {
+        if (typeof supabaseGetAppSetting === 'function') {
+            const remoteCfg = await supabaseGetAppSetting('cloudinary_credentials');
+            if (remoteCfg && remoteCfg.apiKey && remoteCfg.apiSecret) {
+                window.CLOUDINARY_API_KEY = remoteCfg.apiKey;
+                window.CLOUDINARY_API_SECRET = remoteCfg.apiSecret;
+                return { apiKey: remoteCfg.apiKey, apiSecret: remoteCfg.apiSecret };
+            }
+        }
+    } catch(e) {}
+    return { apiKey: '', apiSecret: '' };
+}
+
+/**
  * Delete a single image from Cloudinary
  * Supports delete_token and signed destroy
  */
@@ -274,8 +304,14 @@ async function deleteFromCloudinary(publicIdOrUrl, options = {}) {
     const publicId = publicIdOrUrl.includes('http') ? extractCloudinaryPublicId(publicIdOrUrl) : publicIdOrUrl;
     const deleteToken = options.deleteToken || null;
     const cloudName = options.cloudName || CLOUDINARY_CONFIG.cloudName || 'yohel4bd';
-    const apiKey = options.apiKey || window.CLOUDINARY_API_KEY || '';
-    const apiSecret = options.apiSecret || window.CLOUDINARY_API_SECRET || '';
+    let apiKey = options.apiKey || window.CLOUDINARY_API_KEY || '';
+    let apiSecret = options.apiSecret || window.CLOUDINARY_API_SECRET || '';
+
+    if (!apiKey || !apiSecret) {
+        const creds = await resolveCloudinaryCredentials();
+        apiKey = apiKey || creds.apiKey;
+        apiSecret = apiSecret || creds.apiSecret;
+    }
 
     // Method 1: Delete by token (temporary token returned during unsigned upload)
     if (deleteToken) {
@@ -324,7 +360,7 @@ async function deleteFromCloudinary(publicIdOrUrl, options = {}) {
         }
     }
 
-    console.info(`[Cloudinary] Photo public_id flagged for purge: "${publicId}"`);
+    console.info(`[Cloudinary] Photo public_id logged for purge: "${publicId}"`);
     return { success: true, publicId, note: 'Purge recorded' };
 }
 
@@ -334,6 +370,9 @@ async function deleteFromCloudinary(publicIdOrUrl, options = {}) {
 async function deleteMultipleCloudinaryImages(items = []) {
     if (!Array.isArray(items) || items.length === 0) return [];
     console.info(`[Cloudinary] Purging ${items.length} photo asset(s)...`);
+
+    // Ensure Cloudinary API credentials are ready
+    const creds = await resolveCloudinaryCredentials();
 
     // Method A: Call Supabase Edge Function to securely destroy via backend API Secret
     try {
@@ -359,14 +398,14 @@ async function deleteMultipleCloudinaryImages(items = []) {
             }
         }
     } catch(edgeErr) {
-        console.warn('[Cloudinary] Edge function purge note:', edgeErr);
+        // Edge function unavailable, proceeding to signed destroy fallback
     }
 
     // Method B: Client-side direct signed destroy fallback
     const results = [];
     for (const item of items) {
         if (!item) continue;
-        const res = await deleteFromCloudinary(item);
+        const res = await deleteFromCloudinary(item, creds);
         results.push(res);
     }
     return results;
@@ -380,5 +419,6 @@ window.getAvatarThumbUrl = getAvatarThumbUrl;
 window.getHeroImageUrl = getHeroImageUrl;
 window.getCarouselImageUrl = getCarouselImageUrl;
 window.extractCloudinaryPublicId = extractCloudinaryPublicId;
+window.resolveCloudinaryCredentials = resolveCloudinaryCredentials;
 window.deleteFromCloudinary = deleteFromCloudinary;
 window.deleteMultipleCloudinaryImages = deleteMultipleCloudinaryImages;
