@@ -134,6 +134,9 @@ async function submitProfileCompletion() {
                 newProfile.id = upRes.id;
             }
             console.info('[Supabase] Profile registration synced live:', upRes);
+            if (typeof supabaseBroadcastProfileUpsert === 'function') {
+                supabaseBroadcastProfileUpsert(newProfile);
+            }
         } catch (err) {
             console.warn('[Supabase] Profile registration sync notice:', err);
         }
@@ -579,7 +582,11 @@ function processSuccessfulPayment(txnId, upiMethod) {
 
             supabaseUpsertProfile(fullProfilePayload).then(() => {
                 if (typeof triggerSilentProfilesSync === 'function') triggerSilentProfilesSync(0);
+                if (typeof supabaseBroadcastProfileUpsert === 'function') supabaseBroadcastProfileUpsert(fullProfilePayload);
             }).catch(err => console.warn('[Supabase] Payment profile status sync note:', err));
+            if (typeof supabaseBroadcastProfileUpsert === 'function') {
+                supabaseBroadcastProfileUpsert(fullProfilePayload);
+            }
         }
     } catch (e) {
         console.error('Payment sync error:', e);

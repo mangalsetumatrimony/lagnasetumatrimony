@@ -1361,6 +1361,7 @@ async function supabaseAdminUpdateMember(profileId, u) {
         }
 
         console.info('[Supabase] Admin member profile updated live:', u.name, profileId);
+        supabaseBroadcastProfileUpsert(u);
         return { success: true };
     } catch (e) {
         console.warn('[Supabase] Admin update member profile error:', e);
@@ -1812,6 +1813,79 @@ async function supabaseDeleteUserCompletely(id, email, extraId, options = {}) {
         return { success: false, error: err };
     }
 }
+
+/**
+ * Broadcast profile creation or update live across all connected clients in real-time
+ * Allows instant display in home and browse feeds without requiring users to press F5 / reload
+ * @param {object} prof
+ */
+function supabaseBroadcastProfileUpsert(prof) {
+    if (!prof) return;
+    try {
+        const client = getSupabaseClient();
+        if (!client) return;
+
+        const broadcastPayload = {
+            id: prof.id || prof.profileId,
+            user_id: String(prof.user_id || prof.userId || prof.id || ''),
+            name: prof.name || '',
+            gender: prof.gender || '',
+            community: prof.community || prof.caste || '',
+            caste: prof.community || prof.caste || '',
+            age: prof.age,
+            dob: prof.dob,
+            height: prof.height,
+            weight: prof.weight,
+            education: prof.education,
+            occ: prof.occ || prof.occupation || '',
+            occupation: prof.occ || prof.occupation || '',
+            income: prof.income,
+            marital: prof.marital || 'Unmarried',
+            physical: prof.physical || 'Normal',
+            hobbies: prof.hobbies || [],
+            village: prof.village || prof.city || '',
+            city: prof.city || prof.village || '',
+            taluka: prof.taluka || '',
+            district: prof.district || '',
+            fullAddress: prof.fullAddress || prof.address || '',
+            address: prof.fullAddress || prof.address || '',
+            img: prof.img || prof.photo || '',
+            photo: prof.img || prof.photo || '',
+            photos: Array.isArray(prof.photos) ? prof.photos : [],
+            accountStatus: prof.accountStatus || prof.account_status || 'active',
+            account_status: prof.accountStatus || prof.account_status || 'active',
+            paymentStatus: prof.paymentStatus || prof.payment_status || 'unpaid',
+            payment_status: prof.paymentStatus || prof.payment_status || 'unpaid',
+            verifyStatus: prof.verifyStatus || prof.verify_status || 'approved',
+            verify_status: prof.verifyStatus || prof.verify_status || 'approved',
+            visible: prof.visible !== false && prof.visible !== 'false',
+            registered: prof.registered || new Date().toLocaleDateString('en-GB'),
+            planStart: prof.planStart || prof.plan_start,
+            planExpiry: prof.planExpiry || prof.plan_expiry,
+            timestamp: Date.now()
+        };
+
+        if (typeof userPresenceChannel !== 'undefined' && userPresenceChannel) {
+            userPresenceChannel.send({
+                type: 'broadcast',
+                event: 'profile_upserted',
+                payload: broadcastPayload
+            });
+        }
+        if (typeof client.channel === 'function') {
+            const bChan = client.channel('realtime:presence:community');
+            bChan.send({
+                type: 'broadcast',
+                event: 'profile_upserted',
+                payload: broadcastPayload
+            });
+        }
+        console.info('[Realtime] Broadcasted profile_upserted live:', broadcastPayload.id, broadcastPayload.name, broadcastPayload.gender);
+    } catch (e) {
+        console.warn('[Realtime] Broadcast profile_upserted note:', e);
+    }
+}
+window.supabaseBroadcastProfileUpsert = supabaseBroadcastProfileUpsert;
 
 /**
  * Check if a user account exists in Supabase (Single Source of Truth)
@@ -4013,6 +4087,16 @@ function supabaseInitPresence(currentUser, onChangeCallback) {
                 .on('broadcast', { event: 'peer_disconnect' }, payload => {
                     if (payload && payload.payload && typeof window.handleRealtimePeerDisconnect === 'function') {
                         window.handleRealtimePeerDisconnect(payload.payload);
+                    }
+                })
+                .on('broadcast', { event: 'profile_upserted' }, payload => {
+                    if (payload && payload.payload && typeof window.handleRemoteProfileUpsert === 'function') {
+                        window.handleRemoteProfileUpsert(payload.payload);
+                    }
+                })
+                .on('broadcast', { event: 'user_account_deleted' }, payload => {
+                    if (payload && payload.payload && typeof window.handleRemoteAccountPurge === 'function') {
+                        window.handleRemoteAccountPurge(payload.payload.id, payload.payload.email, payload.payload);
                     }
                 });
         }

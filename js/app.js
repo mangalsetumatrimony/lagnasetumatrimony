@@ -370,6 +370,14 @@ async function bootstrapApp() {
         if (typeof initAppHelpers === 'function') initAppHelpers();
         initApp();
 
+        // Ensure Profiles Realtime & live community sync are active
+        if (typeof bootProfilesInit === 'function') {
+            bootProfilesInit();
+        } else {
+            if (typeof syncProfilesFromSupabase === 'function') syncProfilesFromSupabase(false, true);
+            if (typeof setupProfilesRealtime === 'function') setupProfilesRealtime();
+        }
+
         // Live sync FAQs, How It Works, and Castes directly from Supabase app_settings
         if (typeof syncHelpContentFromSupabase === 'function') syncHelpContentFromSupabase();
         if (typeof syncCastesFromSupabase === 'function') syncCastesFromSupabase();

@@ -223,190 +223,194 @@ async function syncProfilesFromSupabase(force = false, silent = false) {
 }
 
 /**
- * Realtime subscription: Listen for profile insertions, updates, and suspensions
+ * Live handle new profile insertion or update in real-time
+ * Triggered by Supabase Realtime Broadcast, Postgres changes, or DB sync
+ * Immediately updates memory, storage, and re-renders home & browse cards without F5 / reload
+ * @param {object} incoming - Raw or mapped profile payload
+ */
+function handleRemoteProfileUpsert(incoming) {
+    if (!incoming) return;
+
+    if (typeof isUserPurged === 'function' && isUserPurged(incoming)) {
+        handleRemoteAccountPurge(incoming.id, incoming.email, incoming);
+        return;
+    }
+
+    const prof = typeof mapProfileFromSupabase === 'function' ? mapProfileFromSupabase(incoming) : incoming;
+    if (!prof || !prof.id) return;
+
+    if (prof.accountStatus === 'deleted' || prof.account_status === 'deleted' || prof.name === '[Deleted Account]') {
+        handleRemoteAccountPurge(prof.id, prof.email, prof);
+        return;
+    }
+
+    // For suspended profiles: remove from public browse feed
+    if (prof.accountStatus === 'suspended' || prof.account_status === 'suspended') {
+        PROFILES = (window.PROFILES || PROFILES || []).filter(p => p && String(p.id) !== String(prof.id));
+        window.PROFILES = PROFILES;
+        saveCommunityProfiles();
+        if (typeof updateHomeStats === 'function') updateHomeStats();
+        if (typeof renderHome === 'function' && document.getElementById('homeGirlsList')) renderHome();
+        if (typeof renderBrowse === 'function' && document.getElementById('browseList')) renderBrowse();
+        return;
+    }
+
+    // Upsert into PROFILES and window.PROFILES
+    PROFILES = Array.isArray(window.PROFILES) ? window.PROFILES : (Array.isArray(PROFILES) ? PROFILES : []);
+    const profIdStr = String(prof.id);
+    const profEmail = (prof.email || '').trim().toLowerCase();
+
+    const idx = PROFILES.findIndex(p => p && (
+        String(p.id) === profIdStr ||
+        (profEmail && p.email && p.email.trim().toLowerCase() === profEmail)
+    ));
+
+    if (idx !== -1) {
+        PROFILES[idx] = { ...PROFILES[idx], ...prof };
+    } else {
+        // Prepend new profile at the top so it is immediately visible
+        PROFILES.unshift(prof);
+    }
+    window.PROFILES = PROFILES;
+    saveCommunityProfiles();
+
+    // Live update currentUser model if own profile was updated remotely
+    if (typeof state !== 'undefined' && state.currentUser && prof) {
+        const myId = String(state.currentUser.id || state.currentUser.profileId || '');
+        const myEmail = (state.currentUser.email || '').trim().toLowerCase();
+        if ((profIdStr && profIdStr === myId) || (profEmail && profEmail === myEmail)) {
+            if (prof.name) state.currentUser.name = prof.name;
+            if (prof.gender) state.currentUser.gender = (prof.gender === 'girls' || prof.gender === 'Girl') ? 'Girl' : 'Boy';
+            if (prof.community) { state.currentUser.caste = prof.community; state.currentUser.community = prof.community; }
+            if (prof.img) { state.currentUser.img = prof.img; state.currentUser.photo = prof.img; }
+            if (prof.paymentStatus) state.currentUser.paymentStatus = prof.paymentStatus;
+            if (typeof saveSessionState === 'function') saveSessionState();
+            if (typeof updateHeaderUserDisplay === 'function') updateHeaderUserDisplay();
+        }
+    }
+
+    console.info('[Realtime] Live profile update applied:', prof.id, prof.name, prof.gender);
+    if (typeof updateHomeStats === 'function') updateHomeStats();
+    if (typeof updateHeaderUserDisplay === 'function') updateHeaderUserDisplay();
+    if (typeof renderHome === 'function' && document.getElementById('homeGirlsList')) renderHome();
+    if (typeof renderBrowse === 'function' && document.getElementById('browseList')) renderBrowse();
+    if (typeof checkCurrentUserStatus === 'function') checkCurrentUserStatus();
+}
+window.handleRemoteProfileUpsert = handleRemoteProfileUpsert;
+
+/**
+ * Realtime subscription: Listen for profile insertions, updates, and deletions
+ * Subscribes to BOTH Realtime Broadcast (sub-100ms) and Postgres Changes
  */
 function setupProfilesRealtime() {
-    if (typeof supabaseSubscribeToTable !== 'function') return;
+    if (window._profilesRealtimeActive) return;
+    const client = (typeof getSupabaseClient === 'function') ? getSupabaseClient() : null;
+    if (!client) return;
+
+    window._profilesRealtimeActive = true;
+    console.info('[Profiles] Initializing Realtime listeners (Broadcast + Postgres Changes)...');
+
     try {
-        supabaseSubscribeToTable('profiles', 
-            (newRow) => {
-                if (typeof isUserPurged === 'function' && isUserPurged(newRow)) return;
-                const prof = typeof mapProfileFromSupabase === 'function' ? mapProfileFromSupabase(newRow) : newRow;
-                if (!prof || !prof.id || prof.accountStatus === 'deleted' || prof.account_status === 'deleted') return;
-                const idx = PROFILES.findIndex(p => p.id === prof.id);
-                if (idx === -1) {
-                    PROFILES.unshift(prof);
-                } else {
-                    PROFILES[idx] = { ...PROFILES[idx], ...prof };
+        // 1. Subscribe to Realtime broadcast channel (instant cross-device synchronization)
+        if (typeof client.channel === 'function') {
+            const bcChannel = client.channel('realtime:presence:community');
+            bcChannel
+                .on('broadcast', { event: 'profile_upserted' }, ({ payload }) => {
+                    if (payload) {
+                        console.info('[Realtime Broadcast] Received profile_upserted:', payload.id, payload.name);
+                        handleRemoteProfileUpsert(payload);
+                    }
+                })
+                .on('broadcast', { event: 'user_account_deleted' }, ({ payload }) => {
+                    if (payload) {
+                        console.info('[Realtime Broadcast] Received user_account_deleted:', payload.id, payload.email);
+                        handleRemoteAccountPurge(payload.id, payload.email, payload);
+                    }
+                })
+                .subscribe((status) => {
+                    console.info('[Realtime Broadcast] Community channel status:', status);
+                });
+        }
+
+        // 2. Subscribe to profiles table via Postgres changes
+        if (typeof supabaseSubscribeToTable === 'function') {
+            supabaseSubscribeToTable('profiles', 
+                (newRow) => {
+                    if (!newRow) return;
+                    handleRemoteProfileUpsert(newRow);
+                },
+                (updatedRow) => {
+                    if (!updatedRow) return;
+                    // Live check if current user was suspended or reactivated
+                    if (typeof state !== 'undefined' && state.currentUser) {
+                        const myId = String(state.currentUser.id || state.currentUser.profileId || state.currentUser.userId || '');
+                        const myUserId = String(state.currentUser.userId || state.currentUser.user_id || '');
+                        const myEmail = (state.currentUser.email || '').trim().toLowerCase();
+                        const rowId = String(updatedRow.id || '');
+                        const rowUserId = String(updatedRow.user_id || '');
+                        const rowEmail = (updatedRow.email || '').trim().toLowerCase();
+                        const isMatch = (rowId && (rowId === myId || rowId === myUserId)) ||
+                                        (rowUserId && (rowUserId === myId || rowUserId === myUserId)) ||
+                                        (rowEmail && myEmail && rowEmail === myEmail);
+                        if (isMatch) {
+                            const rowStatus = String(updatedRow.account_status || (updatedRow.raw_data && updatedRow.raw_data.accountStatus) || '').toLowerCase();
+                            if (rowStatus === 'suspended') {
+                                state.currentUser.status = 'Suspended';
+                                state.currentUser.accountStatus = 'suspended';
+                                state.currentUser.account_status = 'suspended';
+                                state.currentUser.suspensionReason = updatedRow.suspension_reason || (updatedRow.raw_data && updatedRow.raw_data.suspensionReason) || 'Account suspended by administrator.';
+                                if (typeof saveSessionState === 'function') saveSessionState();
+                                if (typeof enforceUserSuspendedModal === 'function') enforceUserSuspendedModal(state.currentUser.suspensionReason);
+                                return;
+                            } else if (rowStatus === 'active') {
+                                state.currentUser.status = 'Active';
+                                state.currentUser.accountStatus = 'active';
+                                state.currentUser.account_status = 'active';
+                                state.currentUser.suspensionReason = null;
+                                if (typeof saveSessionState === 'function') saveSessionState();
+                                if (typeof dismissUserSuspendedModal === 'function') dismissUserSuspendedModal();
+                            }
+                        }
+                    }
+
+                    handleRemoteProfileUpsert(updatedRow);
+                },
+                (deletedRow) => {
+                    if (!deletedRow) return;
+                    handleRemoteAccountPurge(deletedRow.id, deletedRow.email, deletedRow);
                 }
-                window.PROFILES = PROFILES;
-                saveCommunityProfiles();
-                if (typeof updateHomeStats === 'function') updateHomeStats();
-                if (typeof updateHeaderUserDisplay === 'function') updateHeaderUserDisplay();
-                if (typeof renderHome === 'function' && document.getElementById('homeGirlsList')) renderHome();
-                if (typeof renderBrowse === 'function' && document.getElementById('browseList')) renderBrowse();
-                if (typeof checkCurrentUserStatus === 'function') checkCurrentUserStatus();
-            },
-            (updatedRow) => {
-                if (!updatedRow) return;
-                // Live check if current user was updated (e.g. suspended or reactivated)
-                if (typeof state !== 'undefined' && state.currentUser) {
-                    const myId = String(state.currentUser.id || state.currentUser.profileId || state.currentUser.userId || '');
-                    const myUserId = String(state.currentUser.userId || state.currentUser.user_id || '');
-                    const myEmail = (state.currentUser.email || '').trim().toLowerCase();
-                    const rowId = String(updatedRow.id || '');
-                    const rowUserId = String(updatedRow.user_id || '');
-                    const rowEmail = (updatedRow.email || '').trim().toLowerCase();
-                    const isMatch = (rowId && (rowId === myId || rowId === myUserId)) ||
-                                    (rowUserId && (rowUserId === myId || rowUserId === myUserId)) ||
-                                    (rowEmail && myEmail && rowEmail === myEmail);
-                    if (isMatch) {
-                        const rowStatus = String(updatedRow.account_status || (updatedRow.raw_data && updatedRow.raw_data.accountStatus) || '').toLowerCase();
-                        if (rowStatus === 'suspended') {
-                            state.currentUser.status = 'Suspended';
-                            state.currentUser.accountStatus = 'suspended';
-                            state.currentUser.account_status = 'suspended';
-                            state.currentUser.suspensionReason = updatedRow.suspension_reason || (updatedRow.raw_data && updatedRow.raw_data.suspensionReason) || 'Account suspended by administrator.';
-                            if (typeof saveSessionState === 'function') saveSessionState();
-                            if (typeof enforceUserSuspendedModal === 'function') enforceUserSuspendedModal(state.currentUser.suspensionReason);
-                            return;
-                        } else if (rowStatus === 'active') {
+            );
+
+            // Also subscribe to users table for live user moderation / deletion events
+            supabaseSubscribeToTable(
+                'users',
+                () => {},
+                (updatedUser) => {
+                    if (!updatedUser) return;
+                    if (state.currentUser && (String(state.currentUser.id) === String(updatedUser.id) || (updatedUser.email && state.currentUser.email && state.currentUser.email.toLowerCase() === updatedUser.email.toLowerCase()))) {
+                        if (updatedUser.status === 'Suspended') {
+                            if (typeof supabaseCheckUserSuspended === 'function') {
+                                supabaseCheckUserSuspended(state.currentUser.id || state.currentUser.profileId, state.currentUser.email).then(res => {
+                                    if (res && res.suspended) {
+                                        state.currentUser.status = 'Suspended';
+                                        state.currentUser.suspensionReason = res.reason || updatedUser.suspension_reason || 'Account suspended by administrator.';
+                                        if (typeof saveSessionState === 'function') saveSessionState();
+                                        if (typeof enforceUserSuspendedModal === 'function') enforceUserSuspendedModal(state.currentUser.suspensionReason);
+                                    }
+                                }).catch(() => {});
+                            }
+                        } else if (updatedUser.status === 'Active') {
                             state.currentUser.status = 'Active';
-                            state.currentUser.accountStatus = 'active';
-                            state.currentUser.account_status = 'active';
-                            state.currentUser.suspensionReason = null;
                             if (typeof saveSessionState === 'function') saveSessionState();
                             if (typeof dismissUserSuspendedModal === 'function') dismissUserSuspendedModal();
                         }
                     }
+                },
+                (deletedUser) => {
+                    if (!deletedUser) return;
+                    handleRemoteAccountPurge(deletedUser.id, deletedUser.email, deletedUser);
                 }
-
-                if ((typeof isUserPurged === 'function' && isUserPurged(updatedRow)) || (updatedRow && updatedRow.account_status === 'deleted')) {
-                    handleRemoteAccountPurge(updatedRow.id, updatedRow.email, updatedRow);
-                    return;
-                }
-                const prof = typeof mapProfileFromSupabase === 'function' ? mapProfileFromSupabase(updatedRow) : updatedRow;
-                if (!prof || !prof.id || prof.accountStatus === 'deleted' || prof.account_status === 'deleted') {
-                    // Only purge truly deleted profiles — suspended profiles are NOT deleted!
-                    if (updatedRow && updatedRow.id) {
-                        handleRemoteAccountPurge(updatedRow.id, updatedRow.email, updatedRow);
-                    }
-                    return;
-                }
-                // For suspended profiles: remove from public browse feed but do NOT purge/delete
-                if (prof.accountStatus === 'suspended' || prof.account_status === 'suspended') {
-                    PROFILES = PROFILES.filter(p => p && String(p.id) !== String(prof.id));
-                    window.PROFILES = PROFILES;
-                    saveCommunityProfiles();
-                    if (typeof renderHome === 'function' && document.getElementById('homeGirlsList')) renderHome();
-                    if (typeof renderBrowse === 'function' && document.getElementById('browseList')) renderBrowse();
-                    return;
-                }
-                const idx = PROFILES.findIndex(p => p.id === prof.id);
-                if (idx !== -1) {
-                    PROFILES[idx] = { ...PROFILES[idx], ...prof };
-                } else {
-                    PROFILES.unshift(prof);
-                }
-                window.PROFILES = PROFILES;
-                saveCommunityProfiles();
-
-                // Live update currentUser model if own profile was updated remotely
-                if (typeof state !== 'undefined' && state.currentUser && prof) {
-                    const myId = String(state.currentUser.id || state.currentUser.profileId || '');
-                    const myEmail = (state.currentUser.email || '').trim().toLowerCase();
-                    const profId = String(prof.id || '');
-                    const profEmail = (prof.email || '').trim().toLowerCase();
-                    if ((profId && profId === myId) || (profEmail && profEmail === myEmail)) {
-                        if (prof.name) state.currentUser.name = prof.name;
-                        if (prof.gender) state.currentUser.gender = (prof.gender === 'girls' || prof.gender === 'Girl') ? 'Girl' : 'Boy';
-                        if (prof.community) { state.currentUser.caste = prof.community; state.currentUser.community = prof.community; }
-                        if (prof.img) { state.currentUser.img = prof.img; state.currentUser.photo = prof.img; }
-                        if (prof.age) state.currentUser.age = prof.age;
-                        if (prof.dob) state.currentUser.dob = prof.dob;
-                        if (prof.education) state.currentUser.education = prof.education;
-                        if (prof.occ || prof.occupation) { state.currentUser.occ = prof.occ || prof.occupation; state.currentUser.occupation = prof.occ || prof.occupation; }
-                        if (prof.income) state.currentUser.income = prof.income;
-                        if (prof.marital) state.currentUser.marital = prof.marital;
-                        if (prof.height) state.currentUser.height = prof.height;
-                        if (prof.weight) state.currentUser.weight = prof.weight;
-                        if (prof.village || prof.city) { state.currentUser.village = prof.village || prof.city; state.currentUser.city = prof.village || prof.city; }
-                        if (prof.taluka) state.currentUser.taluka = prof.taluka;
-                        if (prof.district) state.currentUser.district = prof.district;
-                        if (prof.fullAddress || prof.address) { state.currentUser.address = prof.fullAddress || prof.address; state.currentUser.fullAddress = prof.fullAddress || prof.address; }
-                        if (prof.ownMobile || prof.mobile) { state.currentUser.ownMobile = prof.ownMobile || prof.mobile; state.currentUser.mobile = prof.ownMobile || prof.mobile; }
-                        if (prof.father || prof.fatherName) { state.currentUser.father = prof.father || prof.fatherName; state.currentUser.fatherName = prof.father || prof.fatherName; }
-                        if (prof.mother || prof.motherName) { state.currentUser.mother = prof.mother || prof.motherName; state.currentUser.motherName = prof.mother || prof.motherName; }
-                        if (prof.fatherMobile) state.currentUser.fatherMobile = prof.fatherMobile;
-                        if (Array.isArray(prof.photos) && prof.photos.length > 0) state.currentUser.photos = prof.photos;
-                        if (typeof saveSessionState === 'function') saveSessionState();
-                        if (typeof updateHeaderUserDisplay === 'function') updateHeaderUserDisplay();
-                    }
-                }
-
-                if (typeof updateHomeStats === 'function') updateHomeStats();
-                if (typeof updateHeaderUserDisplay === 'function') updateHeaderUserDisplay();
-                if (typeof renderHome === 'function' && document.getElementById('homeGirlsList')) renderHome();
-                if (typeof renderBrowse === 'function' && document.getElementById('browseList')) renderBrowse();
-                // Only check current user status for own profile updates
-                if (typeof checkCurrentUserStatus === 'function' && typeof state !== 'undefined' && state.currentUser) {
-                    const myId = String(state.currentUser.id || state.currentUser.profileId || '');
-                    const myEmail = (state.currentUser.email || '').trim().toLowerCase();
-                    const rowId = String(updatedRow.id || '');
-                    const rowEmail = (updatedRow.email || '').trim().toLowerCase();
-                    if ((rowId && rowId === myId) || (rowEmail && rowEmail === myEmail)) {
-                        checkCurrentUserStatus();
-                    }
-                }
-            },
-            (deletedRow) => {
-                if (!deletedRow) return;
-                handleRemoteAccountPurge(deletedRow.id, deletedRow.email, deletedRow);
-            }
-        );
-
-        // Also subscribe to users table for live user moderation / deletion events
-        supabaseSubscribeToTable(
-            'users',
-            () => {},
-            (updatedUser) => {
-                if (!updatedUser) return;
-                if (state.currentUser && (String(state.currentUser.id) === String(updatedUser.id) || (updatedUser.email && state.currentUser.email && state.currentUser.email.toLowerCase() === updatedUser.email.toLowerCase()))) {
-                    if (updatedUser.status === 'Suspended') {
-                        // Verify with profiles table (primary source of truth) before enforcing suspension
-                        // to avoid false suspensions from stale users.status data
-                        if (typeof supabaseCheckUserSuspended === 'function') {
-                            supabaseCheckUserSuspended(state.currentUser.id || state.currentUser.profileId, state.currentUser.email).then(res => {
-                                if (res && res.suspended) {
-                                    state.currentUser.status = 'Suspended';
-                                    state.currentUser.suspensionReason = res.reason || updatedUser.suspension_reason || 'Account suspended by administrator.';
-                                    if (typeof saveSessionState === 'function') saveSessionState();
-                                    if (typeof enforceUserSuspendedModal === 'function') enforceUserSuspendedModal(state.currentUser.suspensionReason);
-                                }
-                            }).catch(() => {});
-                        }
-                    } else if (updatedUser.status === 'Active') {
-                        state.currentUser.status = 'Active';
-                        if (typeof saveSessionState === 'function') saveSessionState();
-                        if (typeof dismissUserSuspendedModal === 'function') dismissUserSuspendedModal();
-                    }
-                }
-            },
-            (deletedUser) => {
-                if (!deletedUser) return;
-                handleRemoteAccountPurge(deletedUser.id, deletedUser.email, deletedUser);
-            }
-        );
-
-        // Subscribe to Realtime broadcast channel for instant cross-device account deletion
-        const client = (typeof getSupabaseClient === 'function') ? getSupabaseClient() : null;
-        if (client && typeof client.channel === 'function') {
-            const bcChannel = client.channel('realtime:presence:community');
-            bcChannel.on('broadcast', { event: 'user_account_deleted' }, ({ payload }) => {
-                if (payload) {
-                    handleRemoteAccountPurge(payload.id, payload.email, payload);
-                }
-            }).subscribe();
+            );
         }
     } catch (e) {
         console.warn('[Profiles] Realtime setup note:', e);
@@ -508,7 +512,7 @@ window.handleRemoteAccountPurge = handleRemoteAccountPurge;
 
 // Automatically trigger sync and realtime subscription on load
 let _lastSilentProfilesSync = 0;
-function triggerSilentProfilesSync(minIntervalMs = 8000) {
+function triggerSilentProfilesSync(minIntervalMs = 5000) {
     const now = Date.now();
     if (now - _lastSilentProfilesSync < minIntervalMs) return;
     _lastSilentProfilesSync = now;
@@ -518,31 +522,41 @@ function triggerSilentProfilesSync(minIntervalMs = 8000) {
 }
 window.triggerSilentProfilesSync = triggerSilentProfilesSync;
 
-if (typeof window !== 'undefined') {
-    window.addEventListener('DOMContentLoaded', () => {
-        if (typeof updateHomeStats === 'function') updateHomeStats();
-        // Initial sync silent if cached profiles already exist, else quick loader
-        const isSilentInitial = Array.isArray(PROFILES) && PROFILES.length > 0;
+function bootProfilesInit() {
+    if (typeof updateHomeStats === 'function') updateHomeStats();
+    const isSilentInitial = Array.isArray(PROFILES) && PROFILES.length > 0;
+    if (typeof syncProfilesFromSupabase === 'function') {
         syncProfilesFromSupabase(false, isSilentInitial);
+    }
+    if (typeof setupProfilesRealtime === 'function') {
         setupProfilesRealtime();
-    });
+    }
+}
+window.bootProfilesInit = bootProfilesInit;
 
-    // Auto-sync when user returns to tab / unlocks phone
+if (typeof window !== 'undefined') {
+    if (document.readyState === 'loading') {
+        window.addEventListener('DOMContentLoaded', bootProfilesInit);
+    } else {
+        bootProfilesInit();
+    }
+
+    // Auto-sync immediately when user returns to tab / unlocks phone
     if (typeof document !== 'undefined') {
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) triggerSilentProfilesSync(8000);
+            if (!document.hidden) triggerSilentProfilesSync(0);
         });
         window.addEventListener('focus', () => {
-            triggerSilentProfilesSync(8000);
+            triggerSilentProfilesSync(0);
         });
     }
 
-    // Failsafe background periodic refresh every 40 seconds
+    // High-frequency failsafe background sync every 6 seconds
     setInterval(() => {
         if (typeof document !== 'undefined' && !document.hidden) {
-            triggerSilentProfilesSync(25000);
+            triggerSilentProfilesSync(5000);
         }
-    }, 40000);
+    }, 6000);
 }
 
 /**

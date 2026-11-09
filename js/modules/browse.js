@@ -1115,6 +1115,9 @@ function saveEditProfile() {
         saveCommunityProfiles();
         saveSessionState();
         updateHeaderUserDisplay();
+        if (typeof supabaseBroadcastProfileUpsert === 'function' && myProfile) {
+            supabaseBroadcastProfileUpsert(myProfile);
+        }
         if (typeof renderHome === 'function' && document.getElementById('homeGirlsList')) renderHome();
         if (typeof renderBrowse === 'function' && document.getElementById('browseList')) renderBrowse();
         showToast(isVisible ? 'Profile updated successfully! ✨' : 'Profile updated! Your profile is now hidden from search.');
