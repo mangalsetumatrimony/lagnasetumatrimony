@@ -16,6 +16,59 @@ function initApp() {
         restoreRememberedLogin();
     }
 
+    // Check if returning from Instamojo UPI payment redirect
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const paymentStatus = urlParams.get('payment_status') || urlParams.get('payment') || urlParams.get('status');
+        const paymentId = urlParams.get('payment_id') || urlParams.get('payment_request_id');
+
+        if (paymentStatus === 'Credit' || paymentStatus === 'success' || paymentStatus === 'successful') {
+            // Restore pending payment user if state.currentUser is empty
+            if (!state.currentUser || !state.currentUser.email) {
+                try {
+                    const pendingRaw = localStorage.getItem('mangalSetu_pendingPaymentUser');
+                    if (pendingRaw) {
+                        const pendingUser = JSON.parse(pendingRaw);
+                        if (typeof getStoredAccounts === 'function') {
+                            const accs = getStoredAccounts();
+                            const matched = accs.find(a => (pendingUser.email && a.email && a.email.toLowerCase() === pendingUser.email.toLowerCase()) || (pendingUser.userId && a.id == pendingUser.userId));
+                            if (matched) {
+                                state.currentUser = Object.assign({}, matched);
+                            }
+                        }
+                    }
+                } catch (_) {}
+            }
+
+            const cleanUrl = window.location.origin + window.location.pathname + (window.location.hash || '#/home');
+            try { window.history.replaceState({}, document.title, cleanUrl); } catch (_) {}
+            localStorage.removeItem('mangalSetu_pendingPaymentUser');
+
+            if (typeof processSuccessfulPayment === 'function') {
+                const txn = paymentId || ('IMJO_' + Date.now());
+                processSuccessfulPayment(txn, 'Instamojo UPI');
+                setTimeout(() => {
+                    if (typeof showToast === 'function') {
+                        showToast('₹199 Paid Successfully via UPI! 30-Day Pass Activated 🎉');
+                    }
+                    if (typeof enterHome === 'function') {
+                        enterHome();
+                    }
+                }, 300);
+            }
+        } else if (paymentStatus === 'Failed' || paymentStatus === 'failure') {
+            const cleanUrl = window.location.origin + window.location.pathname + (window.location.hash || '');
+            try { window.history.replaceState({}, document.title, cleanUrl); } catch (_) {}
+            setTimeout(() => {
+                if (typeof showToast === 'function') {
+                    showToast('Payment was not completed. You can try again anytime.');
+                }
+            }, 300);
+        }
+    } catch (e) {
+        console.warn('[Init] Payment redirect check note:', e);
+    }
+
     if (typeof syncAndPruneDeletedAccounts === 'function') {
         syncAndPruneDeletedAccounts();
     }

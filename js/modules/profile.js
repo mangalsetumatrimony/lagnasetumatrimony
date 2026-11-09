@@ -340,100 +340,69 @@ function selectUpiApp(appName, el) {
 }
 window.selectUpiApp = selectUpiApp;
 
-function openRazorpayCheckout() {
+window.INSTAMOJO_LINK = 'https://imjo.in/8UVhHG';
+
+function openPaymentCheckout() {
     closeModal('modalPaywall');
     closeModal('modalBoyComplete');
     closeModal('modalMembership');
 
-    // If official Razorpay JS SDK is loaded and real Key is present
-    if (typeof window.Razorpay === 'function' && window.RAZORPAY_KEY_ID && !window.RAZORPAY_KEY_ID.includes('demo')) {
-        try {
-            const user = (typeof state !== 'undefined' && state.currentUser) || {};
-            const boyName = user.name || 'Community Member';
-            const boyEmail = user.email || 'mangalsetu.in@gmail.com';
-            const boyPhone = user.mobile ? user.mobile.replace(/[^0-9]/g, '').slice(-10) : '9726362863';
+    const user = (typeof state !== 'undefined' && state.currentUser) || {};
+    const boyName = encodeURIComponent(user.name || (state.regData && state.regData.name) || 'Community Member');
+    const boyEmail = encodeURIComponent(user.email || (state.regData && state.regData.email) || 'mangalsetu.in@gmail.com');
+    const rawMobile = user.mobile || (state.regData && state.regData.mobile) || '9726362863';
+    const boyPhone = encodeURIComponent(rawMobile.replace(/[^0-9]/g, '').slice(-10));
 
-            const options = {
-                key: window.RAZORPAY_KEY_ID,
-                amount: 19900, // ₹199 in paise (₹199.00)
-                currency: 'INR',
-                name: 'Mangal Setu',
-                description: 'Boys 30-Day Membership Pass (₹199)',
-                image: 'images/mangal_setu_logo.png',
-                notes: {
-                    service: '30-Day Matrimonial Directory Access Pass',
-                    nature: 'Instant Digital Service (Non-refundable)',
-                    disclaimer: 'Directory access only. Match/response not guaranteed.',
-                    user_id: String(user.id || ''),
-                    user_email: boyEmail
-                },
-                prefill: {
-                    name: boyName,
-                    email: boyEmail,
-                    contact: boyPhone,
-                    method: 'upi'
-                },
-                theme: {
-                    color: '#7B2CBF'
-                },
-                // STRICT 100% UPI ONLY: Cards, Netbanking, Wallets, EMI, Paylater are permanently disabled
-                method: {
-                    netbanking: false,
-                    card: false,
-                    wallet: false,
-                    emi: false,
-                    paylater: false,
-                    upi: true
-                },
-                config: {
-                    display: {
-                        blocks: {
-                            upi_block: {
-                                name: 'Pay via UPI (Google Pay, PhonePe, Paytm, BHIM)',
-                                instruments: [
-                                    {
-                                        method: 'upi'
-                                    }
-                                ]
-                            }
-                        },
-                        sequence: ['block.upi_block'],
-                        preferences: {
-                            show_default_blocks: false
-                        }
-                    }
-                },
-                handler: function(response) {
-                    const txnId = response.razorpay_payment_id || ('RZP_UPI_' + Math.floor(10000 + Math.random() * 90000));
-                    console.log('[Razorpay] Payment successful:', txnId);
-                    processSuccessfulPayment(txnId, 'Razorpay UPI');
-                },
-                modal: {
-                    ondismiss: function() {
-                        showToast('Payment window closed');
-                    }
-                }
-            };
+    // Save pending payment session so when Instamojo returns, user is immediately recognized
+    try {
+        const pendingInfo = {
+            userId: user.id || (state.regData && state.regData.id) || null,
+            email: user.email || (state.regData && state.regData.email) || null,
+            name: user.name || (state.regData && state.regData.name) || null,
+            time: Date.now()
+        };
+        localStorage.setItem('mangalSetu_pendingPaymentUser', JSON.stringify(pendingInfo));
+    } catch (_) {}
 
-            const rzp = new window.Razorpay(options);
-            rzp.on('payment.failed', function(resp) {
-                console.warn('[Razorpay] Payment failed / notice:', resp);
-                const desc = resp.error ? resp.error.description : '';
-                showToast('Payment notice: ' + (desc || 'Payment window closed. You can retry or use Test Pass.'));
-            });
-            rzp.open();
-            return;
-        } catch (err) {
-            console.warn('Razorpay SDK init failed, falling back to instant UPI modal:', err);
+    const mojoUrl = window.INSTAMOJO_LINK || 'https://imjo.in/8UVhHG';
+    if (mojoUrl) {
+        const sep = mojoUrl.includes('?') ? '&' : '?';
+        const targetUrl = `${mojoUrl}${sep}data_name=${boyName}&data_email=${boyEmail}&data_phone=${boyPhone}`;
+        if (typeof showToast === 'function') {
+            showToast('Opening secure UPI payment gateway...');
         }
+        setTimeout(() => {
+            window.location.href = targetUrl;
+        }, 350);
+        return;
     }
 
     // Default / Offline / Demo: Open the instant UPI modal
     openModal('modalRazorpayCheckout');
 }
+window.openPaymentCheckout = openPaymentCheckout;
+window.openRazorpayCheckout = openPaymentCheckout;
 
 function processSuccessfulPayment(txnId, upiMethod) {
-    if (typeof state === 'undefined' || !state.currentUser) return;
+    if (typeof state === 'undefined') return;
+
+    if (!state.currentUser) {
+        try {
+            const pendingRaw = localStorage.getItem('mangalSetu_pendingPaymentUser');
+            if (pendingRaw) {
+                const pending = JSON.parse(pendingRaw);
+                if (typeof getStoredAccounts === 'function') {
+                    const accs = getStoredAccounts();
+                    const matched = accs.find(a => (pending.email && a.email && a.email.toLowerCase() === pending.email.toLowerCase()) || (pending.userId && a.id == pending.userId));
+                    if (matched) state.currentUser = Object.assign({}, matched);
+                }
+            }
+        } catch (_) {}
+    }
+    if (!state.currentUser && state.regData) {
+        state.currentUser = Object.assign({}, state.regData);
+    }
+    if (!state.currentUser) return;
 
     // 1. Auto-heal currentUser from window.PROFILES or state.regData FIRST before sealing security tokens
     if (typeof PROFILES !== 'undefined' && Array.isArray(PROFILES)) {

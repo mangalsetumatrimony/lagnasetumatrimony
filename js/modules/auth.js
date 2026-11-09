@@ -994,7 +994,11 @@ function doLogout(isTimeout = false) {
 }
 
 function payNow() {
-    openRazorpayCheckout();
+    if (typeof openPaymentCheckout === 'function') {
+        openPaymentCheckout();
+    } else if (typeof openRazorpayCheckout === 'function') {
+        openRazorpayCheckout();
+    }
 }
 
 if (typeof doLogout !== 'undefined') window.doLogout = doLogout;
