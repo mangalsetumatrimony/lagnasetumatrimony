@@ -879,6 +879,7 @@
         .dob-scroll-list {
             height: 180px;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             width: 100%;
             scrollbar-width: thin;
             scrollbar-color: var(--secondary) transparent;
@@ -989,8 +990,12 @@
             position: fixed;
             top: 0;
             left: 0;
+            right: 0;
+            bottom: 0;
+            inset: 0;
             width: 100vw;
             height: 100vh;
+            height: 100dvh;
             background: radial-gradient(circle at center, #2C164D 0%, #150826 100%);
             z-index: 99999;
             display: flex;
@@ -1151,17 +1156,14 @@
         }
 
         /* ======================== WHATSAPP-STYLE CHAT ARCHITECTURE ======================== */
-        body.in-chat-screen,
-        html:has(#scr-chat.active),
-        html:has(#scr-chat.active) body {
+        body.in-chat-screen {
             overflow: hidden !important;
             height: 100vh !important;
             height: 100dvh !important;
             max-height: 100dvh !important;
         }
 
-        body.in-chat-screen .app-container,
-        html:has(#scr-chat.active) .app-container {
+        body.in-chat-screen .app-container {
             overflow: hidden !important;
             height: 100vh !important;
             height: 100dvh !important;
@@ -1169,6 +1171,27 @@
             min-height: 0 !important;
             display: flex;
             flex-direction: column;
+        }
+
+        /* Modern browser enhancement with :has support */
+        @supports selector(:has(*)) {
+            html:has(#scr-chat.active),
+            html:has(#scr-chat.active) body {
+                overflow: hidden !important;
+                height: 100vh !important;
+                height: 100dvh !important;
+                max-height: 100dvh !important;
+            }
+
+            html:has(#scr-chat.active) .app-container {
+                overflow: hidden !important;
+                height: 100vh !important;
+                height: 100dvh !important;
+                max-height: 100dvh !important;
+                min-height: 0 !important;
+                display: flex;
+                flex-direction: column;
+            }
         }
 
         #scr-chat {

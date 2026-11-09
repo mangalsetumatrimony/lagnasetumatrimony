@@ -12,6 +12,8 @@
             padding: 0;
             width: 100%;
             min-height: 100vh;
+            min-height: -webkit-fill-available;
+            min-height: 100dvh;
         }
 
         body {
@@ -21,6 +23,11 @@
             overflow-x: hidden;
             width: 100%;
             min-height: 100vh;
+            min-height: -webkit-fill-available;
+            min-height: 100dvh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
         }
 
         button,
@@ -28,6 +35,9 @@
         select,
         textarea {
             font-family: inherit;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
         }
 
         ::selection {
@@ -74,6 +84,10 @@
         /* ============ FULL SCREEN AMBIENCE ============ */
         .app-bg {
             position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             inset: 0;
             z-index: 0;
             overflow: hidden;
@@ -117,9 +131,12 @@
             display: none;
             flex-direction: column;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             -ms-overflow-style: none;
             animation: slideIn .38s cubic-bezier(.22, .68, .36, 1);
             min-height: 100vh;
+            min-height: -webkit-fill-available;
+            min-height: 100dvh;
             scrollbar-width: thin;
             scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
         }
@@ -197,6 +214,10 @@
             cursor: pointer;
             flex-shrink: 0;
             transition: transform .15s ease;
+            -webkit-appearance: none;
+            appearance: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
 
         .icon-btn:active {

@@ -17,8 +17,8 @@ const PRECACHE_ASSETS = [
     './images/icon-512.png',
     './css/tokens.css',
     './css/base.css',
-    './css/components.css',
-    './css/screens.css?v=4.5',
+    './css/components.css?v=8.9',
+    './css/screens.css?v=8.9',
     './css/fonts.css',
     './css/fontawesome.css'
 ];
