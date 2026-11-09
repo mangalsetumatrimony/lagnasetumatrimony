@@ -1248,15 +1248,25 @@ async function handleSocialUserAuthenticated(socialUser) {
             }
         }
 
-        // Check local stored accounts fallback
-        if (!existingProfile && typeof getStoredAccounts === 'function') {
-            const accounts = getStoredAccounts();
-            existingProfile = accounts.find(a => a.email && a.email.toLowerCase() === normEmail);
+        // STRICT SINGLE SOURCE OF TRUTH:
+        // Only if Supabase client is NOT available (offline standalone demo), check local stored accounts fallback.
+        if (!client && !existingProfile) {
+            if (typeof getStoredAccounts === 'function') {
+                const accounts = getStoredAccounts();
+                existingProfile = accounts.find(a => a.email && a.email.toLowerCase() === normEmail);
+            }
+            if (!existingProfile && Array.isArray(window.PROFILES)) {
+                existingProfile = window.PROFILES.find(p => p.email && p.email.toLowerCase() === normEmail);
+            }
         }
 
-        // Check window.PROFILES in memory
-        if (!existingProfile && Array.isArray(window.PROFILES)) {
-            existingProfile = window.PROFILES.find(p => p.email && p.email.toLowerCase() === normEmail);
+        // When connected to live Supabase: If Supabase has NO profile for this email/UID,
+        // it means the account was deleted or is a brand new user.
+        // Purge any stale ghost account from local device storage immediately!
+        if (client && !existingProfile) {
+            if (typeof purgeUserAccountLocally === 'function') {
+                purgeUserAccountLocally(normEmail, socialUser.id);
+            }
         }
 
         const rawData = (existingProfile && typeof existingProfile.raw_data === 'object') ? existingProfile.raw_data : {};

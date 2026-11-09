@@ -1411,7 +1411,7 @@ async function supabaseDeleteUserCompletely(id, email, extraId, options = {}) {
         }
     };
     const ingestEmail = (val) => {
-        if (val && typeof val === 'string' && val.includes('@')) {
+        if (val && typeof val === 'string' && val.includes('@') && !val.includes('•')) {
             collectedEmails.add(val.trim().toLowerCase());
         }
     };
@@ -1423,6 +1423,7 @@ async function supabaseDeleteUserCompletely(id, email, extraId, options = {}) {
         ingestId(id.user_id);
         ingestId(id.profileId);
         ingestId(id.profile_id);
+        ingestEmail(id.rawEmail);
         ingestEmail(id.email);
         ingestEmail(id.userEmail);
     } else {

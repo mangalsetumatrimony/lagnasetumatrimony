@@ -1539,7 +1539,14 @@ async function confirmDeleteAccount() {
     if (confirmInput) confirmInput.value = '';
     showGlobalLoader('Deleting account permanently from Supabase & Cloudinary...');
 
-    const emailToDelete = currentUser.email || state.regData?.email || '';
+    let emailToDelete = currentUser.rawEmail || currentUser.email || state.regData?.email || '';
+    if (emailToDelete.includes('•')) {
+        if (currentUser.rawEmail && !currentUser.rawEmail.includes('•')) {
+            emailToDelete = currentUser.rawEmail;
+        } else if (state.regData?.email && !state.regData.email.includes('•')) {
+            emailToDelete = state.regData.email;
+        }
+    }
     const idToDelete = currentUser.id || '';
     const userIdToDelete = currentUser.userId || state.regData?.userId || state.regData?.id || '';
 
