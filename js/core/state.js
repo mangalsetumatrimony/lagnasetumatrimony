@@ -334,6 +334,16 @@ function loadSessionState() {
                         state.currentUser.img = matchedProf.img || (matchedProf.photos && matchedProf.photos[0]);
                         state.currentUser.photo = state.currentUser.img;
                     }
+                    // Reconcile approved pass status from database/profiles
+                    if (matchedProf.paymentStatus === 'paid' || matchedProf.payment_status === 'paid' || matchedProf.paymentStatus === 'Active') {
+                        state.currentUser.paymentStatus = 'Active';
+                        state.currentUser.payment_status = 'paid';
+                        if (matchedProf.planExpiry) state.currentUser.planExpiry = matchedProf.planExpiry;
+                        if (matchedProf.planStart) state.currentUser.planStart = matchedProf.planStart;
+                        if (typeof computeSecureToken === 'function') {
+                            state.currentUser.paymentToken = computeSecureToken('payment', state.currentUser.id || matchedProf.id, state.currentUser.email || matchedProf.email, matchedProf.planExpiry || state.currentUser.planExpiry);
+                        }
+                    }
                 }
             }
         }
