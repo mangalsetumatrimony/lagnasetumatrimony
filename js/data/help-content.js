@@ -5,13 +5,14 @@ const DEFAULT_HOW_IT_WORKS = [
     { title: 'Personal & family biodata', desc: 'Add education, occupation, income, hobbies, and respectful family background.' },
     { title: 'Upload verified photos', desc: 'Upload up to 3 high-resolution photos (1 main verified photo + 2 gallery slots).' },
     { title: 'Native location & address', desc: 'Specify your native village, taluka, and district for localized matchmaking.' },
-    { title: 'Membership & Instant Activation', desc: 'Community girls: 100% Lifetime Free · Boys: ₹199 for 30 Days Pass via secure Razorpay UPI / Cards.' },
+    { title: 'Government Verified & 30-Day Pass', desc: 'Govt. of India MSME Registered (UDYAM-GJ-20-0323404). Girls: 100% Lifetime Free · Boys: Free browsing + ₹199 for 30-Day Pass via UPI (9726362863@ybl).'  },
     { title: 'Explore verified profiles', desc: 'Browse genuine eligible brides and grooms from your community.' },
     { title: 'Send interest (3 daily limit)', desc: 'Send up to 3 interest requests per day to maintain genuine, spam-free connections.' },
     { title: 'Direct family connect', desc: 'Once interest is accepted, unlock direct Father\'s Phone Call, WhatsApp, and in-app chat.' }
 ];
 
 const DEFAULT_FAQS = [
+    ['Is Mangal Setu a government-registered enterprise?', 'Yes. Mangal Setu Matrimony is an officially verified Micro Enterprise registered with the Ministry of Micro, Small and Medium Enterprises (MSME), Government of India (Udyam Registration No: UDYAM-GJ-20-0323404, Rajkot, Gujarat).'],
     ['How do I register?', 'Sign in with Google in 1 click (no passwords or manual registration forms required), select your community, complete your family details, and upload your photos. Your account is active immediately!'],
     ['Is membership free for girls?', 'Yes! 100% Lifetime Free access is guaranteed for all community girls.'],
     ['How much is the membership pass for boys?', 'Boys get 30 Days Full Access for just ₹199, payable instantly via Razorpay UPI (Google Pay, PhonePe, Paytm), Debit/Credit Cards, or Net Banking.'],

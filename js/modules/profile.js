@@ -361,9 +361,10 @@ window.copyUpiId = copyUpiId;
 function sendPaymentScreenshotWhatsApp() {
     const u = (typeof state !== 'undefined' && state.currentUser) || {};
     const name = u.name || (state.regData && state.regData.name) || 'Member';
-    const mobile = u.mobile || (state.regData && state.regData.mobile) || '—';
+    const mobile = u.ownMobile || u.mobile || u.own_mobile || (state.regData && (state.regData.ownMobile || state.regData.mobile)) || '—';
     const email = u.email || (state.regData && state.regData.email) || '—';
-    const msg = `નમસ્તે મંગલસેતુ એડમિન, મેં ₹૧૯૯ પાસ માટે UPI પેમેન્ટ કર્યું છે.\n\nમારી વિગત:\n• નામ: ${name}\n• મોબાઇલ: ${mobile}\n• ઇમેઇલ: ${email}\n\nકૃપા કરીને આ સ્ક્રીનશોટ ચકાસીને મારો ૩૦ દિવસનો પાસ એપ્રુવ કરો.`;
+    const userId = u.id || (state.regData && state.regData.id) || '—';
+    const msg = `નમસ્તે મંગલસેતુ એડમિન, મેં ₹૧૯૯ પાસ માટે UPI પેમેન્ટ કર્યું છે.\n\nમારી વિગત:\n• નામ: ${name}\n• આઈડી: ${userId}\n• મોબાઇલ: ${mobile}\n• ઇમેઇલ: ${email}\n\nકૃપા કરીને આ સ્ક્રીનશોટ ચકાસીને મારો ૩૦ દિવસનો પાસ એપ્રુવ કરો.`;
     const url = `https://wa.me/919726362863?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
 }

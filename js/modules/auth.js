@@ -535,10 +535,16 @@ function checkBoyPassStatus(user) {
             if (validPay) genuinePayment = true;
         } catch (_) {}
 
-        if (!genuinePayment && (user.paymentStatus === 'Active' || user.paymentStatus === 'paid') && user.planExpiry) {
-            const exp = new Date(user.planExpiry);
-            if (exp.getTime() > Date.now()) {
-                genuinePayment = true;
+        // Cross-check against authentic server profile in PROFILES
+        if (!genuinePayment && typeof window !== 'undefined' && Array.isArray(window.PROFILES)) {
+            const authProf = window.PROFILES.find(p => p && ((p.id && String(p.id) === String(user.id)) || (p.email && p.email.toLowerCase() === userEmail)));
+            if (authProf && (authProf.paymentStatus === 'paid' || authProf.payment_status === 'paid' || authProf.paymentStatus === 'Active') && (authProf.planExpiry || authProf.plan_expiry)) {
+                const expDate = authProf.planExpiry || authProf.plan_expiry;
+                const exp = new Date(expDate);
+                if (exp.getTime() > Date.now()) {
+                    genuinePayment = true;
+                    user.planExpiry = expDate;
+                }
             }
         }
 
@@ -823,24 +829,17 @@ function enterHome() {
         return;
     }
     
-    // Guard 2: ONLY for Boys - Boy 30-Day Pass must be active
+    // Guard 2: ONLY for Boys - Boy 30-Day Pass status check (Freemium Teaser Mode: Unpaid boys can browse Home & Browse)
     const isBoy = typeof isBoyGender === 'function'
         ? isBoyGender(state.currentUser?.gender)
         : (state.currentUser?.gender === 'Boy' || state.currentUser?.gender === 'boy' || state.currentUser?.gender === 'boys');
 
     if (isBoy && state.currentUser) {
         const passStatus = checkBoyPassStatus(state.currentUser);
+        state.membershipPaid = passStatus.active;
         if (!passStatus.active) {
-            state.membershipPaid = false;
             state.currentUser.paymentStatus = (passStatus.reason === 'expired') ? 'Expired' : 'Unpaid';
-            go('scr-membership', true);
-            openModal('modalPaywall');
-            if (passStatus.reason === 'expired') {
-                showToast('Your 30-Day Pass has expired! Pay ₹199 via UPI to enter.');
-            } else {
-                showToast('Boys ₹199 Pass required: Pay via UPI to access community brides.');
-            }
-            return;
+            // Freemium Teaser Mode: Unpaid boys can freely browse profiles, while contacts & chat are locked behind ₹199 pass
         }
     }
     
