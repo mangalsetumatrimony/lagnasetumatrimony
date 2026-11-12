@@ -2656,3 +2656,24 @@
             border-radius: 4px;
         }
 
+        /* Sleek Modal Scrollbar for Responsive Screen Heights */
+        #modalPaywall .modal-card,
+        #modalBoyComplete .modal-card,
+        #modalCompleteProfile .modal-card {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(123, 44, 191, 0.25) transparent;
+        }
+
+        #modalPaywall .modal-card::-webkit-scrollbar,
+        #modalBoyComplete .modal-card::-webkit-scrollbar,
+        #modalCompleteProfile .modal-card::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        #modalPaywall .modal-card::-webkit-scrollbar-thumb,
+        #modalBoyComplete .modal-card::-webkit-scrollbar-thumb,
+        #modalCompleteProfile .modal-card::-webkit-scrollbar-thumb {
+            background: rgba(123, 44, 191, 0.25);
+            border-radius: 10px;
+        }
+
