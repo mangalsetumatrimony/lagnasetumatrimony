@@ -1045,7 +1045,7 @@ window.escapeHtml = escapeHtmlAdmin;
                 }
 
                 row.innerHTML = `
-                    <img class="ravatar" src="${photo}" alt="${escapeHtmlAdmin(u.name || '')}" style="width:48px;height:48px;border-radius:10px;object-fit:cover;" onerror="this.src='images/default-avatar.png'">
+                    <img class="ravatar" src="${photo}" alt="${escapeHtmlAdmin(u.name || '')}" style="width:48px;height:48px;border-radius:10px;object-fit:cover;" onerror="this.onerror=null;this.src='images/default_avatar.png';">
                     <div class="rbody" style="flex:1;min-width:0;">
                         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                             <span class="rtitle" style="font-weight:800;font-size:14px;">${escapeHtmlAdmin(u.name || 'Member')}${u.age ? ', ' + u.age : ''}</span>
@@ -1470,7 +1470,7 @@ window.escapeHtml = escapeHtmlAdmin;
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.style.marginBottom = '12px';
-                const photo = (u && u.img) ? u.img : (r.targetUserPhoto || 'images/default-avatar.png');
+                const photo = (u && u.img) ? u.img : (r.targetUserPhoto || 'images/default_avatar.png');
                 const targetName = u ? u.name : (r.targetUserName || 'Member');
                 const reporterName = reporter ? reporter.name : (r.reporterName || 'a member');
                 const safeReportId = String(r.id);
@@ -1478,7 +1478,7 @@ window.escapeHtml = escapeHtmlAdmin;
 
                 card.innerHTML = `
       <div style="display:flex;align-items:center;gap:12px;">
-        <img src="${photo}" style="width:44px;height:44px;border-radius:12px;object-fit:cover;" alt="" onerror="this.src='images/default-avatar.png'">
+        <img src="${photo}" style="width:44px;height:44px;border-radius:12px;object-fit:cover;" alt="" onerror="this.onerror=null;this.src='images/default_avatar.png';">
         <div style="flex:1;"><div style="font-weight:800;font-size:14px;">${targetName}</div><div class="p-muted" style="font-size:11.5px;">Reported by ${reporterName} · ${r.date || 'Recent'}</div></div>
         <span class="status-badge ${r.status || 'open'}">${fmtStatus(r.status || 'open')}</span>
       </div>

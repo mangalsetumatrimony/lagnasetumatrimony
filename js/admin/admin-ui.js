@@ -1037,17 +1037,17 @@
             related.forEach(i => {
                 const other = findUser(i.fromUserId === userId ? i.toUserId : i.fromUserId) || {
                     name: 'Member',
-                    img: 'images/default-avatar.png'
+                    img: 'images/default_avatar.png'
                 };
                 const direction = i.fromUserId === userId ? 'Sent to' : 'Received from';
                 const otherThumb = (typeof getAvatarThumbUrl === 'function' && other.img)
                     ? getAvatarThumbUrl(other.img, 100)
-                    : (other.img || 'images/default-avatar.png');
+                    : (other.img || 'images/default_avatar.png');
                 const row = document.createElement('div');
                 row.className = 'row-item';
                 row.style.marginBottom = '8px';
                 row.innerHTML = `
-      <img class="ravatar" src="${otherThumb}" alt="${other.name || 'Member'}" onerror="this.src='images/default-avatar.png'">
+      <img class="ravatar" src="${otherThumb}" alt="${other.name || 'Member'}" onerror="this.onerror=null;this.src='images/default_avatar.png';">
       <div class="rbody"><div class="rtitle" style="font-size:13px;">${direction} ${other.name || 'Member'}</div><div class="rsub">${i.date}</div></div>
       <span class="status-badge ${i.status}">${fmtStatus(i.status)}</span>`;
                 row.addEventListener('click', () => openInterestDetail(i.id));
