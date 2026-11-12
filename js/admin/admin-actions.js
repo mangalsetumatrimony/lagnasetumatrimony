@@ -251,10 +251,24 @@ window.escapeHtml = escapeHtmlAdmin;
 
         function openUserDetail(id) {
             if (!id && id !== 0) return;
-            state.activeUserId = id;
-            try { sessionStorage.setItem('admin_activeUserId', String(id)); } catch(_) {}
+            let u = null;
+            let cleanId = id;
+            if (typeof id === 'object' && id !== null) {
+                u = id;
+                cleanId = id.id || id.userId || id.user_id || id.email;
+            }
+            state.activeUserId = cleanId;
+            try { sessionStorage.setItem('admin_activeUserId', String(cleanId)); } catch(_) {}
             const el = document.getElementById('userDetailContent');
-            const u = typeof findUser === 'function' ? findUser(id) : (window.findUser ? window.findUser(id) : null);
+            if (!u) {
+                u = typeof findUser === 'function' ? findUser(cleanId) : (window.findUser ? window.findUser(cleanId) : null);
+            }
+            if (!u && Array.isArray(window.PROFILES)) {
+                u = window.PROFILES.find(p => p && (String(p.id) === String(cleanId) || String(p.userId) === String(cleanId) || (p.email && p.email.toLowerCase() === String(cleanId).toLowerCase())));
+            }
+            if (!u && Array.isArray(USERS)) {
+                u = USERS.find(p => p && (String(p.id) === String(cleanId) || String(p.userId) === String(cleanId) || (p.email && p.email.toLowerCase() === String(cleanId).toLowerCase())));
+            }
             if (!u) {
                 // If users have not arrived from Supabase yet (initial page load / refresh)
                 if (!Array.isArray(USERS) || USERS.length === 0) {
@@ -295,7 +309,9 @@ window.escapeHtml = escapeHtmlAdmin;
             if (!el) return;
             const isGirl = u.gender === 'girls' || u.gender === 'Girl';
             const isPaid = isUserPaidInAdmin(u);
-            const payText = isGirl ? '<span class="status-badge paid"><i class="fa-solid fa-heart"></i> 100% Free (Girls)</span>' : (isPaid ? '<span class="status-badge paid"><i class="fa-solid fa-crown"></i> Paid ₹199 / 30 Days</span>' : '<span class="status-badge pending">Unpaid</span>');
+            const isExpired = !isGirl && Boolean(u.planExpiry && (Date.now() > new Date(u.planExpiry).setHours(23, 59, 59, 999)));
+            const isRejected = !isGirl && (String(u.paymentStatus || u.payment_status || '').toLowerCase() === 'rejected');
+            const payText = isGirl ? '<span class="status-badge paid"><i class="fa-solid fa-heart"></i> 100% Free (Girls)</span>' : (isPaid ? '<span class="status-badge paid"><i class="fa-solid fa-crown"></i> Paid ₹199 / 30 Days</span>' : (isExpired ? '<span class="status-badge expired" style="background:#FEF3C7;color:#92400E;border:1px solid #FCD34D;"><i class="fa-solid fa-clock-rotate-left"></i> Pass Expired</span>' : (isRejected ? '<span class="status-badge rejected"><i class="fa-solid fa-circle-xmark"></i> Pass Rejected</span>' : '<span class="status-badge pending">Unpaid</span>')));
             const isSuspended = (u.accountStatus || u.account_status || u.status || '').toLowerCase() === 'suspended';
             const statusBadge = isSuspended
                 ? '<span class="status-badge rejected"><i class="fa-solid fa-ban"></i> Suspended Account</span>'
@@ -961,16 +977,34 @@ window.escapeHtml = escapeHtmlAdmin;
             list.forEach(u => {
                 const row = document.createElement('div');
                 row.className = 'row-item';
-                row.style.cursor = 'default';
+                row.style.cursor = 'pointer';
                 row.style.padding = '12px 14px';
                 row.style.marginBottom = '10px';
                 row.style.background = '#fff';
                 row.style.border = '1px solid var(--border)';
                 row.style.borderRadius = '12px';
+                row.style.transition = 'all 0.15s ease';
+
+                row.addEventListener('mouseenter', () => {
+                    row.style.background = '#F9FAFB';
+                    row.style.borderColor = 'rgba(123,44,191,0.35)';
+                });
+                row.addEventListener('mouseleave', () => {
+                    row.style.background = '#fff';
+                    row.style.borderColor = 'var(--border)';
+                });
+
+                row.addEventListener('click', () => {
+                    if (typeof openUserDetail === 'function') {
+                        openUserDetail(u.id);
+                    }
+                });
 
                 const isGirl = checkGirl(u.gender);
                 const isPaid = isPaidBoy(u);
-                const isUnpaidBoy = !isGirl && !isPaid;
+                const isExpired = !isGirl && Boolean(u.planExpiry && (Date.now() > new Date(u.planExpiry).setHours(23, 59, 59, 999)));
+                const isRejected = !isGirl && (String(u.paymentStatus || u.payment_status || '').toLowerCase() === 'rejected');
+                const isUnpaidBoy = !isGirl && !isPaid && !isExpired && !isRejected;
                 const phone = typeof getAdminUnmaskedPhone === 'function' ? getAdminUnmaskedPhone(u, 'own') : (u.mobile || '—');
                 const photo = u.img || (isGirl ? 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop');
 
@@ -979,14 +1013,36 @@ window.escapeHtml = escapeHtmlAdmin;
                     badgeHtml = `<span style="font-size:11px;font-weight:700;background:#ECFDF5;color:#047857;border:1px solid #A7F3D0;padding:2px 8px;border-radius:10px;display:inline-flex;align-items:center;gap:4px;"><i class="fa-solid fa-person-dress"></i> Girls Free</span>`;
                 } else if (isPaid) {
                     badgeHtml = `<span style="font-size:11px;font-weight:700;background:#EEF2FF;color:#4338CA;border:1px solid #C7D2FE;padding:2px 8px;border-radius:10px;display:inline-flex;align-items:center;gap:4px;"><i class="fa-solid fa-crown" style="color:#F59E0B;"></i> Active Pass (${u.planExpiry ? 'Till ' + u.planExpiry : '30-Day'})</span>`;
+                } else if (isExpired) {
+                    badgeHtml = `<span style="font-size:11px;font-weight:700;background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5;padding:2px 8px;border-radius:10px;display:inline-flex;align-items:center;gap:4px;"><i class="fa-solid fa-clock-rotate-left"></i> Expired ₹199</span>`;
+                } else if (isRejected) {
+                    badgeHtml = `<span style="font-size:11px;font-weight:700;background:#FEE2E2;color:#DC2626;border:1px solid #FCA5A5;padding:2px 8px;border-radius:10px;display:inline-flex;align-items:center;gap:4px;" title="Reason: ${escapeHtmlAdmin(u.rejectReason || '')}"><i class="fa-solid fa-ban"></i> Rejected ₹199</span>`;
                 } else {
                     badgeHtml = `<span style="font-size:11px;font-weight:700;background:#FFFBEB;color:#B45309;border:1px solid #FDE68A;padding:2px 8px;border-radius:10px;display:inline-flex;align-items:center;gap:4px;"><i class="fa-solid fa-clock" style="color:#D97706;"></i> Unpaid / Pending ₹199</span>`;
                 }
 
-                const approveBtnHtml = isUnpaidBoy ? `
-                    <button class="btn btn-sm" style="background:#059669;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:5px;cursor:pointer;box-shadow:0 2px 6px rgba(5,150,105,0.25);white-space:nowrap;" onclick="adminApproveBoyPass('${u.id}')">
-                        <i class="fa-solid fa-circle-check"></i> Approve ₹199 Pass
-                    </button>` : '';
+                let passActionsHtml = '';
+                if (isUnpaidBoy || (!isGirl && !isPaid && !isExpired && !isRejected)) {
+                    passActionsHtml = `
+                        <div style="display:inline-flex;gap:6px;align-items:center;" onclick="event.stopPropagation()">
+                            <button class="btn btn-sm" style="background:#059669;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:4px;cursor:pointer;box-shadow:0 2px 6px rgba(5,150,105,0.25);white-space:nowrap;" onclick="event.stopPropagation();adminApproveBoyPass('${u.id}')" title="Approve ₹199 Pass">
+                                <i class="fa-solid fa-circle-check"></i> Approve ₹199 Pass
+                            </button>
+                            <button class="btn btn-sm" style="background:#DC2626;color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:4px;cursor:pointer;box-shadow:0 2px 6px rgba(220,38,38,0.2);white-space:nowrap;" onclick="event.stopPropagation();openRejectPassModal('${u.id}')" title="Reject Pass with Note">
+                                <i class="fa-solid fa-circle-xmark"></i> Reject
+                            </button>
+                        </div>`;
+                } else if (isRejected) {
+                    passActionsHtml = `
+                        <button class="btn btn-sm" style="background:#059669;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:4px;cursor:pointer;box-shadow:0 2px 6px rgba(5,150,105,0.25);white-space:nowrap;" onclick="event.stopPropagation();adminApproveBoyPass('${u.id}')" title="Re-Approve Pass">
+                            <i class="fa-solid fa-circle-check"></i> Re-Approve Pass
+                        </button>`;
+                } else if (isExpired) {
+                    passActionsHtml = `
+                        <button class="btn btn-sm" style="background:#059669;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:4px;cursor:pointer;box-shadow:0 2px 6px rgba(5,150,105,0.25);white-space:nowrap;" onclick="event.stopPropagation();adminApproveBoyPass('${u.id}')" title="Renew ₹199 Pass">
+                            <i class="fa-solid fa-rotate"></i> Renew Pass
+                        </button>`;
+                }
 
                 row.innerHTML = `
                     <img class="ravatar" src="${photo}" alt="${escapeHtmlAdmin(u.name || '')}" style="width:48px;height:48px;border-radius:10px;object-fit:cover;" onerror="this.src='images/default-avatar.png'">
@@ -1002,10 +1058,11 @@ window.escapeHtml = escapeHtmlAdmin;
                             <i class="fa-solid fa-phone" style="font-size:10px;"></i> ${escapeHtmlAdmin(phone)}
                         </div>
                     </div>
-                    <div class="rmeta" style="flex-direction:row;gap:10px;align-items:center;flex-shrink:0;">
-                        ${approveBtnHtml}
-                        <button class="icon-btn" style="width:34px;height:34px;font-size:12px;${u.featured ? 'color:var(--accent-deep);' : ''}" onclick="toggleFeatured('${u.id}', this)" title="Feature on homepage"><i class="${u.featured ? 'fa-solid' : 'fa-regular'} fa-star"></i></button>
-                        <button class="toggle ${(u.visible !== false && u.visible !== 'false' && u.visible !== 0) ? 'on' : ''}" onclick="toggleVisible('${u.id}', this)" title="Toggle visibility in search"></button>
+                    <div class="rmeta" style="flex-direction:row;gap:8px;align-items:center;flex-shrink:0;">
+                        ${passActionsHtml}
+                        <button class="icon-btn" style="width:34px;height:34px;font-size:12px;${u.featured ? 'color:var(--accent-deep);' : ''}" onclick="event.stopPropagation();toggleFeatured('${u.id}', this)" title="Feature on homepage"><i class="${u.featured ? 'fa-solid' : 'fa-regular'} fa-star"></i></button>
+                        <button class="toggle ${(u.visible !== false && u.visible !== 'false' && u.visible !== 0) ? 'on' : ''}" onclick="event.stopPropagation();toggleVisible('${u.id}', this)" title="Toggle visibility in search"></button>
+                        <i class="fa-solid fa-chevron-right chev" style="color:var(--text-faint);margin-left:4px;font-size:12px;" title="View Profile"></i>
                     </div>`;
                 wrap.appendChild(row);
             });
