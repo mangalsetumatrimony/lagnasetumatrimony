@@ -463,15 +463,21 @@ function openPaymentModal(reason = 'general') {
     closeModal('modalCompleteProfile');
 
     const sub = document.getElementById('paywallModalSubtitle');
+    const u = (typeof state !== 'undefined' && state.currentUser) || {};
+    const passStatus = (typeof checkBoyPassStatus === 'function') ? checkBoyPassStatus(u) : { active: false };
+    const isExpired = passStatus.reason === 'expired' || u.paymentStatus === 'Expired';
+
     if (sub) {
-        if (reason === 'accept') {
+        if (isExpired || reason === 'renew') {
+            sub.textContent = 'તમારો ૩૦ દિવસનો પાસ પૂર્ણ થઈ ગયો છે. આગળ ચેટિંગ, ઇન્ટરેસ્ટ અને વિગતો જોવા માટે ₹૧૯૯ પાસ રીન્યૂ કરો.';
+        } else if (reason === 'accept') {
             sub.textContent = 'દીકરીની રિક્વેસ્ટ સ્વીકારવા અને સુરક્ષિત વાતચીત શરૂ કરવા માટે ₹૧૯૯ પાસ જરૂરી છે.';
         } else if (reason === 'decline') {
             sub.textContent = 'રિક્વેસ્ટ મેનેજ કરવા અને પ્રોફાઇલ્સ સાથે કનેક્ટ થવા માટે ₹૧૯૯ પાસ જરૂરી છે.';
         } else if (reason === 'contact') {
-            sub.textContent = 'દીકરી કે પરિવારનો સંપર્ક કરવા માટે ₹૧૯૯ પાસ જરૂરી છે (Contact & Chat unlock upon accepted interest).';
+            sub.textContent = 'દીકરી કે પરિવારનો સંપર્ક અને વિગતો જોવા માટે ₹૧૯૯ પાસ જરૂરી છે (Contact & Chat unlock upon active pass).';
         } else if (reason === 'chat') {
-            sub.textContent = 'દીકરીઓ સાથે સુરક્ષિત ચેટ કરવા માટે ₹૧૯૯ પાસ જરૂરી છે (Chat unlocks upon accepted interest).';
+            sub.textContent = 'દીકરીઓ સાથે સુરક્ષિત ચેટ કરવા માટે ₹૧૯૯ પાસ જરૂરી છે (Chat unlocks upon active pass).';
         } else if (reason === 'interest') {
             sub.textContent = 'દીકરીઓને ઇન્ટરેસ્ટ રિક્વેસ્ટ મોકલવા માટે ₹૧૯૯ પાસ જરૂરી છે (રોજના ૩ ઇન્ટરેસ્ટ).';
         } else {
@@ -1339,19 +1345,39 @@ function setInterestBtnState(btn, pid) {
     const secTitle = document.getElementById('profileActionsSectionTitle');
     const secDesc = document.getElementById('profileActionsSectionDesc');
 
-    // Unpaid Boy Teaser Guard: prompt pass modal
+    // Unpaid / Expired Boy Teaser Guard: prompt pass modal
     const isViewerBoy = state.currentUser && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
-    const isViewerUnpaidBoy = isViewerBoy && (typeof checkBoyPassStatus === 'function' ? !checkBoyPassStatus(state.currentUser).active : (state.currentUser.paymentStatus !== 'Active' && state.currentUser.paymentStatus !== 'paid'));
+    const passStatus = (typeof checkBoyPassStatus === 'function' && state.currentUser) ? checkBoyPassStatus(state.currentUser) : { active: false };
+    const isViewerUnpaidBoy = isViewerBoy && (!passStatus.active);
+    const isExpired = passStatus.reason === 'expired' || (state.currentUser && state.currentUser.paymentStatus === 'Expired');
+
     if (isViewerUnpaidBoy) {
+        if (status === 'accepted') {
+            if (secTitle) secTitle.innerHTML = '<i class="fa-solid fa-lock" style="color:var(--primary);margin-right:6px;"></i> Match Connected (પાસ જરૂરી છે)';
+            if (secDesc) secDesc.textContent = isExpired 
+                ? 'તમારો ૩૦ દિવસનો પાસ પૂર્ણ થઈ ગયો છે. આગળ ચેટ કરવા અને વિગતો જોવા માટે ₹૧૯૯ પાસ રીન્યૂ કરો.'
+                : 'દીકરી સાથે ચેટ કરવા અને વિગતો જોવા માટે ₹૧૯૯ નો પાસ સક્રિય કરો.';
+            btn.innerHTML = '<i class="fa-solid fa-lock"></i> Chat / Message (₹૧૯૯ પાસ)';
+            btn.className = 'btn btn-gold btn-grow';
+            btn.disabled = false;
+            btn.onclick = () => {
+                if (typeof openPaymentModal === 'function') openPaymentModal('chat');
+                else if (typeof openModal === 'function') openModal('modalPaywall');
+                if (typeof showToast === 'function') showToast(isExpired ? '🔒 તમારો પાસ પૂર્ણ થઈ ગયો છે. ચેટિંગ કરવા માટે ₹૧૯૯ પાસ રીન્યૂ કરો.' : '🔒 દીકરી સાથે ચેટ કરવા માટે ₹૧૯૯ પાસ જરૂરી છે.');
+            };
+            return;
+        }
         if (secTitle) secTitle.textContent = 'Interested? (ઇન્ટરેસ્ટ મોકલો)';
-        if (secDesc) secDesc.textContent = 'Send an interest request — if accepted, chat, family details & location unlock directly.';
-        btn.innerHTML = '<i class="fa-solid fa-lock"></i> I\'m interested (₹૧૯૯ પાસ)';
+        if (secDesc) secDesc.textContent = isExpired
+            ? 'તમારો ૩૦ દિવસનો પાસ પૂર્ણ થઈ ગયો છે. દીકરીઓને ઇન્ટરેસ્ટ મોકલવા માટે ₹૧૯૯ પાસ રીન્યૂ કરો.'
+            : 'Send an interest request — if accepted, chat, family details & location unlock directly.';
+        btn.innerHTML = isExpired ? '<i class="fa-solid fa-bolt"></i> Renew Pass (₹૧૯૯ પાસ)' : '<i class="fa-solid fa-lock"></i> I\'m interested (₹૧૯૯ પાસ)';
         btn.className = 'btn btn-gold btn-grow';
         btn.disabled = false;
         btn.onclick = () => {
             if (typeof openPaymentModal === 'function') openPaymentModal('interest');
             else if (typeof openModal === 'function') openModal('modalPaywall');
-            if (typeof showToast === 'function') showToast('🔒 દીકરીઓને ઇન્ટરેસ્ટ મોકલવા માટે ₹૧૯૯ પાસ જરૂરી છે.');
+            if (typeof showToast === 'function') showToast(isExpired ? '🔒 તમારો પાસ પૂર્ણ થઈ ગયો છે. ઇન્ટરેસ્ટ મોકલવા માટે ₹૧૯૯ પાસ રીન્યૂ કરો.' : '🔒 દીકરીઓને ઇન્ટરેસ્ટ મોકલવા માટે ₹૧૯૯ પાસ જરૂરી છે.');
         };
         return;
     }
@@ -1581,7 +1607,14 @@ function renderFamilyDetailsSection(p) {
 
     // LOCKED STATE
     let actionBtnHtml = '';
-    if (status === 'pending') {
+    const isViewerBoy = state.currentUser && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
+    const passStatus = (typeof checkBoyPassStatus === 'function' && state.currentUser) ? checkBoyPassStatus(state.currentUser) : { active: false };
+    const isViewerUnpaidBoy = isViewerBoy && (!passStatus.active);
+    const isExpired = passStatus.reason === 'expired' || (state.currentUser && state.currentUser.paymentStatus === 'Expired');
+
+    if (status === 'accepted' && isViewerUnpaidBoy) {
+        actionBtnHtml = `<button class="btn btn-gold btn-sm" style="padding:7px 16px;font-size:12px;border-radius:20px;box-shadow:0 3px 10px rgba(245,158,11,0.25);" onclick="openPaymentCheckout('contact')"><i class="fa-solid fa-lock"></i> ${isExpired ? 'Renew Pass to Unlock (₹૧૯૯)' : 'Unlock Details (₹૧૯૯ પાસ)'}</button>`;
+    } else if (status === 'pending') {
         actionBtnHtml = `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#F3F4F6;border:1px solid #D1D5DB;border-radius:20px;font-size:11.5px;font-weight:700;color:#4B5563;"><i class="fa-solid fa-clock" style="color:#D97706;"></i> Request Sent (Waiting for acceptance)</div>`;
     } else if (status === 'declined') {
         actionBtnHtml = `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#FEF2F2;border:1px solid #FECACA;border-radius:20px;font-size:11.5px;font-weight:700;color:#DC2626;"><i class="fa-solid fa-ban"></i> Request Declined</div>`;
@@ -1648,7 +1681,14 @@ function renderLocationSection(p) {
 
     // LOCKED STATE
     let actionBtnHtml = '';
-    if (status === 'pending') {
+    const isViewerBoy = state.currentUser && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
+    const passStatus = (typeof checkBoyPassStatus === 'function' && state.currentUser) ? checkBoyPassStatus(state.currentUser) : { active: false };
+    const isViewerUnpaidBoy = isViewerBoy && (!passStatus.active);
+    const isExpired = passStatus.reason === 'expired' || (state.currentUser && state.currentUser.paymentStatus === 'Expired');
+
+    if (status === 'accepted' && isViewerUnpaidBoy) {
+        actionBtnHtml = `<button class="btn btn-gold btn-sm" style="padding:7px 16px;font-size:12px;border-radius:20px;box-shadow:0 3px 10px rgba(245,158,11,0.25);" onclick="openPaymentCheckout('contact')"><i class="fa-solid fa-lock"></i> ${isExpired ? 'Renew Pass to Unlock (₹૧૯૯)' : 'Unlock Details (₹૧૯૯ પાસ)'}</button>`;
+    } else if (status === 'pending') {
         actionBtnHtml = `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#F3F4F6;border:1px solid #D1D5DB;border-radius:20px;font-size:11.5px;font-weight:700;color:#4B5563;"><i class="fa-solid fa-clock" style="color:#D97706;"></i> Request Sent (Waiting for acceptance)</div>`;
     } else if (status === 'declined') {
         actionBtnHtml = `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#FEF2F2;border:1px solid #FECACA;border-radius:20px;font-size:11.5px;font-weight:700;color:#DC2626;"><i class="fa-solid fa-ban"></i> Request Declined</div>`;

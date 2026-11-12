@@ -1343,9 +1343,16 @@ function requestCard(r, kind) {
     card.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:10px;cursor:pointer;';
 
     let actionContent = '';
+    const isViewerBoy = state.currentUser && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
+    const isViewerUnpaidBoy = isViewerBoy && (typeof checkBoyPassStatus === 'function' ? !checkBoyPassStatus(state.currentUser).active : (state.currentUser.paymentStatus !== 'Active' && state.currentUser.paymentStatus !== 'paid'));
+
     if (kind === 'received') {
         if (r.status === 'accepted') {
-            actionContent = `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openChatFor(${pid})" style="padding:6px 12px;font-size:11.5px;flex-shrink:0;"><i class="fa-solid fa-comment-dots"></i> Chat</button>`;
+            if (isViewerUnpaidBoy) {
+                actionContent = `<button class="btn btn-sm" onclick="event.stopPropagation();openPaymentCheckout('chat')" style="background:#FFFBEB;color:#92400E;border:1.2px solid #FCD34D;padding:6px 12px;font-size:11.5px;font-weight:700;flex-shrink:0;border-radius:8px;"><i class="fa-solid fa-lock" style="color:#D97706;"></i> Chat (₹૧૯૯)</button>`;
+            } else {
+                actionContent = `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openChatFor(${pid})" style="padding:6px 12px;font-size:11.5px;flex-shrink:0;"><i class="fa-solid fa-comment-dots"></i> Chat</button>`;
+            }
         } else if (r.status === 'declined') {
             actionContent = `<span style="font-size:11px;font-weight:700;color:var(--error);flex-shrink:0;"><i class="fa-solid fa-xmark"></i> Declined</span>`;
         } else if (r.status === 'disconnected') {
@@ -1359,7 +1366,11 @@ function requestCard(r, kind) {
         }
     } else {
         if (r.status === 'accepted') {
-            actionContent = `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openChatFor(${pid})" style="padding:6px 12px;font-size:11.5px;flex-shrink:0;"><i class="fa-solid fa-comment-dots"></i> Chat</button>`;
+            if (isViewerUnpaidBoy) {
+                actionContent = `<button class="btn btn-sm" onclick="event.stopPropagation();openPaymentCheckout('chat')" style="background:#FFFBEB;color:#92400E;border:1.2px solid #FCD34D;padding:6px 12px;font-size:11.5px;font-weight:700;flex-shrink:0;border-radius:8px;"><i class="fa-solid fa-lock" style="color:#D97706;"></i> Chat (₹૧૯૯)</button>`;
+            } else {
+                actionContent = `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openChatFor(${pid})" style="padding:6px 12px;font-size:11.5px;flex-shrink:0;"><i class="fa-solid fa-comment-dots"></i> Chat</button>`;
+            }
         } else if (r.status === 'declined') {
             actionContent = `<span style="font-size:11px;font-weight:700;color:var(--error);flex-shrink:0;"><i class="fa-solid fa-xmark"></i> Declined</span>`;
         } else if (r.status === 'disconnected') {
@@ -2544,6 +2555,17 @@ function sendChatMessage() {
         return;
     }
     if (!state.profileComplete) { openModal('modalCompleteProfile'); return; }
+
+    // Gatekeeper: Unpaid or Expired Boy cannot send messages
+    const isViewerBoy = state.currentUser && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
+    const isViewerUnpaidBoy = isViewerBoy && (typeof checkBoyPassStatus === 'function' ? !checkBoyPassStatus(state.currentUser).active : (state.currentUser.paymentStatus !== 'Active' && state.currentUser.paymentStatus !== 'paid'));
+    if (isViewerUnpaidBoy) {
+        if (typeof openPaymentModal === 'function') openPaymentModal('chat');
+        else if (typeof openModal === 'function') openModal('modalPaywall');
+        if (typeof showToast === 'function') showToast('🔒 તમારો પાસ પૂર્ણ થઈ ગયો છે. ચેટિંગ કરવા માટે ₹૧૯૯ પાસ રીન્યૂ કરો.');
+        return;
+    }
+
     const activePid = state.activeChatId;
     let thread = findChatThread(activePid);
     let connStatus = (typeof interestStatusFor === 'function') ? interestStatusFor(activePid) : null;
