@@ -403,9 +403,59 @@ function sendPaymentScreenshotWhatsApp() {
     const userId = u.id || (state.regData && state.regData.id) || '—';
     const msg = `નમસ્તે મંગલસેતુ એડમિન, મેં ₹૧૯૯ પાસ માટે UPI પેમેન્ટ કર્યું છે.\n\nમારી વિગત:\n• નામ: ${name}\n• આઈડી: ${userId}\n• મોબાઇલ: ${mobile}\n• ઇમેઇલ: ${email}\n\nકૃપા કરીને આ સ્ક્રીનશોટ ચકાસીને મારો ૩૦ દિવસનો પાસ એપ્રુવ કરો.`;
     const url = `https://wa.me/919726362863?text=${encodeURIComponent(msg)}`;
+
+    // If user is currently unpaid / expired, mark status as pending_approval
+    if (state.currentUser && state.currentUser.paymentStatus !== 'Active' && state.currentUser.paymentStatus !== 'paid') {
+        state.currentUser.paymentStatus = 'pending_approval';
+        state.currentUser.payment_status = 'pending_approval';
+        if (typeof saveSessionState === 'function') saveSessionState();
+        if (typeof updateMembershipScreen === 'function') updateMembershipScreen();
+        if (typeof updateHomeStats === 'function') updateHomeStats();
+        if (typeof supabaseUpdateProfile === 'function' && state.currentUser.id) {
+            supabaseUpdateProfile(state.currentUser.id, { payment_status: 'pending_approval' }).catch(() => {});
+        }
+    }
+
     window.open(url, '_blank');
 }
 window.sendPaymentScreenshotWhatsApp = sendPaymentScreenshotWhatsApp;
+
+async function checkAndUpdatePaymentStatus() {
+    if (!state.currentUser) return;
+    if (typeof showToast === 'function') showToast('⏳ Checking status with server...');
+    const userId = state.currentUser.id;
+    const userEmail = (state.currentUser.email || '').toLowerCase().trim();
+
+    let found = null;
+    if (Array.isArray(window.PROFILES)) {
+        found = window.PROFILES.find(p => p && ((p.id && String(p.id) === String(userId)) || (p.email && p.email.toLowerCase() === userEmail)));
+    }
+
+    if (typeof supabaseFetchUserById === 'function' && userId) {
+        try {
+            const dbProf = await supabaseFetchUserById(userId);
+            if (dbProf) found = dbProf;
+        } catch (_) {}
+    }
+
+    if (found && (found.paymentStatus === 'Active' || found.payment_status === 'paid' || found.paymentStatus === 'paid')) {
+        state.currentUser.paymentStatus = 'Active';
+        state.currentUser.payment_status = 'paid';
+        if (found.planExpiry || found.plan_expiry) {
+            state.currentUser.planExpiry = found.planExpiry || found.plan_expiry;
+        }
+        if (typeof computeSecureToken === 'function') {
+            state.currentUser.paymentToken = computeSecureToken('payment', state.currentUser.id, state.currentUser.email, state.currentUser.planExpiry);
+        }
+        if (typeof saveSessionState === 'function') saveSessionState();
+        if (typeof updateMembershipScreen === 'function') updateMembershipScreen();
+        if (typeof updateHomeStats === 'function') updateHomeStats();
+        if (typeof showToast === 'function') showToast('🎉 અભિનંદન! તમારો ₹૧૯૯ પાસ એપ્રુવ થઈ ગયો છે!');
+    } else {
+        if (typeof showToast === 'function') showToast('⏳ પેમેન્ટ હજુ ચકાસણી હેઠળ છે. એડમિન ટીમ ટૂંક સમયમાં એપ્રુવ કરશે.');
+    }
+}
+window.checkAndUpdatePaymentStatus = checkAndUpdatePaymentStatus;
 
 function openPaymentModal(reason = 'general') {
     closeModal('modalBoyComplete');
@@ -728,56 +778,418 @@ window.resetDemoTestPass = resetDemoTestPass;
 /* ============================================================ MEMBERSHIP SCREEN UPDATE ============================================================ */
 function updateMembershipScreen() {
     const memWrap = document.querySelector('#scr-membership .membership-wrap');
-    if (!memWrap || !state.currentUser) return;
-    const isGirl = typeof isGirlGender === 'function' ? isGirlGender(state.currentUser.gender) : (state.currentUser.gender === 'Girl' || state.currentUser.gender === 'girl');
-    const passStatus = typeof checkBoyPassStatus === 'function'
-        ? checkBoyPassStatus(state.currentUser)
-        : { active: state.currentUser.paymentStatus === 'Active' || isGirl, reason: isGirl ? 'free_lifetime' : 'active' };
+    if (!memWrap) return;
+    const u = (typeof state !== 'undefined' && state.currentUser) || {};
+    const isGirl = (typeof isGirlGender === 'function')
+        ? isGirlGender(u.gender)
+        : (u.gender === 'Girl' || u.gender === 'girl' || u.gender === 'girls');
 
-    const badgeEl = memWrap.querySelector('.badge-plan');
-    const titleEl = memWrap.querySelector('.h-display');
-    const subEl = memWrap.querySelector('.card div[style*="font-size:12px"]');
-    const payBtn = document.getElementById('btnMembershipPayAction');
-    const demoBtn = document.getElementById('btnDemoPassAction');
+    const passStatus = (typeof checkBoyPassStatus === 'function')
+        ? checkBoyPassStatus(u)
+        : { active: u.paymentStatus === 'Active' || isGirl, reason: isGirl ? 'free_lifetime' : (u.paymentStatus === 'Active' ? 'active' : 'unpaid'), daysLeft: 30 };
 
-    if (isGirl) {
-        if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-crown"></i> 100% LIFETIME FREE';
-        if (titleEl) titleEl.textContent = 'Free Girl Membership';
-        if (subEl) subEl.textContent = '100% Lifetime Free for all verified community girls — no payment required forever';
-        if (payBtn) payBtn.style.display = 'none';
-        if (demoBtn) demoBtn.style.display = 'none';
-    } else if (passStatus.active) {
-        if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-crown"></i> 30 DAYS PASS';
-        if (titleEl) titleEl.textContent = 'Active 30-Day Pass';
-        if (subEl) {
-            subEl.textContent = `${passStatus.daysLeft} Days Remaining (Valid until ${state.currentUser.planExpiry || 'Active'}) · Unlimited Full Access`;
+    const isPending = !isGirl && !passStatus.active && (u.paymentStatus === 'pending_approval' || u.payment_status === 'pending_approval');
+    const isExpired = !isGirl && passStatus.reason === 'expired';
+    const isActive = !isGirl && passStatus.active;
+
+    // Daily interest usage
+    const dailyUsage = (typeof getDailyInterestUsage === 'function')
+        ? getDailyInterestUsage()
+        : { count: 0, remaining: 3, limitReached: false };
+
+    let expiryFormatted = '30 Days from Approval';
+    let daysLeftDisplay = (typeof passStatus.daysLeft === 'number') ? passStatus.daysLeft : 30;
+    let percentLeft = Math.min(100, Math.max(0, Math.round((daysLeftDisplay / 30) * 100)));
+    if (u.planExpiry) {
+        try {
+            const expD = new Date(u.planExpiry);
+            expiryFormatted = expD.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        } catch (_) {
+            expiryFormatted = u.planExpiry;
         }
-        if (payBtn) payBtn.style.display = 'none';
-        if (demoBtn) demoBtn.style.display = 'none';
-    } else if (passStatus.reason === 'expired') {
-        if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-clock-rotate-left"></i> PASS EXPIRED';
-        if (titleEl) titleEl.textContent = 'Membership Expired';
-        if (subEl) {
-            subEl.textContent = `Your 30-Day Pass expired on ${state.currentUser.planExpiry || 'recently'}. Pay ₹199 via UPI to renew full access.`;
-        }
-        if (payBtn) {
-            payBtn.style.display = 'flex';
-            payBtn.innerHTML = '<i class="fa-solid fa-bolt"></i> Renew 30-Day Pass (₹199 via UPI)';
-        }
-        if (demoBtn) demoBtn.style.display = 'flex';
-    } else {
-        if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-lock"></i> ₹199 PASS REQUIRED';
-        if (titleEl) titleEl.textContent = 'Payment Required';
-        if (subEl) {
-            subEl.textContent = '₹199 access pass required to browse brides and send interest requests';
-        }
-        if (payBtn) {
-            payBtn.style.display = 'flex';
-            payBtn.innerHTML = '<i class="fa-solid fa-bolt"></i> Pay ₹199 via UPI (30 Days Pass)';
-        }
-        if (demoBtn) demoBtn.style.display = 'flex';
     }
+
+    // ----------------------------------------------------
+    // CASE 1: GIRL - 100% LIFETIME FREE
+    // ----------------------------------------------------
+    if (isGirl) {
+        memWrap.innerHTML = `
+            <div class="card" style="background:linear-gradient(135deg, #BE185D, #8B5CF6);box-shadow:0 6px 20px rgba(190,24,93,0.28);color:#fff;border-radius:16px;padding:20px;margin-bottom:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                    <span style="font-size:11.5px;font-weight:800;background:rgba(255,255,255,0.22);color:#fff;padding:4px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;backdrop-filter:blur(4px);">
+                        <i class="fa-solid fa-heart" style="color:#FBCFE8;"></i> 100% LIFETIME FREE / આજીવન મફત
+                    </span>
+                    <i class="fa-solid fa-person-dress" style="font-size:32px;color:rgba(255,255,255,0.85);"></i>
+                </div>
+                <div style="font-size:20px;font-weight:800;color:#fff;line-height:1.2;">સંપૂર્ણ મફત સદસ્યતા (Girls Free Pass)</div>
+                <div style="font-size:12.5px;opacity:0.92;margin-top:6px;line-height:1.45;">
+                    સમાજની તમામ દીકરીઓ માટે મંગલ સેતુ હંમેશા <b>૧૦૦% આજીવન મફત</b> છે. કોઈ પણ પ્રકારની ફી કે ચાર્જ ચૂકવવાનો નથી.
+                </div>
+                <div style="background:rgba(255,255,255,0.15);padding:10px 14px;border-radius:10px;margin-top:14px;font-size:12px;border:1px solid rgba(255,255,255,0.2);display:flex;align-items:center;gap:8px;">
+                    <i class="fa-solid fa-shield-halved" style="color:#FDE68A;"></i>
+                    <span><b>આજીવન માન્યતા (Lifetime Active)</b> • કોઈ એક્સપાયરી તારીખ નથી</span>
+                </div>
+            </div>
+
+            <div class="section-label" style="display:flex;align-items:center;gap:6px;color:#15803D;font-size:13px;font-weight:800;margin:18px 0 10px;">
+                <i class="fa-solid fa-circle-check"></i> તમારી અનલૉક સુવિધાઓ (Unlocked Benefits)
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:22px;">
+                <div style="background:#fff;border:1.2px solid #DCFCE7;border-left:4px solid #16A34A;border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                    <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#14532D;">
+                        <i class="fa-solid fa-eye" style="color:#16A34A;"></i> અમર્યાદિત પ્રોફાઇલ વિઝિટ (Unlimited Profile Views)
+                    </div>
+                    <div style="font-size:11.5px;color:#4B5563;margin-top:4px;padding-left:22px;line-height:1.4;">
+                        સમાજના તમામ વેરિફાઇડ યુવકોની પ્રોફાઇલ કોઈ પણ લિમિટ વગર જોઈ શકો છો.
+                    </div>
+                </div>
+                <div style="background:#fff;border:1.2px solid #DCFCE7;border-left:4px solid #16A34A;border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                    <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#14532D;">
+                        <i class="fa-solid fa-comments" style="color:#16A34A;"></i> મફત ચેટિંગ અને વાતચીત (100% Free Chat)
+                    </div>
+                    <div style="font-size:11.5px;color:#4B5563;margin-top:4px;padding-left:22px;line-height:1.4;">
+                        યુવકો દ્વારા મોકલાયેલ ઇન્ટરેસ્ટ સ્વીકારો અને એપમાં સુરક્ષિત ચેટ કરો.
+                    </div>
+                </div>
+                <div style="background:#fff;border:1.2px solid #DCFCE7;border-left:4px solid #16A34A;border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                    <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#14532D;">
+                        <i class="fa-solid fa-lock" style="color:#16A34A;"></i> સંપૂર્ણ સુરક્ષા અને પ્રાઇવસી (Privacy First)
+                    </div>
+                    <div style="font-size:11.5px;color:#4B5563;margin-top:4px;padding-left:22px;line-height:1.4;">
+                        તમારો ફોટો અને સંપર્ક વિગતો ફક્ત મંજૂર થયેલા સભ્યોને જ સુરક્ષિત રીતે દેખાય છે.
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" class="btn btn-primary" onclick="setTab('boys');go('scr-browse')"
+                style="width:100%;padding:14px;font-size:15px;font-weight:800;border-radius:12px;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px;">
+                <i class="fa-solid fa-magnifying-glass"></i> Browse Grooms (દીકરાઓની પ્રોફાઇલ્સ જુઓ)
+            </button>
+        `;
+        return;
+    }
+
+    // ----------------------------------------------------
+    // CASE 2: BOY - ACTIVE 30-DAY PASS (Approved)
+    // ----------------------------------------------------
+    if (isActive) {
+        memWrap.innerHTML = `
+            <div class="card" style="background:linear-gradient(135deg, #7B2CBF, #9D4EDD);box-shadow:0 6px 20px rgba(123,44,191,0.28);color:#fff;border-radius:16px;padding:20px;margin-bottom:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                    <span style="font-size:11.5px;font-weight:800;background:rgba(255,255,255,0.22);color:#fff;padding:4px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;backdrop-filter:blur(4px);">
+                        <i class="fa-solid fa-crown" style="color:#FCD34D;"></i> ACTIVE PLAN / સક્રિય પ્લાન (₹૧૯૯)
+                    </span>
+                    <i class="fa-solid fa-medal" style="font-size:32px;color:#FCD34D;"></i>
+                </div>
+                <div style="font-size:20px;font-weight:800;color:#fff;line-height:1.2;">Boys 30-Day Premium Pass</div>
+                <div style="font-size:12.5px;opacity:0.92;margin-top:6px;line-height:1.45;">
+                    તમારો પાસ એડમિન દ્વારા મંજૂર કરાયેલ છે અને સંપૂર્ણ એક્ટિવ છે.
+                </div>
+
+                <!-- Total Validity & Days Remaining Grid -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;background:rgba(255,255,255,0.12);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.18);">
+                    <div>
+                        <div style="font-size:11px;opacity:0.8;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">કુલ માન્યતા (Total)</div>
+                        <div style="font-size:18px;font-weight:800;margin-top:2px;">૩૦ દિવસ</div>
+                        <div style="font-size:10.5px;opacity:0.75;">(30 Days Validity)</div>
+                    </div>
+                    <div style="border-left:1px solid rgba(255,255,255,0.2);padding-left:12px;">
+                        <div style="font-size:11px;opacity:0.8;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">બાકી દિવસો (Left)</div>
+                        <div style="font-size:18px;font-weight:800;color:#FCD34D;margin-top:2px;">${daysLeftDisplay} દિવસ</div>
+                        <div style="font-size:10.5px;opacity:0.75;">(${daysLeftDisplay} Days Left)</div>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div style="margin-top:14px;">
+                    <div style="display:flex;justify-content:space-between;font-size:11px;opacity:0.85;margin-bottom:4px;">
+                        <span>${daysLeftDisplay} / 30 દિવસ બાકી</span>
+                        <span>પૂર્ણ તારીખ: ${expiryFormatted}</span>
+                    </div>
+                    <div style="width:100%;height:6px;background:rgba(255,255,255,0.25);border-radius:6px;overflow:hidden;">
+                        <div style="width:${percentLeft}%;height:100%;background:#FCD34D;border-radius:6px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Quota Tracker -->
+            <div style="background:#F0FDF4;border:1.2px solid #BBF7D0;border-radius:12px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                    <div style="font-size:12.5px;font-weight:800;color:#166534;">
+                        <i class="fa-solid fa-heart" style="color:#16A34A;margin-right:4px;"></i> આજનો ઇન્ટરેસ્ટ ક્વોટા (Daily Quota)
+                    </div>
+                    <div style="font-size:11.5px;color:#15803D;margin-top:2px;">
+                        ${dailyUsage.count}/3 વપરાયેલ • <b>${dailyUsage.remaining} બાકી</b>
+                    </div>
+                </div>
+                <span style="font-size:11px;font-weight:800;background:#DCFCE7;color:#166534;padding:4px 8px;border-radius:8px;">દર ૨૪ કલાકે રીસેટ</span>
+            </div>
+
+            <!-- Active Benefits Checklist -->
+            <div class="section-label" style="display:flex;align-items:center;gap:6px;color:#15803D;font-size:13px;font-weight:800;margin:18px 0 10px;">
+                <i class="fa-solid fa-circle-check"></i> તમારી અનલૉક સુવિધાઓ (Active Benefits)
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
+                <div style="background:#fff;border:1.2px solid #DCFCE7;border-left:4px solid #16A34A;border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                    <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#14532D;">
+                        <i class="fa-solid fa-heart-circle-check" style="color:#16A34A;"></i> દરરોજ ૩ ઇન્ટરેસ્ટ રિક્વેસ્ટ (3 Daily Interests)
+                    </div>
+                    <div style="font-size:11.5px;color:#4B5563;margin-top:4px;padding-left:22px;line-height:1.4;">
+                        ૩૦ દિવસ સુધી દરરોજ ૩ મનપસંદ પાત્રોને કનેક્ટ થવા માટે રિક્વેસ્ટ મોકલો (કુલ ૯૦ સુધી).
+                    </div>
+                </div>
+                <div style="background:#fff;border:1.2px solid #DCFCE7;border-left:4px solid #16A34A;border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                    <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#14532D;">
+                        <i class="fa-solid fa-comments" style="color:#16A34A;"></i> ડાયરેક્ટ ૧-ટુ-૧ સુરક્ષિત ચેટ (Direct 1-on-1 Chat)
+                    </div>
+                    <div style="font-size:11.5px;color:#4B5563;margin-top:4px;padding-left:22px;line-height:1.4;">
+                        દીકરી દ્વારા રિક્વેસ્ટ સ્વીકારાય એટલે તરત જ સીધી વાતચીત શરૂ કરો.
+                    </div>
+                </div>
+                <div style="background:#fff;border:1.2px solid #DCFCE7;border-left:4px solid #16A34A;border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                    <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#14532D;">
+                        <i class="fa-solid fa-phone" style="color:#16A34A;"></i> સંપર્ક અને WhatsApp નંબર અનલોક (Contact Access)
+                    </div>
+                    <div style="font-size:11.5px;color:#4B5563;margin-top:4px;padding-left:22px;line-height:1.4;">
+                        બંને પક્ષની પરસ્પર સંમતિથી દીકરી કે વાલીનો સંપર્ક નંબર ઉપલબ્ધ થાય છે.
+                    </div>
+                </div>
+                <div style="background:#fff;border:1.2px solid #DCFCE7;border-left:4px solid #16A34A;border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                    <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#14532D;">
+                        <i class="fa-solid fa-id-card" style="color:#16A34A;"></i> સંપૂર્ણ બાયોડેટા અને મોસાળ વિગતો (Full Biodata)
+                    </div>
+                    <div style="font-size:11.5px;color:#4B5563;margin-top:4px;padding-left:22px;line-height:1.4;">
+                        મોસાળ, વ્યવસાય, શિક્ષણ અને કૌટુંબિક ચકાસાયેલ માહિતી ખુલ્લી છે.
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                <button type="button" class="btn btn-primary" onclick="setTab('girls');go('scr-browse')"
+                    style="width:100%;padding:14px;font-size:14.5px;font-weight:800;border-radius:12px;">
+                    <i class="fa-solid fa-magnifying-glass"></i> Browse Brides (દીકરીઓની પ્રોફાઇલ્સ જુઓ)
+                </button>
+                <button type="button" class="btn btn-outline" onclick="openPaymentHistoryModal()"
+                    style="border:1.2px solid #E5E7EB;color:#4B5563;font-size:12.5px;padding:10px;border-radius:10px;">
+                    <i class="fa-solid fa-receipt"></i> View Payment History (પેમેન્ટ હિસ્ટ્રી)
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    // ----------------------------------------------------
+    // CASE 3: BOY - PENDING APPROVAL
+    // ----------------------------------------------------
+    if (isPending) {
+        memWrap.innerHTML = `
+            <div class="card" style="background:#FFFBEB;border:1.5px solid #FCD34D;border-radius:16px;padding:20px;margin-bottom:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                    <span style="font-size:11.5px;font-weight:800;background:#FEF3C7;color:#B45309;padding:4px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;">
+                        <i class="fa-solid fa-clock-rotate-left"></i> PENDING APPROVAL / ચકાસણી ચાલુ છે
+                    </span>
+                    <i class="fa-solid fa-hourglass-half" style="font-size:28px;color:#D97706;"></i>
+                </div>
+                <div style="font-size:18px;font-weight:800;color:#92400E;line-height:1.25;">પેમેન્ટ ચકાસણી હેઠળ છે (Verification Pending)</div>
+                <div style="font-size:12.5px;color:#B45309;margin-top:6px;line-height:1.45;">
+                    અમને તમારી <b>₹૧૯૯ પેમેન્ટ વિનંતી</b> મળી ગઈ છે. એડમિન ટીમ વોટ્સએપ પર મળેલ સ્ક્રીનશોટ ચકાસીને ટૂંક સમયમાં તમારો ૩૦ દિવસનો પાસ સક્રિય કરશે.
+                </div>
+                <div style="background:#fff;padding:10px 14px;border-radius:10px;margin-top:14px;font-size:12px;border:1px solid #FDE68A;color:#78350F;">
+                    ⏱️ સામાન્ય રીતે <b>૪ થી ૬ કલાક</b> માં પાસ એપ્રુવ થઈ જાય છે.
+                </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px;margin-top:20px;">
+                <button type="button" class="btn" onclick="sendPaymentScreenshotWhatsApp()"
+                    style="background:#25D366;color:#fff;width:100%;padding:13px;font-size:14px;font-weight:800;border:none;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;box-shadow:0 3px 10px rgba(37,211,102,0.3);">
+                    <i class="fa-brands fa-whatsapp" style="font-size:18px;"></i> 📲 Send / Re-send Screenshot on WhatsApp
+                </button>
+                <button type="button" class="btn btn-outline" onclick="checkAndUpdatePaymentStatus()"
+                    style="border:1.2px solid #D1D5DB;background:#fff;color:#374151;font-size:13px;font-weight:700;padding:11px;border-radius:10px;cursor:pointer;">
+                    <i class="fa-solid fa-arrows-rotate"></i> Check Status (રિફ્રેશ કરો)
+                </button>
+                <button type="button" class="btn btn-outline" onclick="openPaymentHistoryModal()"
+                    style="border:1.2px solid #E5E7EB;color:#4B5563;font-size:12.5px;padding:10px;border-radius:10px;">
+                    <i class="fa-solid fa-receipt"></i> View Payment History (પેમેન્ટ હિસ્ટ્રી)
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    // ----------------------------------------------------
+    // CASE 4: BOY - EXPIRED PASS
+    // ----------------------------------------------------
+    if (isExpired) {
+        memWrap.innerHTML = `
+            <div class="card" style="background:#FFF1F2;border:1.5px solid #FECDD3;border-radius:16px;padding:18px;margin-bottom:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <span style="font-size:11.5px;font-weight:800;background:#FEE2E2;color:#BE123C;padding:4px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;">
+                        <i class="fa-solid fa-clock-rotate-left"></i> PASS EXPIRED / પ્લાન પૂર્ણ થઈ ગયો છે
+                    </span>
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size:24px;color:#F43F5E;"></i>
+                </div>
+                <div style="font-size:18px;font-weight:800;color:#881337;line-height:1.3;">તમારો ૩૦ દિવસનો પાસ પૂર્ણ થયો છે (Expired)</div>
+                <div style="font-size:12.5px;color:#9F1239;margin-top:6px;line-height:1.45;">
+                    તમારો ₹૧૯૯ પાસ <b>${expiryFormatted}</b> ના રોજ પૂર્ણ થઈ ગયો છે. ફરીથી દીકરીઓ સાથે ચેટ કરવા અને ઇન્ટરેસ્ટ મોકલવા માટે ₹૧૯૯ માં રીન્યૂ કરો.
+                </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px;margin-top:20px;">
+                <button type="button" class="btn" onclick="openPaymentCheckout('renew')"
+                    style="background:linear-gradient(135deg,var(--primary),#9D4EDD);color:#fff;width:100%;padding:14px;font-size:15px;font-weight:800;border:none;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;box-shadow:0 4px 14px rgba(123,44,191,0.28);">
+                    <i class="fa-solid fa-bolt" style="color:#FCD34D;"></i> Renew 30-Day Pass (₹૧૯૯ માં રીન્યૂ કરો)
+                </button>
+                <button type="button" class="btn" onclick="sendPaymentScreenshotWhatsApp()"
+                    style="background:#E7F5EC;color:#1D7A44;border:1.5px solid #A3E6B4;width:100%;padding:12px 14px;font-size:13.5px;font-weight:800;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;">
+                    <i class="fa-brands fa-whatsapp" style="font-size:18px;color:#1D7A44;"></i> 📲 Send Renewal Screenshot on WhatsApp
+                </button>
+                <button type="button" class="btn btn-outline" onclick="openPaymentHistoryModal()"
+                    style="margin-top:4px;border:1.2px solid #E5E7EB;color:#4B5563;font-size:12.5px;padding:10px;border-radius:10px;">
+                    <i class="fa-solid fa-receipt"></i> View Payment History (પેમેન્ટ હિસ્ટ્રી)
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    // ----------------------------------------------------
+    // CASE 5: BOY - UNPAID / NO ACTIVE PLAN (Default)
+    // ----------------------------------------------------
+    memWrap.innerHTML = `
+        <!-- No Active Plan Header Card -->
+        <div class="card" style="background:#FFF1F2;border:1.5px solid #FECDD3;border-radius:16px;padding:18px;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <span style="font-size:11.5px;font-weight:800;background:#FEE2E2;color:#BE123C;padding:4px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;">
+                    <i class="fa-solid fa-lock"></i> NO ACTIVE PLAN / કોઈ પ્લાન સક્રિય નથી
+                </span>
+                <i class="fa-solid fa-shield-halved" style="font-size:26px;color:#F43F5E;opacity:0.85;"></i>
+            </div>
+            <div style="font-size:18px;font-weight:800;color:#881337;line-height:1.3;">તમારો કોઈ પ્લાન સક્રિય નથી (No Active Plan)</div>
+            <div style="font-size:12.5px;color:#9F1239;margin-top:6px;line-height:1.45;">
+                તમારી પ્રોફાઇલ ૧૦૦% વેરિફાઇડ છે, પરંતુ દીકરીઓ સાથે જોડાવા અને વાતચીત કરવા માટે <b>₹૧૯૯ નો ૩૦ દિવસનો પાસ</b> જરૂરી છે.
+            </div>
+        </div>
+
+        <!-- SECTION 1: ❌ હાલમાં આ સુવિધાઓ બંધ છે (Limitations) -->
+        <div class="section-label" style="display:flex;align-items:center;gap:6px;color:#B91C1C;font-size:13px;font-weight:800;margin:18px 0 10px;">
+            <i class="fa-solid fa-ban"></i> હાલમાં આ સુવિધાઓ બંધ છે (Current Limitations)
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px;">
+            <div style="background:#fff;border:1.2px solid #FEE2E2;border-left:4px solid #EF4444;border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#991B1B;">
+                    <i class="fa-solid fa-circle-xmark" style="color:#EF4444;"></i> ઇન્ટરેસ્ટ મોકલી શકતા નથી (Cannot Send Interest)
+                </div>
+                <div style="font-size:11.5px;color:#6B7280;margin-top:4px;padding-left:22px;line-height:1.4;">
+                    દીકરીઓની પ્રોફાઇલમાં "I'm Interested" મોકલવાની સુવિધા બંધ છે. પાસ વગર કોઈ રિક્વેસ્ટ જશે નહીં.
+                </div>
+            </div>
+            <div style="background:#fff;border:1.2px solid #FEE2E2;border-left:4px solid #EF4444;border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#991B1B;">
+                    <i class="fa-solid fa-circle-xmark" style="color:#EF4444;"></i> ડાયરેક્ટ ૧-ટુ-૧ ચેટ બંધ છે (Direct Chat Locked)
+                </div>
+                <div style="font-size:11.5px;color:#6B7280;margin-top:4px;padding-left:22px;line-height:1.4;">
+                    દીકરીઓ સાથે પ્રાઇવેટ મેસેજિંગ કે વાતચીત શરૂ કરી શકાતી નથી.
+                </div>
+            </div>
+            <div style="background:#fff;border:1.2px solid #FEE2E2;border-left:4px solid #EF4444;border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#991B1B;">
+                    <i class="fa-solid fa-circle-xmark" style="color:#EF4444;"></i> ફોન / WhatsApp નંબર લૉક (No Contact Access)
+                </div>
+                <div style="font-size:11.5px;color:#6B7280;margin-top:4px;padding-left:22px;line-height:1.4;">
+                    દીકરી કે તેમના પરિવારનો મોબાઈલ / WhatsApp નંબર જોઈ શકાતો નથી.
+                </div>
+            </div>
+            <div style="background:#fff;border:1.2px solid #FEE2E2;border-left:4px solid #EF4444;border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#991B1B;">
+                    <i class="fa-solid fa-circle-xmark" style="color:#EF4444;"></i> પરિવાર અને મોસાળની વિગતો લૉક (Family Details Locked)
+                </div>
+                <div style="font-size:11.5px;color:#6B7280;margin-top:4px;padding-left:22px;line-height:1.4;">
+                    સંપૂર્ણ સરનામું, મોસાળ અને કૌટુંબિક ઊંડાણપૂર્વકની માહિતી બંધ છે.
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 2: ✅ ₹૧૯૯ પાસ એક્ટિવ કરવાથી શું મળશે? (Benefits) -->
+        <div class="section-label" style="display:flex;align-items:center;gap:6px;color:#15803D;font-size:13px;font-weight:800;margin:18px 0 10px;">
+            <i class="fa-solid fa-circle-check"></i> ₹૧૯૯ પાસ એક્ટિવ કરવાથી શું મળશે? (Benefits)
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
+            <div style="background:#fff;border:1.2px solid #DCFCE7;border-left:4px solid #16A34A;border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#14532D;">
+                    <i class="fa-solid fa-heart-circle-check" style="color:#16A34A;"></i> દરરોજ ૩ ઇન્ટરેસ્ટ રિક્વેસ્ટ (3 Daily Interests)
+                </div>
+                <div style="font-size:11.5px;color:#4B5563;margin-top:4px;padding-left:22px;line-height:1.4;">
+                    ૩૦ દિવસ સુધી દરરોજ ૩ મનપસંદ પાત્રોને કનેક્ટ થવા માટે રિક્વેસ્ટ મોકલો (કુલ ૯૦ સુધી).
+                </div>
+            </div>
+            <div style="background:#fff;border:1.2px solid #DCFCE7;border-left:4px solid #16A34A;border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#14532D;">
+                    <i class="fa-solid fa-comments" style="color:#16A34A;"></i> ડાયરેક્ટ ૧-ટુ-૧ સુરક્ષિત ચેટ (Direct 1-on-1 Chat)
+                </div>
+                <div style="font-size:11.5px;color:#4B5563;margin-top:4px;padding-left:22px;line-height:1.4;">
+                    દીકરી દ્વારા રિક્વેસ્ટ સ્વીકારાય એટલે તરત જ સીધી વાતચીત શરૂ કરો.
+                </div>
+            </div>
+            <div style="background:#fff;border:1.2px solid #DCFCE7;border-left:4px solid #16A34A;border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#14532D;">
+                    <i class="fa-solid fa-phone" style="color:#16A34A;"></i> સંપર્ક અને WhatsApp નંબર અનલોક (Contact Access)
+                </div>
+                <div style="font-size:11.5px;color:#4B5563;margin-top:4px;padding-left:22px;line-height:1.4;">
+                    બંને પક્ષની પરસ્પર સંમતિથી દીકરી કે વાલીનો સંપર્ક નંબર ઉપલબ્ધ થાય છે.
+                </div>
+            </div>
+            <div style="background:#fff;border:1.2px solid #DCFCE7;border-left:4px solid #16A34A;border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#14532D;">
+                    <i class="fa-solid fa-id-card" style="color:#16A34A;"></i> સંપૂર્ણ બાયોડેટા અને મોસાળ વિગતો (Full Biodata)
+                </div>
+                <div style="font-size:11.5px;color:#4B5563;margin-top:4px;padding-left:22px;line-height:1.4;">
+                    મોસાળ, વ્યવસાય, શિક્ષણ અને કૌટુંબિક ચકાસાયેલ માહિતી ખુલ્લી છે.
+                </div>
+            </div>
+            <div style="background:#fff;border:1.2px solid #DCFCE7;border-left:4px solid #16A34A;border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#14532D;">
+                    <i class="fa-solid fa-calendar-check" style="color:#16A34A;"></i> ૩૦ દિવસની સંપૂર્ણ માન્યતા (30 Days Validity)
+                </div>
+                <div style="font-size:11.5px;color:#4B5563;margin-top:4px;padding-left:22px;line-height:1.4;">
+                    કોઈ છુપા ચાર્જ વગર સંપૂર્ણ ૩૦ દિવસ સુધી અનલિમિટેડ એક્સેસ મળે છે.
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 3: ACTION BUTTONS -->
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <!-- 1. Pay ₹199 via UPI Button -->
+            <button type="button" class="btn" onclick="openPaymentCheckout('plan_page')"
+                style="background:linear-gradient(135deg,var(--primary),#9D4EDD);color:#fff;width:100%;padding:14px;font-size:15px;font-weight:800;border:none;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;box-shadow:0 4px 14px rgba(123,44,191,0.28);">
+                <i class="fa-solid fa-bolt" style="color:#FCD34D;"></i> Pay ₹199 via UPI (પાસ એક્ટિવ કરો)
+            </button>
+
+            <!-- 2. Send Payment Screenshot on WhatsApp -->
+            <button type="button" class="btn" onclick="sendPaymentScreenshotWhatsApp()"
+                style="background:#E7F5EC;color:#1D7A44;border:1.5px solid #A3E6B4;width:100%;padding:12px 14px;font-size:13.5px;font-weight:800;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+                <i class="fa-brands fa-whatsapp" style="font-size:18px;color:#1D7A44;"></i> 📲 Send Payment Screenshot on WhatsApp (પેમેન્ટ સ્ક્રીનશોટ મોકલો)
+            </button>
+
+            <div style="background:#F9FAFB;border:1px dashed #D1D5DB;border-radius:8px;padding:9px 12px;font-size:11.5px;color:#6B7280;line-height:1.45;text-align:center;">
+                💡 <b>પેમેન્ટ કરી દીધું છે?</b> જો તમે GPay/PhonePe માં પેમેન્ટ કર્યા પછી સ્ક્રીન ભૂલથી બંધ કરી દીધી હોય, તો ઉપરના WhatsApp બટન પર ક્લિક કરીને સીધો સ્ક્રીનશોટ મોકલી આપો.
+            </div>
+
+            <!-- Demo Pass for quick testing -->
+            <button type="button" class="btn btn-outline" onclick="activateDemoTestPass()"
+                style="margin-top:2px;border:1.2px dashed var(--primary);color:var(--primary);background:#fcf8ff;font-weight:700;padding:10px;font-size:12px;border-radius:10px;">
+                <i class="fa-solid fa-flask"></i> 🧪 Test Mode: Activate 30-Day Free Pass
+            </button>
+
+            <!-- 3. View Payment History -->
+            <button type="button" class="btn btn-outline" onclick="openPaymentHistoryModal()"
+                style="border:1.2px solid #E5E7EB;color:#4B5563;font-size:12.5px;padding:10px;border-radius:10px;">
+                <i class="fa-solid fa-receipt"></i> View Payment History (પેમેન્ટ હિસ્ટ્રી)
+            </button>
+        </div>
+    `;
 }
+window.updateMembershipScreen = updateMembershipScreen;
 
 /* ============================================================ PHOTO CAROUSEL MODAL (2-3 PHOTOS) ============================================================ */
 let currentCarouselPhotos = [];

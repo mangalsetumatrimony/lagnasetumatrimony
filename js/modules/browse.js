@@ -1375,7 +1375,15 @@ function updateHomeStats() {
                 planEl.textContent = 'Free';
             } else {
                 const pass = (typeof checkBoyPassStatus === 'function') ? checkBoyPassStatus(state.currentUser) : { active: state.currentUser.paymentStatus === 'Active' };
-                planEl.textContent = pass.active ? '₹199 Pass' : 'Unpaid';
+                if (pass.active) {
+                    planEl.textContent = `${pass.daysLeft || 30}d Left`;
+                } else if (state.currentUser.paymentStatus === 'pending_approval' || state.currentUser.payment_status === 'pending_approval') {
+                    planEl.textContent = 'Pending';
+                } else if (pass.reason === 'expired') {
+                    planEl.textContent = 'Expired';
+                } else {
+                    planEl.textContent = 'Unpaid';
+                }
             }
         } else {
             planEl.textContent = 'Free';

@@ -253,9 +253,6 @@ function initApp() {
                     ]);
                     if (!UNPAID_ALLOWED.has(targetScreen)) {
                         targetScreen = 'scr-membership';
-                        setTimeout(() => { if (typeof openModal === 'function') openModal('modalPaywall'); }, 350);
-                    } else if (targetScreen === 'scr-membership') {
-                        setTimeout(() => { if (typeof openModal === 'function') openModal('modalPaywall'); }, 350);
                     }
                 }
             } else if (typeof isGirlGender === 'function' ? isGirlGender(state.currentUser.gender) : (state.currentUser.gender === 'Girl' || state.currentUser.gender === 'girls')) {
@@ -263,9 +260,7 @@ function initApp() {
                 state.currentUser.gender = 'Girl';
                 state.currentUser.paymentStatus = 'Free';
                 state.membershipPaid = true;
-                if (targetScreen === 'scr-membership') {
-                    targetScreen = 'scr-home';
-                }
+                // Girls can also freely view scr-membership
             }
         }
 

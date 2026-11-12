@@ -112,14 +112,12 @@ function go(id, replace = false) {
         }
     }
 
-    // Strict Girl Lifetime Free Pass: Girls NEVER go to scr-membership or see paywalls
+    // Strict Girl Lifetime Free Pass: Guaranteed 100% Free Lifetime for Girls
     const isGirlUser = state.currentUser && (typeof isGirlGender === 'function' ? isGirlGender(state.currentUser.gender) : (state.currentUser.gender === 'Girl' || state.currentUser.gender === 'girl' || state.currentUser.gender === 'girls'));
     if (isGirlUser) {
         state.membershipPaid = true;
         if (state.currentUser) state.currentUser.paymentStatus = 'Free';
-        if (id === 'scr-membership') {
-            id = 'scr-home'; // Seamlessly redirect girl to home
-        }
+        // Note: Girls CAN view scr-membership to see their 100% Lifetime Free badge & benefits
     }
 
     // Boys Paywall Gatekeeper (Smart Teaser Preview: Unpaid boys can browse Home & Browse, but Chat & Contacts are strictly locked)
@@ -249,15 +247,6 @@ function go(id, replace = false) {
 
 function goBack() {
     const current = document.querySelector('.screen.active')?.id;
-
-    // Contextual fallback: Unpaid boy on membership screen should not navigate back into registration or home
-    if (current === 'scr-membership' && state.currentUser && (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy')) {
-        const pStatus = typeof checkBoyPassStatus === 'function' ? checkBoyPassStatus(state.currentUser) : { active: false };
-        if (!pStatus.active) {
-            openModal('modalLogout');
-            return;
-        }
-    }
 
     if (state.history.length > 1) {
         state.history.pop(); // Remove current screen
