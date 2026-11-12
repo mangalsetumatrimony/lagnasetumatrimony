@@ -1273,6 +1273,225 @@ async function sendPassApprovedEmail(userObj, planExpiry) {
   return { success: dispatchSuccess, email: cleanEmail, error: dispatchError };
 }
 
+/**
+ * Dispatch automated pass rejection notification email to boy when admin rejects UPI payment proof
+ * @param {Object} userObj { id, name, email, rawEmail }
+ * @param {string} rejectReason Reason/notes written by admin
+ * @returns {Promise<{success: boolean, email: string, error?: any}>}
+ */
+async function sendPassRejectedEmail(userObj, rejectReason) {
+  if (!userObj) return { success: false, reason: 'missing_user_object' };
+
+  let cleanEmail = String(userObj.rawEmail || userObj.email || userObj.cleanEmail || (userObj.raw_data && userObj.raw_data.email) || '').trim().toLowerCase();
+  const isCleanEmail = (str) => Boolean(
+    str &&
+    typeof str === 'string' &&
+    str.includes('@') &&
+    !str.includes('•') &&
+    !str.includes('*') &&
+    !str.endsWith('@deleted.local')
+  );
+
+  // Self-healing: lookup from Supabase if email is missing or masked
+  if (!isCleanEmail(cleanEmail) && userObj.id && typeof getSupabaseClient === 'function') {
+    try {
+      const client = getSupabaseClient();
+      if (client) {
+        const numId = Number(userObj.id);
+        if (!isNaN(numId) && numId > 0) {
+          const { data: p } = await client.from('profiles').select('email, raw_data').eq('id', numId).maybeSingle();
+          if (p && isCleanEmail(p.email)) cleanEmail = p.email.trim().toLowerCase();
+          else if (p?.raw_data && isCleanEmail(p.raw_data.rawEmail)) cleanEmail = p.raw_data.rawEmail.trim().toLowerCase();
+          else if (p?.raw_data && isCleanEmail(p.raw_data.email)) cleanEmail = p.raw_data.email.trim().toLowerCase();
+        }
+        if (!isCleanEmail(cleanEmail)) {
+          const { data: u } = await client.from('users').select('email').eq('id', String(userObj.id)).maybeSingle();
+          if (u && isCleanEmail(u.email)) cleanEmail = u.email.trim().toLowerCase();
+        }
+      }
+    } catch (e) {
+      console.warn('[EmailService] Self-healing pass reject email note:', e);
+    }
+  }
+
+  if (!isCleanEmail(cleanEmail)) {
+    console.warn('[EmailService] sendPassRejectedEmail: Valid unmasked recipient email missing:', userObj);
+    return { success: false, reason: 'missing_or_invalid_email' };
+  }
+
+  const safeName = safeEmailText(userObj.name || 'Member');
+  const safeReason = safeEmailText(rejectReason || 'તમે મોકલેલ UPI સ્ક્રીનશોટ અમાન્ય અથવા અસ્પષ્ટ છે.');
+
+  const subject = `⚠️ Mangal Setu — Update on your ₹199 Pass Verification (પાસ વેરિફિકેશન નોંધ)`;
+  const preheader = `તમારા ₹૧૯૯ પાસના વેરિફિકેશન અંગે એડમિન ટીમ તરફથી અગત્યની નોંધ.`;
+
+  const bodyContent = `
+      <div style="text-align:center;margin-bottom:20px;">
+        <div style="display:inline-block;padding:8px 18px;background:linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%);border:1.5px solid #F87171;border-radius:30px;color:#991B1B;font-size:12.5px;font-weight:800;letter-spacing:0.5px;">
+          ⚠️ PAYMENT VERIFICATION UPDATE (પેમેન્ટ ચકાસણી નોંધ)
+        </div>
+      </div>
+
+      <div style="font-size:19px;font-weight:800;color:#202124;margin-bottom:12px;line-height:1.3;">
+        નમસ્તે ${safeName},
+      </div>
+
+      <p style="font-size:14.5px;line-height:1.65;color:#374151;margin:0 0 16px 0;">
+        તમે <b>₹૧૯૯ ના Mangal Setu 30-Day Access Pass</b> માટે વોટ્સએપ પર મોકલેલ પેમેન્ટ સ્ક્રીનશોટ એડમિન ટીમ દ્વારા ચકાસવામાં આવ્યો હતો. વિગતો તપાસતાં હાલ પૂરતો તમારો પાસ નીચે જણાવેલ કારણોસર મંજૂર થઈ શક્યો નથી:
+      </p>
+
+      <!-- Reason Box -->
+      <table border="0" cellpadding="0" cellspacing="0" width="100%"
+        style="background:linear-gradient(135deg, #FFF5F5 0%, #FEE2E2 100%);border:1.5px solid #FCA5A5;border-radius:14px;margin-bottom:22px;">
+        <tr>
+          <td style="padding:18px 20px;">
+            <div style="font-size:11px;font-weight:800;color:#991B1B;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+              📋 એડમિન ટીમની નોંધ / કારણ (Reason):
+            </div>
+            <div style="font-size:14.5px;font-weight:700;color:#7F1D1D;line-height:1.6;background:#fff;padding:12px 16px;border-radius:8px;border:1px solid #FECACA;">
+              "${safeReason}"
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Next Steps Guidance -->
+      <div style="background:#F9FAFB;border:1.2px solid #E5E7EB;border-radius:14px;padding:16px 20px;margin-bottom:24px;">
+        <div style="font-size:13px;font-weight:800;color:#1F2937;margin-bottom:10px;">
+          🛠️ આગળ શું કરવું? (What you should do next):
+        </div>
+        <div style="font-size:13px;line-height:1.7;color:#4B5563;">
+          <div style="margin-bottom:6px;"><b style="color:#2563EB;">૧.</b> <b>સાચો સ્ક્રીનશોટ મોકલો:</b> જો સ્ક્રીનશોટ અસ્પષ્ટ હોય અથવા UTR નંબર ન દેખાતો હોય, તો બેંક/UPI એપમાંથી સ્પષ્ટ સ્ક્રીનશોટ ફરી મોકલો.</div>
+          <div style="margin-bottom:6px;"><b style="color:#2563EB;">૨.</b> <b>રકમ કપાઈ ગઈ હોય તો:</b> જો તમારા બેંક ખાતામાંથી ₹૧૯૯ કપાઈ ગયા હોય, તો UTR નંબર લખીને WhatsApp પર જણાવો. અમે તાત્કાલિક બેંક ખાતામાં ચેક કરીને પાસ શરૂ કરી આપીશું.</div>
+          <div><b style="color:#2563EB;">૩.</b> <b>નવી ચુકવણી:</b> જો પેમેન્ટ નિષ્ફળ ગયું હોય, તો તમે એપમાં જઈને ફરીથી સત્તાવાર UPI ID <b>9726362863@ybl</b> પર ₹૧૯૯ પે કરી શકો છો.</div>
+        </div>
+      </div>
+
+      <!-- WhatsApp Help Button -->
+      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;">
+        <tr>
+          <td align="center">
+            <a href="https://wa.me/919726362863?text=${encodeURIComponent(`નમસ્તે એડમિન, મારા ₹૧૯૯ પાસ વેરિફિકેશન અંગે મેલ મળ્યો હતો (નામ: ${userObj.name || ''}, ID: ${userObj.id || ''}). મારે પેમેન્ટની વિગત ફરી મોકલવી છે.`)}" class="btn-action"
+              style="display:inline-block;background:#25D366;color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;padding:14px 32px;border-radius:12px;box-shadow:0 4px 16px rgba(37,211,102,0.3);text-align:center;">
+              <i class="fa-brands fa-whatsapp" style="margin-right:6px;"></i> WhatsApp પર એડમિનનો સંપર્ક કરો →
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <p style="font-size:12px;color:#9CA3AF;margin:0;line-height:1.5;">
+        This administrative notice was sent to ${cleanEmail}. Mangal Setu Matrimony is a Government of India MSME Registered Micro Enterprise (UDYAM-GJ-20-0323404).
+      </p>
+  `;
+
+  const html = wrapEmailTemplate('Pass Verification Update — Mangal Setu Matrimony', preheader, bodyContent);
+
+  console.info(`[EmailService] ⚠️ Sending pass rejection notification to: ${cleanEmail}`);
+
+  const logId = 'reject_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+  const client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
+
+  // Log intent to Supabase email_logs
+  if (client) {
+    try {
+      await client.from('email_logs').insert({
+        id: logId,
+        recipient_email: cleanEmail,
+        recipient_name: safeName,
+        subject: subject,
+        notification_type: 'PASS_REJECTED',
+        payload: { reason: safeReason, rejected_at: new Date().toISOString() },
+        status: 'sending'
+      });
+    } catch (e) {
+      console.warn('[EmailService] email_logs initial note:', e);
+    }
+  }
+
+  const templateParams = {
+    to_email: cleanEmail,
+    recipient_email: cleanEmail,
+    user_email: cleanEmail,
+    email: cleanEmail,
+    to: cleanEmail,
+    reply_to: EMAIL_CONFIG.fromEmail || 'mangalsetu.in@gmail.com',
+    to_name: safeName,
+    recipient_name: safeName,
+    user_name: safeName,
+    name: safeName,
+    from_name: EMAIL_CONFIG.fromName,
+    subject: subject,
+    message: html,
+    message_html: html,
+    html: html,
+    body: html,
+    content: html
+  };
+
+  let dispatchSuccess = false;
+  let dispatchError = null;
+
+  // 1. Dispatch via EmailJS SDK
+  if (window.emailjs && EMAIL_CONFIG.emailjs && EMAIL_CONFIG.emailjs.publicKey) {
+    try {
+      await window.emailjs.send(
+        EMAIL_CONFIG.emailjs.serviceId,
+        EMAIL_CONFIG.emailjs.templateId,
+        templateParams,
+        EMAIL_CONFIG.emailjs.publicKey
+      );
+      dispatchSuccess = true;
+      console.info(`[EmailService] ✅ Pass reject email dispatched via EmailJS SDK to ${cleanEmail}`);
+    } catch (sdkErr) {
+      console.warn('[EmailService] EmailJS SDK note, attempting REST fallback:', sdkErr);
+      dispatchError = sdkErr;
+    }
+  }
+
+  // 2. Direct REST API Fallback
+  if (!dispatchSuccess && EMAIL_CONFIG.emailjs && EMAIL_CONFIG.emailjs.publicKey && typeof fetch === 'function') {
+    try {
+      const resp = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service_id: EMAIL_CONFIG.emailjs.serviceId,
+          template_id: EMAIL_CONFIG.emailjs.templateId,
+          user_id: EMAIL_CONFIG.emailjs.publicKey,
+          template_params: templateParams
+        })
+      });
+      if (resp.ok) {
+        dispatchSuccess = true;
+        console.info(`[EmailService] ✅ Pass reject email dispatched via REST API to ${cleanEmail}`);
+      } else {
+        const respText = await resp.text();
+        dispatchError = new Error(`EmailJS REST returned ${resp.status}: ${respText}`);
+      }
+    } catch (fetchErr) {
+      dispatchError = fetchErr;
+    }
+  }
+
+  // Finalize log status in Supabase email_logs
+  if (client) {
+    try {
+      await client.from('email_logs').update({
+        status: dispatchSuccess ? 'sent' : 'failed',
+        payload: {
+          reason: safeReason,
+          rejected_at: new Date().toISOString(),
+          error: dispatchSuccess ? null : (dispatchError?.message || String(dispatchError))
+        }
+      }).eq('id', logId);
+    } catch (updErr) {
+      console.warn('[EmailService] email_logs update note:', updErr);
+    }
+  }
+
+  return { success: dispatchSuccess, email: cleanEmail, error: dispatchError };
+}
+
 // Global Window Exports
 window.EMAIL_CONFIG = EMAIL_CONFIG;
 window.renderEmailAvatar = renderEmailAvatar;
@@ -1283,3 +1502,4 @@ window.sendMatrimonialEmailNotification = sendMatrimonialEmailNotification;
 window.sendOtpEmail = sendOtpEmail;
 window.sendAccountDeletionEmail = sendAccountDeletionEmail;
 window.sendPassApprovedEmail = sendPassApprovedEmail;
+window.sendPassRejectedEmail = sendPassRejectedEmail;

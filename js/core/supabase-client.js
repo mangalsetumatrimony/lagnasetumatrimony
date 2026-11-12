@@ -798,6 +798,8 @@ async function supabaseRecordPayment(paymentData) {
         const uid = String(paymentData.userId || '');
         const numProfId = Number(paymentData.profileId || (!isNaN(Number(uid)) ? Number(uid) : 0));
 
+        const isReject = (paymentData.status === 'rejected');
+
         // 1. Insert into payments table (matching exact PostgreSQL columns)
         const paymentRow = {
             id: paymentData.id,
@@ -808,7 +810,7 @@ async function supabaseRecordPayment(paymentData) {
             currency: 'INR',
             method: paymentData.method || 'UPI',
             razorpay_payment_id: paymentData.razorpayPaymentId || null,
-            status: 'success',
+            status: isReject ? 'rejected' : 'success',
             date: dateStr,
             time: timeStr
         };
@@ -817,11 +819,21 @@ async function supabaseRecordPayment(paymentData) {
         if (payErr) console.warn('[Supabase] Payment upsert note:', payErr.message);
 
         // 2. Also update profile payment_status in profiles and users table
-        const profUpdates = {
+        const profUpdates = isReject ? {
+            payment_status: 'unpaid',
+            reject_reason: paymentData.notes || 'Payment proof rejected',
+            updated_at: new Date().toISOString()
+        } : {
             payment_status: 'paid',
+            reject_reason: null,
             updated_at: new Date().toISOString()
         };
-        const userUpdates = {
+
+        const userUpdates = isReject ? {
+            payment_status: 'Rejected',
+            suspension_reason: paymentData.notes || 'Payment proof rejected',
+            updated_at: new Date().toISOString()
+        } : {
             payment_status: 'Active',
             plan_start: planStart,
             plan_expiry: planExpiry,

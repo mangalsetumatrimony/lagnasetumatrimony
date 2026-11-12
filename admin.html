@@ -806,6 +806,49 @@
             </div>
         </div>
 
+        <!-- Reject Pass Modal with Custom Reason & Preset Options -->
+        <div class="modal-backdrop modal-center" id="modalRejectPass" style="z-index:9999;padding:16px;">
+            <div class="modal-card" style="max-width:440px;width:100%;padding:22px;border-radius:18px;text-align:left;position:relative;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                    <div style="font-size:16px;font-weight:800;color:#991B1B;display:flex;align-items:center;gap:8px;">
+                        <i class="fa-solid fa-circle-xmark"></i> Reject ₹199 Pass / Screenshot
+                    </div>
+                    <button class="icon-btn" onclick="closeModal('modalRejectPass')" style="width:30px;height:30px;border-radius:50%;cursor:pointer;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <p style="font-size:12.5px;color:#4B5563;line-height:1.45;margin-bottom:14px;">
+                    તમે <b id="rejectPassCandidateName">—</b> નો પાસ રિજેક્ટ કરી રહ્યા છો. રિજેક્ટ કરવાનું કારણ નીચે લખો, આ નોંધ <b>યુઝરને ઇમેઇલ દ્વારા તરત જ મોકલવામાં આવશે</b>.
+                </p>
+                <input type="hidden" id="rejectPassUserId">
+                
+                <!-- Preset Quick Reason Chips -->
+                <div style="font-size:11.5px;font-weight:700;color:#374151;margin-bottom:6px;">ક્વિક કારણ પસંદ કરો:</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+                    <button type="button" class="btn btn-sm" style="font-size:11px;background:#F3F4F6;color:#374151;padding:4px 8px;border-radius:6px;border:1px solid #D1D5DB;cursor:pointer;" onclick="setRejectPreset('અમાન્ય અથવા અસ્પષ્ટ સ્ક્રીનશોટ (Invalid or unreadable screenshot)')">
+                        અસ્પષ્ટ સ્ક્રીનશોટ
+                    </button>
+                    <button type="button" class="btn btn-sm" style="font-size:11px;background:#F3F4F6;color:#374151;padding:4px 8px;border-radius:6px;border:1px solid #D1D5DB;cursor:pointer;" onclick="setRejectPreset('બેંક ખાતામાં રકમ જમા થઈ નથી (Payment not received in bank account)')">
+                        પેમેન્ટ જમા થયું નથી
+                    </button>
+                    <button type="button" class="btn btn-sm" style="font-size:11px;background:#F3F4F6;color:#374151;padding:4px 8px;border-radius:6px;border:1px solid #D1D5DB;cursor:pointer;" onclick="setRejectPreset('ખોટો UTR નંબર / જૂનો ટ્રાન્ઝેક્શન સ્ક્રીનશોટ (Invalid UTR or duplicate screenshot)')">
+                        ખોટો UTR / ડુપ્લિકેટ
+                    </button>
+                </div>
+
+                <!-- Custom Textarea -->
+                <label style="font-size:11.5px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">રિજેક્શન કારણ / નોંધ (User will see this):</label>
+                <textarea id="rejectPassReasonInput" rows="3" style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1.2px solid #D1D5DB;font-size:13px;resize:vertical;" placeholder="દા.ત. તમે મોકલેલ સ્ક્રીનશોટમાં UTR નંબર સ્પષ્ટ દેખાતો નથી, કૃપા કરીને સાચો સ્ક્રીનશોટ વોટ્સએપ કરો..."></textarea>
+
+                <div style="display:flex;gap:10px;margin-top:16px;">
+                    <button type="button" class="btn btn-outline" style="flex:1;padding:10px;" onclick="closeModal('modalRejectPass')">રદ કરો (Cancel)</button>
+                    <button type="button" class="btn" id="btnConfirmRejectPass" style="flex:1.5;background:#DC2626;color:#fff;border:none;border-radius:8px;font-weight:800;padding:10px;cursor:pointer;" onclick="confirmRejectPassAction()">
+                        <i class="fa-solid fa-paper-plane"></i> Reject &amp; Send Email
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Payment / Transaction Details Modal -->
         <div class="modal-backdrop modal-center" id="modalPayDetail">
             <div class="modal-card" style="max-width:440px;text-align:left;">

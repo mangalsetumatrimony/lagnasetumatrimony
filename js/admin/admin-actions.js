@@ -124,7 +124,17 @@ window.escapeHtml = escapeHtmlAdmin;
             if (!u) return false;
             const checkGirl = typeof isGirlGender === 'function' ? isGirlGender : g => (g === 'girls' || g === 'Girl' || g === 'girl');
             if (checkGirl(u.gender)) return true;
+
             const st = String(u.paymentStatus || u.payment_status || '').trim().toLowerCase();
+            if (st === 'rejected') return false;
+
+            // Check if 30-day pass has expired
+            if (u.planExpiry) {
+                const exp = new Date(u.planExpiry);
+                exp.setHours(23, 59, 59, 999);
+                if (Date.now() > exp.getTime()) return false;
+            }
+
             if (st === 'paid' || st === 'active' || st === 'free') return true;
 
             const paymentsList = (Array.isArray(window.PAYMENTS) && window.PAYMENTS.length > 0) ? window.PAYMENTS : (Array.isArray(PAYMENTS) ? PAYMENTS : []);
@@ -155,11 +165,41 @@ window.escapeHtml = escapeHtmlAdmin;
             const checkGirl = typeof isGirlGender === 'function' ? isGirlGender : g => (g === 'girls' || g === 'Girl' || g === 'girl');
             const isGirl = checkGirl(u.gender);
             const isPaid = isUserPaidInAdmin(u);
-            const payBadge = isGirl 
-                ? '<span class="status-badge paid"><i class="fa-solid fa-heart"></i> Free</span>' 
-                : (isPaid 
-                    ? '<span class="status-badge paid"><i class="fa-solid fa-crown"></i> Paid ₹199</span>' 
-                    : '<span class="status-badge pending" style="background:#FFFBEB;color:#B45309;border:1px solid #FCD34D;font-weight:700;"><i class="fa-solid fa-clock"></i> Pending ₹199</span>');
+            const isExpired = !isGirl && Boolean(u.planExpiry && (Date.now() > new Date(u.planExpiry).setHours(23, 59, 59, 999)));
+            const isRejected = !isGirl && (String(u.paymentStatus || u.payment_status || '').toLowerCase() === 'rejected');
+
+            let payBadge = '';
+            let quickActionsHtml = '';
+
+            if (isGirl) {
+                payBadge = '<span class="status-badge paid"><i class="fa-solid fa-heart"></i> Free</span>';
+            } else if (isPaid) {
+                payBadge = '<span class="status-badge paid"><i class="fa-solid fa-crown"></i> Paid ₹199</span>';
+            } else if (isExpired) {
+                payBadge = '<span class="status-badge" style="background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5;font-weight:700;"><i class="fa-solid fa-clock-rotate-left"></i> Expired ₹199</span>';
+                quickActionsHtml = `
+                    <button class="btn btn-sm" style="background:#059669;color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;gap:3px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 6px rgba(5,150,105,0.25);" onclick="event.stopPropagation();adminApproveBoyPass('${u.id}')" title="Renew / Approve ₹199 Pass">
+                        <i class="fa-solid fa-rotate"></i> Renew
+                    </button>`;
+            } else if (isRejected) {
+                payBadge = '<span class="status-badge" style="background:#FEE2E2;color:#DC2626;border:1px solid #FCA5A5;font-weight:700;" title="Reason: ' + escapeHtmlAdmin(u.rejectReason || '') + '"><i class="fa-solid fa-ban"></i> Rejected ₹199</span>';
+                quickActionsHtml = `
+                    <button class="btn btn-sm" style="background:#059669;color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;gap:3px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 6px rgba(5,150,105,0.25);" onclick="event.stopPropagation();adminApproveBoyPass('${u.id}')" title="Re-Approve Pass">
+                        <i class="fa-solid fa-circle-check"></i> Re-Approve
+                    </button>`;
+            } else {
+                payBadge = '<span class="status-badge pending" style="background:#FFFBEB;color:#B45309;border:1px solid #FCD34D;font-weight:700;"><i class="fa-solid fa-clock"></i> Pending ₹199</span>';
+                quickActionsHtml = `
+                    <div style="display:inline-flex;gap:4px;align-items:center;">
+                        <button class="btn btn-sm" style="background:#059669;color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;gap:3px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 6px rgba(5,150,105,0.25);" onclick="event.stopPropagation();adminApproveBoyPass('${u.id}')" title="Approve WhatsApp Payment">
+                            <i class="fa-solid fa-circle-check"></i> Approve
+                        </button>
+                        <button class="btn btn-sm" style="background:#DC2626;color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;gap:3px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 6px rgba(220,38,38,0.2);" onclick="event.stopPropagation();openRejectPassModal('${u.id}')" title="Reject Pass with Note">
+                            <i class="fa-solid fa-circle-xmark"></i> Reject
+                        </button>
+                    </div>`;
+            }
+
             const isSuspended = (u.accountStatus || u.account_status || u.status || '').toLowerCase() === 'suspended';
             const statusBadge = isSuspended
                 ? '<span class="status-badge rejected"><i class="fa-solid fa-ban"></i> Suspended</span>'
@@ -173,11 +213,6 @@ window.escapeHtml = escapeHtmlAdmin;
             const fatherPhone = getAdminUnmaskedPhone(u, 'father');
             const phoneToDisplay = (ownPhone !== '—' && !ownPhone.includes('••')) ? ownPhone : ((fatherPhone !== '—' && !fatherPhone.includes('••')) ? fatherPhone : '');
 
-            const quickApproveHtml = (!isGirl && !isPaid) ? `
-                <button class="btn btn-sm" style="background:#059669;color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;gap:3px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 6px rgba(5,150,105,0.25);" onclick="event.stopPropagation();adminApproveBoyPass('${u.id}')" title="Approve WhatsApp Payment">
-                    <i class="fa-solid fa-circle-check"></i> Approve
-                </button>` : '';
-
             row.innerHTML = `
     <img class="ravatar" src="${u.img || ((u.photos && u.photos[0]) || '')}" alt="${escapeHtmlAdmin(u.name || '')}">
     <div class="rbody">
@@ -185,7 +220,7 @@ window.escapeHtml = escapeHtmlAdmin;
       <div class="rsub">${photoBadge}${phoneToDisplay ? `<strong style="color:var(--primary);letter-spacing:0.3px;"><i class="fa-solid fa-phone" style="font-size:10px;"></i> ${escapeHtmlAdmin(phoneToDisplay)}</strong> • ` : ''}<i class="fa-solid fa-location-dot"></i> ${escapeHtmlAdmin(u.village || u.city || '')} • ${isGirl ? 'Girl' : 'Boy'}${occEdu ? ` • ${escapeHtmlAdmin(occEdu)}` : ''}</div>
     </div>
     <div class="rmeta">
-      ${quickApproveHtml}
+      ${quickActionsHtml}
       ${statusBadge}
       ${payBadge}
       ${termsBadge}
@@ -297,22 +332,6 @@ window.escapeHtml = escapeHtmlAdmin;
       <p style="font-size:12px;color:var(--text);margin-top:4px;">This profile is hidden from the community. You can reactivate it below anytime.</p>
     </div>` : ''}
 
-    ${(!isGirl && !isPaid) ? `
-    <div class="card" style="margin-top:14px;background:linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);border:1.5px solid #FCD34D;border-radius:14px;padding:14px 16px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
-        <div style="color:#92400E;font-weight:800;font-size:14px;display:flex;align-items:center;gap:6px;">
-          <i class="fa-solid fa-clock" style="color:#D97706;"></i> 30-Day Pass Approval Pending (વોટ્સએપ સ્ક્રીનશોટ મંજૂરી)
-        </div>
-        <span style="font-size:11px;font-weight:800;background:rgba(217,119,6,0.15);color:#92400E;padding:2px 8px;border-radius:8px;">₹199 Plan</span>
-      </div>
-      <p style="font-size:12px;color:#78350F;line-height:1.45;margin:0 0 12px;">
-        જો આ ઉમેદવારે WhatsApp પર ₹199 નો UPI પેમેન્ટ સ્ક્રીનશોટ મોકલ્યો હોય, તો નીચે ક્લિક કરીને એકાઉન્ટ તાત્કાલિક એક્ટિવ કરો (ચેટ અને રિક્વેસ્ટ અનલોક થશે).
-      </p>
-      <button class="btn" style="background:#059669;color:#fff;border:none;border-radius:10px;padding:11px 16px;font-size:13.5px;font-weight:800;display:flex;align-items:center;gap:8px;cursor:pointer;width:100%;justify-content:center;box-shadow:0 3px 12px rgba(5,150,105,0.3);" onclick="adminApproveBoyPass('${u.id}')">
-        <i class="fa-solid fa-circle-check"></i> ✓ Approve ₹199 Pass (વોટ્સએપ સ્ક્રીનશોટ મંજૂર કરો)
-      </button>
-    </div>` : ''}
-
     ${(!isGirl && isPaid) ? `
     <div class="card" style="margin-top:14px;background:#EEF2FF;border:1.2px solid #C7D2FE;border-radius:14px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
       <div>
@@ -326,6 +345,59 @@ window.escapeHtml = escapeHtmlAdmin;
       <span class="status-badge paid" style="background:#E0E7FF;color:#4338CA;border:1px solid #A5B4FC;font-weight:800;font-size:11px;padding:4px 10px;">
         ✓ Pass Active
       </span>
+    </div>` : ''}
+
+    ${(!isGirl && isExpired) ? `
+    <div class="card" style="margin-top:14px;background:#FFFBEB;border:1.5px solid #FCD34D;border-radius:14px;padding:14px 16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+        <div style="color:#92400E;font-weight:800;font-size:14px;display:flex;align-items:center;gap:6px;">
+          <i class="fa-solid fa-clock-rotate-left" style="color:#D97706;"></i> 30-Day Pass Expired (પાસ સમાપ્ત થયો છે)
+        </div>
+        <span style="font-size:11px;font-weight:800;background:rgba(217,119,6,0.15);color:#92400E;padding:2px 8px;border-radius:8px;">Expired on ${escapeHtmlAdmin(u.planExpiry || '')}</span>
+      </div>
+      <p style="font-size:12px;color:#78350F;line-height:1.45;margin:0 0 12px;">
+        આ ઉમેદવારનો ૩૦ દિવસનો પાસ પૂરો થઈ ગયો છે. જો તેમણે ફરી ₹199 નું રીન્યુઅલ પેમેન્ટ કર્યું હોય, તો નીચે ક્લિક કરીને ફરીથી ૩૦ દિવસ માટે એક્ટિવ કરો.
+      </p>
+      <button class="btn" style="background:#059669;color:#fff;border:none;border-radius:10px;padding:11px 16px;font-size:13.5px;font-weight:800;display:flex;align-items:center;gap:8px;cursor:pointer;width:100%;justify-content:center;box-shadow:0 3px 12px rgba(5,150,105,0.3);" onclick="adminApproveBoyPass('${u.id}')">
+        <i class="fa-solid fa-rotate"></i> Renew ₹199 Pass (નવો ૩૦ દિવસનો પાસ શરૂ કરો)
+      </button>
+    </div>` : ''}
+
+    ${(!isGirl && isRejected) ? `
+    <div class="card" style="margin-top:14px;background:#FFF5F5;border:1.5px solid #FCA5A5;border-radius:14px;padding:14px 16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+        <div style="color:#991B1B;font-weight:800;font-size:14px;display:flex;align-items:center;gap:6px;">
+          <i class="fa-solid fa-circle-xmark" style="color:#DC2626;"></i> 30-Day Pass Rejected (પેમેન્ટ અસ્વીકાર થયેલ)
+        </div>
+        <span style="font-size:11px;font-weight:800;background:rgba(220,38,38,0.12);color:#991B1B;padding:2px 8px;border-radius:8px;">Rejected</span>
+      </div>
+      <div style="background:#fff;border:1px solid #FECACA;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#7F1D1D;line-height:1.5;margin-bottom:12px;">
+        <b>રિજેક્શન કારણ / Reason:</b> ${escapeHtmlAdmin(u.rejectReason || 'અમાન્ય અથવા અસ્પષ્ટ સ્ક્રીનશોટ')}
+      </div>
+      <button class="btn" style="background:#059669;color:#fff;border:none;border-radius:10px;padding:11px 16px;font-size:13.5px;font-weight:800;display:flex;align-items:center;gap:8px;cursor:pointer;width:100%;justify-content:center;box-shadow:0 3px 12px rgba(5,150,105,0.3);" onclick="adminApproveBoyPass('${u.id}')">
+        <i class="fa-solid fa-circle-check"></i> Re-Approve ₹199 Pass (જો ફરી સાચું પેમેન્ટ મોકલ્યું હોય)
+      </button>
+    </div>` : ''}
+
+    ${(!isGirl && !isPaid && !isExpired && !isRejected) ? `
+    <div class="card" style="margin-top:14px;background:linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);border:1.5px solid #FCD34D;border-radius:14px;padding:14px 16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+        <div style="color:#92400E;font-weight:800;font-size:14px;display:flex;align-items:center;gap:6px;">
+          <i class="fa-solid fa-clock" style="color:#D97706;"></i> 30-Day Pass Approval Pending (વોટ્સએપ સ્ક્રીનશોટ મંજૂરી)
+        </div>
+        <span style="font-size:11px;font-weight:800;background:rgba(217,119,6,0.15);color:#92400E;padding:2px 8px;border-radius:8px;">₹199 Plan</span>
+      </div>
+      <p style="font-size:12px;color:#78350F;line-height:1.45;margin:0 0 12px;">
+        જો આ ઉમેદવારે WhatsApp પર ₹199 નો UPI પેમેન્ટ સ્ક્રીનશોટ મોકલ્યો હોય, તો નીચેથી Approve કરો અથવા જો સ્ક્રીનશોટ ખોટો હોય તો Reject કરો.
+      </p>
+      <div style="display:flex;gap:10px;">
+        <button class="btn" style="background:#059669;color:#fff;border:none;border-radius:10px;padding:11px 16px;font-size:13.5px;font-weight:800;display:flex;align-items:center;gap:8px;cursor:pointer;flex:1;justify-content:center;box-shadow:0 3px 12px rgba(5,150,105,0.3);" onclick="adminApproveBoyPass('${u.id}')">
+          <i class="fa-solid fa-circle-check"></i> ✓ Approve ₹199 Pass
+        </button>
+        <button class="btn" style="background:#DC2626;color:#fff;border:none;border-radius:10px;padding:11px 16px;font-size:13.5px;font-weight:800;display:flex;align-items:center;gap:8px;cursor:pointer;flex:1;justify-content:center;box-shadow:0 3px 12px rgba(220,38,38,0.25);" onclick="openRejectPassModal('${u.id}')">
+          <i class="fa-solid fa-circle-xmark"></i> ✕ Reject Pass
+        </button>
+      </div>
     </div>` : ''}
 
     <div class="section-label">Admin Controls & Actions</div>
@@ -938,6 +1010,165 @@ window.escapeHtml = escapeHtmlAdmin;
                 wrap.appendChild(row);
             });
         }
+
+        
+        function openRejectPassModal(userId) {
+            const u = (typeof findUser === 'function') ? findUser(userId) : USERS.find(x => String(x.id) === String(userId));
+            if (!u) {
+                if (typeof showToast === 'function') showToast('Member not found');
+                return;
+            }
+            const nameEl = document.getElementById('rejectPassCandidateName');
+            const idEl = document.getElementById('rejectPassUserId');
+            const inputEl = document.getElementById('rejectPassReasonInput');
+            if (nameEl) nameEl.textContent = `${u.name || 'Member'} (${u.gender || 'Boy'})`;
+            if (idEl) idEl.value = String(u.id);
+            if (inputEl) inputEl.value = '';
+            if (typeof openModal === 'function') openModal('modalRejectPass');
+        }
+        window.openRejectPassModal = openRejectPassModal;
+
+        function setRejectPreset(text) {
+            const inputEl = document.getElementById('rejectPassReasonInput');
+            if (inputEl) {
+                inputEl.value = text;
+                inputEl.focus();
+            }
+        }
+        window.setRejectPreset = setRejectPreset;
+
+        function confirmRejectPassAction() {
+            const idEl = document.getElementById('rejectPassUserId');
+            const inputEl = document.getElementById('rejectPassReasonInput');
+            const uid = idEl ? idEl.value : null;
+            const reason = (inputEl ? inputEl.value : '').trim();
+            if (!uid) {
+                if (typeof showToast === 'function') showToast('Invalid member reference');
+                return;
+            }
+            if (!reason) {
+                if (typeof showToast === 'function') showToast('કૃપા કરીને રિજેક્ટ કરવાનું કારણ લખો (Please write a reason)');
+                if (inputEl) inputEl.focus();
+                return;
+            }
+            if (typeof closeModal === 'function') closeModal('modalRejectPass');
+            adminRejectBoyPass(uid, reason);
+        }
+        window.confirmRejectPassAction = confirmRejectPassAction;
+
+        async function adminRejectBoyPass(id, reason) {
+            const u = (typeof findUser === 'function') ? findUser(id) : USERS.find(x => String(x.id) === String(id));
+            if (!u) {
+                if (typeof showToast === 'function') showToast('Member profile not found');
+                return;
+            }
+
+            const cleanReason = String(reason || 'UPI પેમેન્ટ વેરિફિકેશન અમાન્ય અથવા અસ્પષ્ટ સ્ક્રીનશોટ').trim();
+            const nowIso = new Date().toISOString();
+
+            // 1. Update in-memory user
+            u.paymentStatus = 'Rejected';
+            u.payment_status = 'unpaid';
+            u.rejectReason = cleanReason;
+            u.rejectedAt = nowIso;
+            delete u.paymentToken;
+
+            // 2. Sync to PROFILES in memory & session
+            if (Array.isArray(window.PROFILES)) {
+                const pIdx = window.PROFILES.findIndex(p => p && (String(p.id) === String(u.id) || (p.email && u.email && p.email.toLowerCase() === u.email.toLowerCase())));
+                if (pIdx !== -1) {
+                    window.PROFILES[pIdx].paymentStatus = 'unpaid';
+                    window.PROFILES[pIdx].payment_status = 'unpaid';
+                    window.PROFILES[pIdx].reject_reason = cleanReason;
+                    window.PROFILES[pIdx].rejectReason = cleanReason;
+                }
+            }
+
+            // 3. Persist admin data & log rejection in LS_ADMIN_PAYMENTS
+            if (typeof saveAdminData === 'function') saveAdminData();
+
+            const txnId = 'REJECT_' + Date.now().toString().slice(-6);
+            try {
+                const adminPayments = JSON.parse(localStorage.getItem('LS_ADMIN_PAYMENTS') || '[]');
+                const newTxn = {
+                    id: txnId,
+                    userId: u.id,
+                    profileId: u.id,
+                    userEmail: u.email,
+                    userName: u.name,
+                    plan: 'Boys 30 Days Pass (₹199)',
+                    amount: 199,
+                    date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+                    time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                    method: 'UPI (WhatsApp Verification)',
+                    status: 'rejected',
+                    notes: cleanReason
+                };
+                adminPayments.unshift(newTxn);
+                localStorage.setItem('LS_ADMIN_PAYMENTS', JSON.stringify(adminPayments));
+            } catch (_) {}
+
+            // 4. Record to Supabase PostgreSQL live
+            if (typeof supabaseRecordPayment === 'function') {
+                try {
+                    await supabaseRecordPayment({
+                        id: txnId,
+                        userId: u.id,
+                        profileId: u.id,
+                        userName: u.name,
+                        userEmail: u.email,
+                        email: u.email,
+                        method: 'UPI (WhatsApp Verification)',
+                        amount: 199,
+                        status: 'rejected',
+                        notes: cleanReason
+                    });
+                } catch (err) {
+                    console.warn('[Admin] Record rejected payment error:', err);
+                }
+            }
+
+            // 5. Update profiles & users table directly in Supabase
+            if (typeof supabaseUpdateProfileStatus === 'function') {
+                try {
+                    await supabaseUpdateProfileStatus(u.id, {
+                        payment_status: 'unpaid',
+                        reject_reason: cleanReason,
+                        email: u.email
+                    });
+                } catch (_) {}
+            }
+
+            // 6. Send Pass Rejection Email Notification to the User
+            const sendRejectEmailFn = (typeof sendPassRejectedEmail === 'function')
+                ? sendPassRejectedEmail
+                : ((typeof window !== 'undefined' && typeof window.sendPassRejectedEmail === 'function') ? window.sendPassRejectedEmail : null);
+
+            if (sendRejectEmailFn) {
+                sendRejectEmailFn(u, cleanReason).then(res => {
+                    if (res && res.success) {
+                        console.info(`[Admin] ✅ Pass rejection email successfully sent to ${res.email}`);
+                    } else {
+                        console.warn('[Admin] Pass rejection email note:', res);
+                    }
+                }).catch(err => {
+                    console.warn('[Admin] Pass rejection email error:', err);
+                });
+            }
+
+            if (typeof showToast === 'function') {
+                showToast(`❌ Pass rejected for ${u.name}. Email sent with reason.`);
+            }
+
+            // 7. Refresh admin lists & open user detail
+            const searchVal = document.getElementById('profileMgmtSearch') ? document.getElementById('profileMgmtSearch').value : '';
+            if (typeof renderProfileMgmt === 'function') renderProfileMgmt(searchVal);
+            if (typeof renderUsers === 'function') renderUsers();
+            if (document.getElementById('scr-userdetail')?.classList.contains('active')) {
+                openUserDetail(u.id);
+            }
+        }
+        window.adminRejectBoyPass = adminRejectBoyPass;
 
         async function adminApproveBoyPass(id) {
             const u = (typeof findUser === 'function') ? findUser(id) : USERS.find(x => String(x.id) === String(id));
