@@ -1860,10 +1860,10 @@
             </div>
         </div>
 
-        <!-- Profile Complete Modal for Boys (₹199 / 30 Days Membership Prompt) -->
+        <!-- Profile Complete Modal for Boys (Teaser Preview & ₹199 / 30 Days Membership Prompt) -->
         <div class="modal-backdrop modal-center" id="modalBoyComplete" style="z-index:999;">
-            <div class="modal-card" style="border:1.5px solid var(--secondary);text-align:center;position:relative;">
-                <button class="icon-btn" onclick="closeModal('modalBoyComplete'); go('scr-membership');"
+            <div class="modal-card" style="border:1.5px solid var(--secondary);text-align:center;position:relative;max-width:440px;">
+                <button class="icon-btn" onclick="closeModal('modalBoyComplete'); if(typeof enterHome==='function'){enterHome();}else{go('scr-home');}"
                     style="position:absolute;top:14px;right:14px;width:32px;height:32px;"><i
                         class="fa-solid fa-xmark"></i></button>
                 <div class="modal-icon-circle"
@@ -1871,8 +1871,7 @@
                     <i class="fa-solid fa-crown"></i>
                 </div>
                 <div class="h-display h-lg">Profile Completed! 🎉</div>
-                <p class="p-muted" style="margin-top:8px;">Your account and profile are ready! Activate your 30-day
-                    membership pass to connect directly with verified bride profiles.</p>
+                <p class="p-muted" style="margin-top:8px;">Your profile is live! Explore verified community brides or activate your 30-day pass to unlock direct chats &amp; family contacts.</p>
                 <div class="card"
                     style="margin:16px 0;background:var(--primary-light);border:1.5px solid var(--secondary);text-align:left;padding:14px 16px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -1889,25 +1888,24 @@
                     <ul
                         style="list-style:none;margin-top:10px;padding:0;font-size:12px;color:var(--text);line-height:1.8;">
                         <li><i class="fa-solid fa-check" style="color:var(--success);margin-right:6px;"></i> View
-                            verified
-                            bride profiles and photos</li>
+                            verified bride profiles and photos</li>
                         <li><i class="fa-solid fa-check" style="color:var(--success);margin-right:6px;"></i> Send up to
-                            3 interest requests per day</li>
+                            3 interest requests per 24 hours</li>
                         <li><i class="fa-solid fa-check" style="color:var(--success);margin-right:6px;"></i> Direct
                             WhatsApp &amp; Call to bride's father (Upon Accepted Interest)</li>
                     </ul>
                 </div>
-                <button class="btn btn-gold" onclick="closeModal('modalBoyComplete'); openPaymentCheckout();">
-                    <i class="fa-solid fa-bolt"></i> Pay ₹199 via UPI &amp; Continue
+                <button class="btn btn-gold" onclick="closeModal('modalBoyComplete'); openPaymentModal();">
+                    <i class="fa-solid fa-bolt"></i> Activate ₹199 Pass (UPI)
+                </button>
+                <button class="btn btn-outline" style="margin-top:8px;font-weight:700;width:100%;padding:11px;"
+                    onclick="closeModal('modalBoyComplete'); if(typeof enterHome==='function'){enterHome();}else{go('scr-home');} showToast('Welcome! You can now explore community profiles.');">
+                    <i class="fa-solid fa-magnifying-glass"></i> Explore Profiles First (Free Preview)
                 </button>
                 <button class="btn btn-outline"
-                    style="margin-top:8px;border:1.5px dashed var(--primary);color:var(--primary);background:#fcf8ff;font-weight:700;width:100%;padding:11px;"
+                    style="margin-top:8px;border:1.5px dashed var(--primary);color:var(--primary);background:#fcf8ff;font-weight:700;width:100%;padding:10px;font-size:12px;"
                     onclick="activateDemoTestPass()">
                     <i class="fa-solid fa-flask"></i> 🧪 Test Mode: Activate 30-Day Free Pass
-                </button>
-                <button class="btn btn-ghost" style="margin-top:8px;font-size:12.5px;color:var(--text-muted);"
-                    onclick="closeModal('modalBoyComplete'); go('scr-membership'); showToast('Please activate your ₹199 UPI pass to access home');">
-                    <i class="fa-solid fa-clock"></i> Pay Later (Limited Access)
                 </button>
                 <div
                     style="text-align:center;margin-top:12px;font-size:11.5px;color:var(--text-muted);line-height:1.4;">
@@ -1922,61 +1920,113 @@
                 </div>
             </div>
         </div>
+
+        <!-- ============================================================ 30-DAY PASS & UPI PAYMENT MODAL ============================================================ -->
         <div class="modal-backdrop modal-center" id="modalPaywall" style="z-index:999;">
-            <div class="modal-card" style="border:1.5px solid var(--secondary);">
-                <div class="modal-icon-circle"
-                    style="background:var(--primary-light);color:var(--primary);font-size:32px;">
+            <div class="modal-card" style="border:1.5px solid var(--secondary);position:relative;max-width:440px;padding:24px 20px;text-align:center;">
+                <!-- Close Button -->
+                <button class="icon-btn" onclick="closeModal('modalPaywall')" style="position:absolute;top:12px;right:12px;width:32px;height:32px;background:#f3f4f6;border-radius:50%;color:#4b5563;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+
+                <!-- Header Icon & Title -->
+                <div class="modal-icon-circle" style="background:#FEF3C7;color:#D97706;font-size:28px;width:56px;height:56px;margin:0 auto 10px;">
                     <i class="fa-solid fa-crown"></i>
                 </div>
-                <div class="h-display h-lg">Access Pass Required</div>
-                <p class="p-muted" style="margin-top:8px;">To maintain a verified and safe environment for community
-                    families, male members require an active access pass.</p>
+                <div class="h-display h-lg" id="paywallModalTitle" style="font-size:20px;font-weight:800;color:var(--text);">
+                    Mangal Setu 30-Day Pass (₹૧૯૯ પાસ)
+                </div>
+                <p class="p-muted" id="paywallModalSubtitle" style="font-size:12.5px;margin-top:4px;line-height:1.45;">
+                    સુરક્ષિત અને વેરિફાઇડ સંબંધો શોધવા માટે ૩૦ દિવસનો એક્સેસ પાસ
+                </p>
 
-                <div class="card"
-                    style="margin:16px 0;background:var(--primary-light);border:1.5px solid var(--secondary);text-align:left;">
+                <!-- Pricing & Validity Card -->
+                <div class="card" style="margin:14px 0 12px;background:linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);border:1.5px solid #FCD34D;text-align:left;padding:12px 14px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <div>
-                            <div
-                                style="font-size:11px;font-weight:800;color:var(--secondary-dark);text-transform:uppercase;letter-spacing:.05em;">
-                                Exclusive Community Plan</div>
-                            <div
-                                style="font-family:var(--font-display);font-size:19px;font-weight:700;color:var(--primary-dark);margin-top:2px;">
-                                30 Days Access Pass</div>
+                            <span style="font-size:10.5px;font-weight:800;color:#92400E;text-transform:uppercase;letter-spacing:.05em;background:rgba(217,119,6,0.15);padding:2px 7px;border-radius:6px;">Boys Access Pass</span>
+                            <div style="font-size:15px;font-weight:800;color:#78350F;margin-top:4px;">૩૦ દિવસ અમર્યાદિત પ્રોફાઇલ એક્સેસ</div>
                         </div>
                         <div style="text-align:right;">
-                            <div style="font-size:24px;font-weight:800;color:var(--primary-dark);">₹199</div>
-                            <div style="font-size:11px;color:var(--text-muted);text-decoration:line-through;">₹499
-                            </div>
+                            <div style="font-size:22px;font-weight:900;color:#B45309;">₹199</div>
+                            <div style="font-size:11px;color:#92400E;text-decoration:line-through;">₹499 (60% OFF)</div>
                         </div>
                     </div>
-                    <hr style="border:none;border-top:1px solid rgba(123,44,191,0.15);margin:12px 0;">
-                    <div style="font-size:12px;color:var(--text);display:flex;flex-direction:column;gap:7px;">
-                        <div><i class="fa-solid fa-circle-check" style="color:var(--success);margin-right:6px;"></i>
-                            Browse verified community brides</div>
-                        <div><i class="fa-solid fa-circle-check" style="color:var(--success);margin-right:6px;"></i>
-                            Direct Call &amp; WhatsApp to Father (Upon Accepted Interest)</div>
-                        <div><i class="fa-solid fa-circle-check" style="color:var(--success);margin-right:6px;"></i>
-                            3 interest requests / day &amp; direct chats</div>
+                    <hr style="border:none;border-top:1px dashed #F59E0B;margin:10px 0;">
+                    
+                    <!-- 3 Core Community Safeguards -->
+                    <div style="font-size:11.8px;color:#78350F;display:flex;flex-direction:column;gap:7px;line-height:1.4;">
+                        <div style="display:flex;align-items:flex-start;gap:7px;">
+                            <i class="fa-solid fa-circle-check" style="color:#059669;margin-top:2px;flex-shrink:0;"></i>
+                            <span><b>રોજના વધુમાં વધુ ૩ ઇન્ટરેસ્ટ:</b> દીકરીઓની સુરક્ષા અને સ્પામ રોકવા માટે ૨૪ કલાકમાં ૩ રિક્વેસ્ટ મર્યાદા.</span>
+                        </div>
+                        <div style="display:flex;align-items:flex-start;gap:7px;">
+                            <i class="fa-solid fa-circle-check" style="color:#059669;margin-top:2px;flex-shrink:0;"></i>
+                            <span><b>સંમતિ બાદ જ સંપર્ક:</b> દીકરી/પરિવાર રિક્વેસ્ટ સ્વીકારે ત્યારબાદ જ ચેટિંગ અને પરિવારનો સીધો સંપર્ક ખુલે છે.</span>
+                        </div>
+                        <div style="display:flex;align-items:flex-start;gap:7px;">
+                            <i class="fa-solid fa-circle-check" style="color:#059669;margin-top:2px;flex-shrink:0;"></i>
+                            <span><b>સંપૂર્ણ સુરક્ષિત:</b> ૧૦૦% વેરિફાઈડ પ્રોફાઇલ્સ અને ફોટા જોવા મળશે.</span>
+                        </div>
                     </div>
                 </div>
 
-                <button class="btn btn-primary" onclick="openPaymentCheckout()"><i class="fa-solid fa-bolt"></i> Pay
-                    ₹199 via UPI (Google Pay / PhonePe / Paytm)</button>
-                <button class="btn btn-outline"
-                    style="margin-top:10px;border:1.5px dashed var(--primary);color:var(--primary);background:#fcf8ff;font-weight:700;width:100%;padding:11px;"
-                    onclick="activateDemoTestPass()">
+                <!-- UPI Payment QR & Details Box -->
+                <div style="background:#F9FAFB;border:1.2px solid #E5E7EB;border-radius:12px;padding:12px;margin-bottom:12px;text-align:center;">
+                    <div style="font-size:12px;font-weight:800;color:#374151;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:6px;">
+                        <i class="fa-solid fa-qrcode" style="color:var(--primary);"></i> Scan QR or Pay to UPI ID
+                    </div>
+                    
+                    <!-- Dynamic QR Code -->
+                    <div style="display:inline-block;padding:8px;background:#fff;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.06);margin-bottom:8px;">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3D9726362863%40ybl%26pn%3DMangalSetu%2520Matrimony%26am%3D199%26cu%3DINR" 
+                             alt="Scan UPI QR" style="width:160px;height:160px;display:block;" loading="lazy">
+                    </div>
+
+                    <!-- UPI ID with Copy Button -->
+                    <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #D1D5DB;border-radius:8px;padding:6px 10px;max-width:280px;margin:0 auto 10px;">
+                        <div style="font-size:12.5px;font-weight:700;color:#1F2937;letter-spacing:0.5px;">
+                            <i class="fa-solid fa-at" style="color:#6B7280;margin-right:4px;"></i> 9726362863@ybl
+                        </div>
+                        <button type="button" class="btn btn-sm btn-ghost" onclick="copyUpiId()" style="padding:4px 8px;font-size:11px;font-weight:700;color:var(--primary);">
+                            <i class="fa-regular fa-copy"></i> Copy
+                        </button>
+                    </div>
+
+                    <!-- 1-Click UPI Intent Link for Mobile Browsers -->
+                    <a href="upi://pay?pa=9726362863@ybl&pn=MangalSetu%20Matrimony&am=199&cu=INR&tn=MangalSetu%20Pass" 
+                       class="btn btn-primary btn-sm" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;width:100%;text-decoration:none;font-weight:700;padding:10px;border-radius:8px;">
+                        <i class="fa-solid fa-bolt"></i> Pay ₹199 via UPI App (GPay / PhonePe / Paytm)
+                    </a>
+                </div>
+
+                <!-- Prominent Bilingual Notice (Important) -->
+                <div style="background:#FEF2F2;border:1.5px solid #FCA5A5;border-radius:12px;padding:12px;text-align:left;margin-bottom:12px;">
+                    <div style="font-weight:800;color:#991B1B;display:flex;align-items:center;gap:6px;font-size:12.5px;margin-bottom:6px;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> પેમેન્ટ પછીની ખાસ સૂચના (Important Notice)
+                    </div>
+                    <div style="font-size:11.8px;color:#7F1D1D;line-height:1.5;margin-bottom:6px;">
+                        <b>🇬🇺 ગુજરાતી:</b> UPI દ્વારા ₹૧૯૯ પેમેન્ટ કર્યા પછી, પેમેન્ટનો <b>સ્ક્રીનશોટ (Screenshot)</b> નીચે આપેલા વોટ્સએપ બટન પર મોકલો. સ્ક્રીનશોટ મળ્યા બાદ <b>૪ થી ૬ કલાક</b> માં તમારો પાસ વેરિફાઈ થઈને એક્ટિવ થઈ જશે.
+                    </div>
+                    <div style="font-size:11px;color:#991B1B;line-height:1.45;border-top:1px dashed #FECACA;padding-top:5px;">
+                        <b>🇬🇧 English:</b> After paying ₹199 via UPI, send the transaction screenshot via the WhatsApp button below. Your pass will be verified &amp; approved within <b>4 to 6 hours</b>.
+                    </div>
+                </div>
+
+                <!-- 1-Click WhatsApp Button -->
+                <button type="button" class="btn" style="background:#25D366;color:#fff;width:100%;padding:12px;font-size:14px;font-weight:800;border:none;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 3px 10px rgba(37,211,102,0.3);cursor:pointer;" onclick="sendPaymentScreenshotWhatsApp()">
+                    <i class="fa-brands fa-whatsapp" style="font-size:18px;"></i> Send Screenshot on WhatsApp
+                </button>
+
+                <!-- Test Pass for Demo -->
+                <button class="btn btn-outline" style="margin-top:10px;border:1.5px dashed var(--primary);color:var(--primary);background:#fcf8ff;font-weight:700;width:100%;padding:9px;font-size:12px;" onclick="activateDemoTestPass()">
                     <i class="fa-solid fa-flask"></i> 🧪 Test Mode: Activate 30-Day Free Pass
                 </button>
-                <div
-                    style="text-align:center;margin-top:14px;font-size:11.5px;color:var(--text-muted);line-height:1.4;">
-                    <a href="legal/terms.html" target="_blank"
-                        style="color:var(--primary);font-weight:700;text-decoration:underline;">Terms &amp;
-                        Conditions</a> &bull;
-                    <a href="legal/privacy-policy.html" target="_blank"
-                        style="color:var(--primary);font-weight:700;text-decoration:underline;">Privacy Policy</a>
-                    &bull;
-                    <a href="legal/refund-policy.html" target="_blank"
-                        style="color:var(--primary);font-weight:700;text-decoration:underline;">Refund Policy</a>
+
+                <div style="text-align:center;margin-top:12px;font-size:11px;color:var(--text-muted);line-height:1.4;">
+                    <a href="legal/terms.html" target="_blank" style="color:var(--primary);font-weight:700;text-decoration:underline;">Terms</a> &bull;
+                    <a href="legal/privacy-policy.html" target="_blank" style="color:var(--primary);font-weight:700;text-decoration:underline;">Privacy Policy</a> &bull;
+                    <a href="legal/refund-policy.html" target="_blank" style="color:var(--primary);font-weight:700;text-decoration:underline;">Refund Policy</a>
                 </div>
             </div>
         </div>

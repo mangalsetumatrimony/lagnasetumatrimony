@@ -510,10 +510,26 @@
                 <h1>Manage profiles</h1>
             </div>
             <div class="screen-pad no-tab panel-wrap">
-                <p class="p-muted">Control which approved profiles are visible in the live app, and feature top
-                    profiles.</p>
-                <div class="search-bar" style="margin-top:14px;"><i class="fa-solid fa-magnifying-glass"></i><input
-                        placeholder="Search live profiles..." id="profileMgmtSearch"
+                <p class="p-muted">Control profile visibility, feature top profiles, and approve ₹199 passes for boys.</p>
+                
+                <!-- 4 Filter Tabs -->
+                <div class="tab-scroll" style="display:flex;gap:8px;margin-top:14px;overflow-x:auto;padding-bottom:4px;" id="profileMgmtTabs">
+                    <button class="filter-pill active" id="pTabAll" onclick="setProfileMgmtTab('all', this)">
+                        All (<span id="pCountAll">0</span>)
+                    </button>
+                    <button class="filter-pill" id="pTabGirls" onclick="setProfileMgmtTab('girls', this)">
+                        <i class="fa-solid fa-person-dress" style="color:var(--success);"></i> Girls Free (<span id="pCountGirls">0</span>)
+                    </button>
+                    <button class="filter-pill" id="pTabPaidBoys" onclick="setProfileMgmtTab('paid_boys', this)">
+                        <i class="fa-solid fa-crown" style="color:#D97706;"></i> Boys with Pass (<span id="pCountPaidBoys">0</span>)
+                    </button>
+                    <button class="filter-pill" id="pTabUnpaidBoys" onclick="setProfileMgmtTab('unpaid_boys', this)" style="border-color:#FCD34D;color:#B45309;font-weight:700;">
+                        <i class="fa-solid fa-clock" style="color:#D97706;"></i> Boys without Pass (<span id="pCountUnpaidBoys">0</span>)
+                    </button>
+                </div>
+
+                <div class="search-bar" style="margin-top:12px;"><i class="fa-solid fa-magnifying-glass"></i><input
+                        placeholder="Search live profiles by name, phone, city, caste..." id="profileMgmtSearch"
                         oninput="renderProfileMgmt(this.value)"></div>
                 <div style="margin-top:16px;" id="profileMgmtList"></div>
             </div>

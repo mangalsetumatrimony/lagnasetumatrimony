@@ -1581,6 +1581,15 @@ function openChatFor(profileId) {
         return;
     }
 
+    const isViewerBoy = state.currentUser && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
+    const isViewerUnpaidBoy = isViewerBoy && (typeof checkBoyPassStatus === 'function' ? !checkBoyPassStatus(state.currentUser).active : (state.currentUser.paymentStatus !== 'Active' && state.currentUser.paymentStatus !== 'paid'));
+    if (isViewerUnpaidBoy) {
+        if (typeof openPaymentModal === 'function') openPaymentModal('chat');
+        else if (typeof openModal === 'function') openModal('modalPaywall');
+        if (typeof showToast === 'function') showToast('🔒 દીકરીઓ સાથે ચેટ કરવા માટે ₹૧૯૯ પાસ જરૂરી છે.');
+        return;
+    }
+
     const pid = Number(profileId);
     if (typeof isSelfProfile === 'function' && isSelfProfile(pid)) {
         if (typeof showToast === 'function') showToast('You cannot chat with yourself');

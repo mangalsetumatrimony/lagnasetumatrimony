@@ -1402,19 +1402,6 @@ function renderHome() {
     // Update dynamic counts (Boys, Girls, Total Members) live from window.PROFILES
     updateHomeStats();
 
-    // 1. Strict Boy Paywall Protection: NEVER render girl profiles for an unpaid boy
-    if (state.currentUser && (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy')) {
-        const passCheck = typeof checkBoyPassStatus === 'function' 
-            ? checkBoyPassStatus(state.currentUser) 
-            : { active: state.currentUser.paymentStatus === 'Active' };
-        if (!passCheck.active) {
-            const wrap = document.getElementById('homeGirlsList') || document.getElementById('homeFeedWrap');
-            if (wrap) wrap.innerHTML = '';
-            go('scr-membership', true);
-            return;
-        }
-    }
-
     const wrap = document.getElementById('homeGirlsList') || document.getElementById('homeFeedWrap');
     if (!wrap) return;
 
@@ -1900,19 +1887,6 @@ function applyFilters() {
 
 /* ---------- 6. BROWSE FEED RENDERING ---------- */
 function renderBrowse(query) {
-    // Strict Boy Paywall Protection: NEVER render girl profiles for an unpaid boy
-    if (state.currentUser && (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy')) {
-        const passCheck = typeof checkBoyPassStatus === 'function' 
-            ? checkBoyPassStatus(state.currentUser) 
-            : { active: state.currentUser.paymentStatus === 'Active' };
-        if (!passCheck.active) {
-            const wrap = document.getElementById('browseList');
-            if (wrap) wrap.innerHTML = '';
-            go('scr-membership', true);
-            return;
-        }
-    }
-
     const wrap = document.getElementById('browseList');
     if (!wrap) return;
 
@@ -2068,6 +2042,15 @@ function profileCard(p) {
         ? getOptimizedImageUrl(mainImg, { width: 420, height: 520, crop: 'fill', gravity: 'face', quality: 'auto', format: 'auto' })
         : mainImg;
 
+    // Smart Teaser Protection: If viewer is an unpaid boy, show locked contact badge
+    const isViewerBoy = state.currentUser && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
+    const isViewerUnpaidBoy = isViewerBoy && (typeof checkBoyPassStatus === 'function' ? !checkBoyPassStatus(state.currentUser).active : (state.currentUser.paymentStatus !== 'Active' && state.currentUser.paymentStatus !== 'paid'));
+    const contactTeaserHtml = isViewerUnpaidBoy ? `
+        <div class="card-contact-teaser" style="display:flex;align-items:center;justify-content:space-between;background:rgba(245,158,11,0.08);border:1px dashed #F59E0B;border-radius:10px;padding:6px 10px;margin-top:8px;font-size:12px;color:#92400E;cursor:pointer;" onclick="event.stopPropagation();if(typeof openPaymentModal === 'function'){openPaymentModal('contact');}else{openModal('modalPaywall');}">
+            <span style="font-weight:700;"><i class="fa-solid fa-phone" style="margin-right:5px;color:#D97706;"></i> +91 98250 XXXXX</span>
+            <span style="font-weight:800;font-size:11px;background:#F59E0B;color:#fff;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:3px;"><i class="fa-solid fa-lock"></i> ₹૧૯૯ પાસ</span>
+        </div>` : '';
+
     card.innerHTML = `
             <div class="pimg-wrap" style="cursor:pointer;" onclick="openProfile(${p.id})">
               <img src="${optimizedImg}" loading="lazy" decoding="async" alt="${escapeHtml(p.name || '')}" onerror="this.onerror=null;this.src='${fallbackImg}';">
@@ -2084,6 +2067,7 @@ function profileCard(p) {
                 <div class="m"><i class="fa-solid fa-ruler-vertical"></i> ${escapeHtml(p.height || '—')}</div>
                 <div class="m"><i class="fa-solid fa-users"></i> ${escapeHtml(p.community || p.caste || '')}</div>
               </div>
+              ${contactTeaserHtml}
               <button class="vbtn" onclick="openProfile(${p.id})">View full profile <i class="fa-solid fa-arrow-right"></i></button>
             </div>`;
     return card;
@@ -2174,20 +2158,6 @@ function buildTabbar(elId, active) {
 }
 
 function renderFavorites() {
-    // Strict Boy Paywall Protection: ONLY for unpaid boys (NEVER for girls)
-    const isBoy = state.currentUser && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
-    if (isBoy) {
-        const passCheck = typeof checkBoyPassStatus === 'function' 
-            ? checkBoyPassStatus(state.currentUser) 
-            : { active: state.currentUser.paymentStatus === 'Active' };
-        if (!passCheck.active) {
-            const wrap = document.getElementById('favContent');
-            if (wrap) wrap.innerHTML = '';
-            go('scr-membership', true);
-            return;
-        }
-    }
-
     const wrap = document.getElementById('favContent');
     buildTabbar('tabbarFav', 'fav');
 

@@ -837,6 +837,15 @@ function quickInterest(id) {
     openInterestModal(id);
 }
 async function quickCall(phone, profileId) {
+    const isViewerBoy = (typeof state !== 'undefined' && state.currentUser) && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
+    const isViewerUnpaidBoy = isViewerBoy && (typeof checkBoyPassStatus === 'function' ? !checkBoyPassStatus(state.currentUser).active : (state.currentUser.paymentStatus !== 'Active' && state.currentUser.paymentStatus !== 'paid'));
+    if (isViewerUnpaidBoy) {
+        if (typeof openPaymentModal === 'function') openPaymentModal('contact');
+        else if (typeof openModal === 'function') openModal('modalPaywall');
+        if (typeof showToast === 'function') showToast('🔒 દીકરીઓ સાથે વાત કરવા માટે ₹૧૯૯ પાસ જરૂરી છે.');
+        return;
+    }
+
     let clean = (phone && typeof phone === 'string' && !phone.includes('•')) ? phone.replace(/[^0-9]/g, '') : '';
     const pid = profileId || (typeof state !== 'undefined' && state.activeProfileId) || (typeof window !== 'undefined' && window.currentViewingProfileId);
 
@@ -910,6 +919,15 @@ async function quickCall(phone, profileId) {
 }
 
 async function quickWhatsApp(phone, name, profileId) {
+    const isViewerBoy = (typeof state !== 'undefined' && state.currentUser) && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
+    const isViewerUnpaidBoy = isViewerBoy && (typeof checkBoyPassStatus === 'function' ? !checkBoyPassStatus(state.currentUser).active : (state.currentUser.paymentStatus !== 'Active' && state.currentUser.paymentStatus !== 'paid'));
+    if (isViewerUnpaidBoy) {
+        if (typeof openPaymentModal === 'function') openPaymentModal('contact');
+        else if (typeof openModal === 'function') openModal('modalPaywall');
+        if (typeof showToast === 'function') showToast('🔒 દીકરીઓ સાથે વાત કરવા માટે ₹૧૯૯ પાસ જરૂરી છે.');
+        return;
+    }
+
     let clean = (phone && typeof phone === 'string' && !phone.includes('•')) ? phone.replace(/[^0-9]/g, '') : '';
     const pid = profileId || (typeof state !== 'undefined' && state.activeProfileId) || (typeof window !== 'undefined' && window.currentViewingProfileId);
 

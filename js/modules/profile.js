@@ -309,9 +309,10 @@ async function submitProfileCompletion() {
         renderHome();
         openModal('modalGirlComplete');
     } else {
-        // Boy MUST pay ₹199 to see any girl profiles — redirect directly to scr-membership
-        state.history = ['scr-membership'];
-        go('scr-membership', true);
+        // Boy can explore Home in teaser preview, show welcome modal with option to activate pass or browse
+        state.history = ['scr-home'];
+        localStorage.setItem('mangalSetu_activeScreen', 'scr-home');
+        renderHome();
         openModal('modalBoyComplete');
     }
 }
@@ -343,45 +344,56 @@ function selectUpiApp(appName, el) {
 }
 window.selectUpiApp = selectUpiApp;
 
-window.INSTAMOJO_LINK = 'https://imjo.in/8UVhHG';
+function copyUpiId() {
+    const upi = '9726362863@ybl';
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(upi).then(() => {
+            if (typeof showToast === 'function') showToast('✅ UPI ID Copied: ' + upi);
+        }).catch(() => {
+            prompt('Copy UPI ID:', upi);
+        });
+    } else {
+        prompt('Copy UPI ID:', upi);
+    }
+}
+window.copyUpiId = copyUpiId;
 
-function openPaymentCheckout() {
-    closeModal('modalPaywall');
+function sendPaymentScreenshotWhatsApp() {
+    const u = (typeof state !== 'undefined' && state.currentUser) || {};
+    const name = u.name || (state.regData && state.regData.name) || 'Member';
+    const mobile = u.mobile || (state.regData && state.regData.mobile) || '—';
+    const email = u.email || (state.regData && state.regData.email) || '—';
+    const msg = `નમસ્તે મંગલસેતુ એડમિન, મેં ₹૧૯૯ પાસ માટે UPI પેમેન્ટ કર્યું છે.\n\nમારી વિગત:\n• નામ: ${name}\n• મોબાઇલ: ${mobile}\n• ઇમેઇલ: ${email}\n\nકૃપા કરીને આ સ્ક્રીનશોટ ચકાસીને મારો ૩૦ દિવસનો પાસ એપ્રુવ કરો.`;
+    const url = `https://wa.me/919726362863?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+}
+window.sendPaymentScreenshotWhatsApp = sendPaymentScreenshotWhatsApp;
+
+function openPaymentModal(reason = 'general') {
     closeModal('modalBoyComplete');
     closeModal('modalMembership');
+    closeModal('modalCompleteProfile');
 
-    const user = (typeof state !== 'undefined' && state.currentUser) || {};
-    const boyName = encodeURIComponent(user.name || (state.regData && state.regData.name) || 'Community Member');
-    const boyEmail = encodeURIComponent(user.email || (state.regData && state.regData.email) || 'mangalsetu.in@gmail.com');
-    const rawMobile = user.mobile || (state.regData && state.regData.mobile) || '9726362863';
-    const boyPhone = encodeURIComponent(rawMobile.replace(/[^0-9]/g, '').slice(-10));
-
-    // Save pending payment session so when Instamojo returns, user is immediately recognized
-    try {
-        const pendingInfo = {
-            userId: user.id || (state.regData && state.regData.id) || null,
-            email: user.email || (state.regData && state.regData.email) || null,
-            name: user.name || (state.regData && state.regData.name) || null,
-            time: Date.now()
-        };
-        localStorage.setItem('mangalSetu_pendingPaymentUser', JSON.stringify(pendingInfo));
-    } catch (_) {}
-
-    const mojoUrl = window.INSTAMOJO_LINK || 'https://imjo.in/8UVhHG';
-    if (mojoUrl) {
-        const sep = mojoUrl.includes('?') ? '&' : '?';
-        const targetUrl = `${mojoUrl}${sep}data_name=${boyName}&data_email=${boyEmail}&data_phone=${boyPhone}`;
-        if (typeof showToast === 'function') {
-            showToast('Opening secure UPI payment gateway...');
+    const sub = document.getElementById('paywallModalSubtitle');
+    if (sub) {
+        if (reason === 'contact') {
+            sub.textContent = 'દીકરી કે પરિવારનો સંપર્ક કરવા માટે ₹૧૯૯ પાસ જરૂરી છે (Contact & Chat unlock upon accepted interest).';
+        } else if (reason === 'chat') {
+            sub.textContent = 'દીકરીઓ સાથે સુરક્ષિત ચેટ કરવા માટે ₹૧૯૯ પાસ જરૂરી છે (Chat unlocks upon accepted interest).';
+        } else if (reason === 'interest') {
+            sub.textContent = 'દીકરીઓને ઇન્ટરેસ્ટ રિક્વેસ્ટ મોકલવા માટે ₹૧૯૯ પાસ જરૂરી છે (રોજના ૩ ઇન્ટરેસ્ટ).';
+        } else {
+            sub.textContent = 'સુરક્ષિત અને વેરિફાઇડ સંબંધો શોધવા માટે ૩૦ દિવસનો એક્સેસ પાસ';
         }
-        setTimeout(() => {
-            window.location.href = targetUrl;
-        }, 350);
-        return;
     }
+    if (typeof openModal === 'function') {
+        openModal('modalPaywall');
+    }
+}
+window.openPaymentModal = openPaymentModal;
 
-    // Default / Offline / Demo: Open the instant UPI modal
-    openModal('modalRazorpayCheckout');
+function openPaymentCheckout(reason = 'general') {
+    openPaymentModal(reason);
 }
 window.openPaymentCheckout = openPaymentCheckout;
 window.openRazorpayCheckout = openPaymentCheckout;
@@ -873,6 +885,23 @@ function setInterestBtnState(btn, pid) {
     const secTitle = document.getElementById('profileActionsSectionTitle');
     const secDesc = document.getElementById('profileActionsSectionDesc');
 
+    // Unpaid Boy Teaser Guard: prompt pass modal
+    const isViewerBoy = state.currentUser && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
+    const isViewerUnpaidBoy = isViewerBoy && (typeof checkBoyPassStatus === 'function' ? !checkBoyPassStatus(state.currentUser).active : (state.currentUser.paymentStatus !== 'Active' && state.currentUser.paymentStatus !== 'paid'));
+    if (isViewerUnpaidBoy) {
+        if (secTitle) secTitle.textContent = 'Interested? (ઇન્ટરેસ્ટ મોકલો)';
+        if (secDesc) secDesc.textContent = 'Send an interest request — if accepted, chat, family details & location unlock directly.';
+        btn.innerHTML = '<i class="fa-solid fa-lock"></i> I\'m interested (₹૧૯૯ પાસ)';
+        btn.className = 'btn btn-gold btn-grow';
+        btn.disabled = false;
+        btn.onclick = () => {
+            if (typeof openPaymentModal === 'function') openPaymentModal('interest');
+            else if (typeof openModal === 'function') openModal('modalPaywall');
+            if (typeof showToast === 'function') showToast('🔒 દીકરીઓને ઇન્ટરેસ્ટ મોકલવા માટે ₹૧૯૯ પાસ જરૂરી છે.');
+        };
+        return;
+    }
+
     if (status === 'accepted') {
         if (secTitle) secTitle.innerHTML = '<i class="fa-solid fa-shield-heart" style="color:var(--primary);margin-right:6px;"></i> Connected Match (જોડાયેલ સંબંધ)';
         if (secDesc) secDesc.textContent = 'Interest accepted! Direct safe text messaging and verified details are unlocked below.';
@@ -921,6 +950,19 @@ function setInterestBtnState(btn, pid) {
 function sendInterest(id) {
     if (typeof isSelfProfile === 'function' && isSelfProfile(id)) {
         if (typeof showToast === 'function') showToast('You cannot send interest to your own profile');
+        return;
+    }
+    const isViewerBoy = state.currentUser && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
+    const isViewerUnpaidBoy = isViewerBoy && (typeof checkBoyPassStatus === 'function' ? !checkBoyPassStatus(state.currentUser).active : (state.currentUser.paymentStatus !== 'Active' && state.currentUser.paymentStatus !== 'paid'));
+    if (isViewerUnpaidBoy) {
+        if (typeof openPaymentModal === 'function') {
+            openPaymentModal('interest');
+        } else if (typeof openModal === 'function') {
+            openModal('modalPaywall');
+        }
+        if (typeof showToast === 'function') {
+            showToast('🔒 દીકરીઓને ઇન્ટરેસ્ટ મોકલવા માટે ₹૧૯૯ પાસ જરૂરી છે.');
+        }
         return;
     }
     if (typeof getDailyInterestUsage === 'function') {
@@ -1230,20 +1272,6 @@ function openProfile(id) {
             if (typeof go === 'function') go('scr-home');
             return;
         }
-        
-        // Strict Boy Paywall Protection: NEVER open girl profile for an unpaid boy
-        const isBoy = isUserBoy;
-        if (isBoy) {
-            const passCheck = typeof checkBoyPassStatus === 'function' 
-                ? checkBoyPassStatus(state.currentUser) 
-                : { active: state.currentUser.paymentStatus === 'Active' };
-            if (!passCheck.active) {
-                go('scr-membership', true);
-                openModal('modalPaywall');
-                showToast('Boys ₹199 Pass required: Pay via UPI to view full profile details.');
-                return;
-            }
-        }
     }
 
     state.activeProfileId = p.id;
@@ -1293,6 +1321,14 @@ function openProfile(id) {
             <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-graduation-cap"></i> Education</div><div class="dval">${escapeHtml(p.education || 'Graduate')}</div></div>
             <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-sack-dollar"></i> Monthly income</div><div class="dval">${escapeHtml(p.income || 'Confidential')}</div></div>
             <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-users"></i> Community</div><div class="dval">${escapeHtml(p.community || p.caste || '')}</div></div>
+            ${(!isSelf && isProfileGirl) ? `
+            <div class="detail-row" style="background:rgba(245,158,11,0.06);border:1px dashed #F59E0B;border-radius:12px;padding:10px 12px;margin:8px 0;cursor:pointer;" onclick="if(typeof openPaymentModal==='function'){openPaymentModal('contact');}else{openModal('modalPaywall');}">
+                <div class="dlabel" style="color:#92400E;font-weight:700;"><i class="fa-solid fa-phone" style="color:#D97706;"></i> Mobile &amp; WhatsApp</div>
+                <div class="dval" style="display:flex;align-items:center;gap:6px;">
+                    <span style="letter-spacing:1px;font-weight:700;color:#92400E;">+91 98250 XXXXX</span>
+                    <span style="font-size:11px;font-weight:800;background:#F59E0B;color:#fff;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:3px;"><i class="fa-solid fa-lock"></i> ₹૧૯૯ પાસ જરૂરી</span>
+                </div>
+            </div>` : ''}
             ${(function() {
                 let list = [];
                 if (Array.isArray(p.hobbies)) {

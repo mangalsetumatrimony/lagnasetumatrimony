@@ -772,38 +772,238 @@ window.escapeHtml = escapeHtmlAdmin;
             }
         }
 
-        /* ============================================================ PROFILE VISIBILITY MANAGEMENT ============================================================ */
+        /* ============================================================ PROFILE VISIBILITY MANAGEMENT & PASS APPROVAL ============================================================ */
+        let currentProfileMgmtTab = 'all';
+
+        function setProfileMgmtTab(tab, btn) {
+            currentProfileMgmtTab = tab;
+            document.querySelectorAll('#profileMgmtTabs .filter-pill').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            const searchVal = document.getElementById('profileMgmtSearch') ? document.getElementById('profileMgmtSearch').value : '';
+            renderProfileMgmt(searchVal);
+        }
+        window.setProfileMgmtTab = setProfileMgmtTab;
+
         function renderProfileMgmt(query) {
-            let list = USERS.filter(u => u.accountStatus !== 'suspended');
-            if (query) {
-                const q = query.toLowerCase();
-                list = list.filter(u =>
-                    ((u.name || '').toLowerCase().includes(q)) ||
-                    ((u.city || u.village || '').toLowerCase().includes(q)) ||
-                    ((u.email || '').toLowerCase().includes(q)) ||
-                    ((u.community || u.caste || '').toLowerCase().includes(q))
-                );
+            const checkBoy = typeof isBoyGender === 'function' ? isBoyGender : g => (g === 'boys' || g === 'Boy' || g === 'boy');
+            const checkGirl = typeof isGirlGender === 'function' ? isGirlGender : g => (g === 'girls' || g === 'Girl' || g === 'girl');
+            const isPaidBoy = u => {
+                if (!checkBoy(u.gender)) return false;
+                const status = (u.paymentStatus || u.payment_status || '').toLowerCase();
+                const isActive = (status === 'active' || status === 'paid');
+                if (isActive && u.planExpiry) {
+                    const exp = new Date(u.planExpiry);
+                    exp.setHours(23, 59, 59, 999);
+                    return exp.getTime() >= Date.now();
+                }
+                return isActive;
+            };
+
+            let allActive = USERS.filter(u => u && u.accountStatus !== 'suspended' && (u.accountStatus || u.account_status) !== 'deleted' && (typeof isUserPurged !== 'function' || !isUserPurged(u)));
+            
+            // Tab counter calculations
+            const totalCount = allActive.length;
+            const girlsCount = allActive.filter(u => checkGirl(u.gender)).length;
+            const paidBoysCount = allActive.filter(u => isPaidBoy(u)).length;
+            const unpaidBoysCount = allActive.filter(u => checkBoy(u.gender) && !isPaidBoy(u)).length;
+
+            if (document.getElementById('pCountAll')) document.getElementById('pCountAll').textContent = totalCount;
+            if (document.getElementById('pCountGirls')) document.getElementById('pCountGirls').textContent = girlsCount;
+            if (document.getElementById('pCountPaidBoys')) document.getElementById('pCountPaidBoys').textContent = paidBoysCount;
+            if (document.getElementById('pCountUnpaidBoys')) document.getElementById('pCountUnpaidBoys').textContent = unpaidBoysCount;
+
+            // Filter list by selected tab
+            let list = allActive.slice();
+            if (currentProfileMgmtTab === 'girls') {
+                list = list.filter(u => checkGirl(u.gender));
+            } else if (currentProfileMgmtTab === 'paid_boys') {
+                list = list.filter(u => isPaidBoy(u));
+            } else if (currentProfileMgmtTab === 'unpaid_boys') {
+                list = list.filter(u => checkBoy(u.gender) && !isPaidBoy(u));
             }
+
+            // Search filter
+            if (query) {
+                const q = query.toLowerCase().trim();
+                list = list.filter(u => {
+                    const phone = typeof getAdminUnmaskedPhone === 'function' ? getAdminUnmaskedPhone(u, 'own') : (u.mobile || '');
+                    return ((u.name || '').toLowerCase().includes(q)) ||
+                           ((u.city || u.village || '').toLowerCase().includes(q)) ||
+                           ((u.district || '').toLowerCase().includes(q)) ||
+                           ((u.email || '').toLowerCase().includes(q)) ||
+                           ((u.community || u.caste || '').toLowerCase().includes(q)) ||
+                           (String(phone).includes(q));
+                });
+            }
+
             const wrap = document.getElementById('profileMgmtList');
+            if (!wrap) return;
             wrap.innerHTML = '';
             if (list.length === 0) {
                 wrap.innerHTML =
-                    `<div class="empty-state"><i class="fa-solid fa-id-card-clip"></i><h3>No live profiles</h3><p>Active members will appear here.</p></div>`; return;
+                    `<div class="empty-state"><i class="fa-solid fa-id-card-clip"></i><h3>No profiles found</h3><p>Try switching tabs or clear your search term.</p></div>`; 
+                return;
             }
+
             list.forEach(u => {
                 const row = document.createElement('div');
                 row.className = 'row-item';
                 row.style.cursor = 'default';
+                row.style.padding = '12px 14px';
+                row.style.marginBottom = '10px';
+                row.style.background = '#fff';
+                row.style.border = '1px solid var(--border)';
+                row.style.borderRadius = '12px';
+
+                const isGirl = checkGirl(u.gender);
+                const isPaid = isPaidBoy(u);
+                const isUnpaidBoy = !isGirl && !isPaid;
+                const phone = typeof getAdminUnmaskedPhone === 'function' ? getAdminUnmaskedPhone(u, 'own') : (u.mobile || '—');
+                const photo = u.img || (isGirl ? 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop');
+
+                let badgeHtml = '';
+                if (isGirl) {
+                    badgeHtml = `<span style="font-size:11px;font-weight:700;background:#ECFDF5;color:#047857;border:1px solid #A7F3D0;padding:2px 8px;border-radius:10px;display:inline-flex;align-items:center;gap:4px;"><i class="fa-solid fa-person-dress"></i> Girls Free</span>`;
+                } else if (isPaid) {
+                    badgeHtml = `<span style="font-size:11px;font-weight:700;background:#EEF2FF;color:#4338CA;border:1px solid #C7D2FE;padding:2px 8px;border-radius:10px;display:inline-flex;align-items:center;gap:4px;"><i class="fa-solid fa-crown" style="color:#F59E0B;"></i> Active Pass (${u.planExpiry ? 'Till ' + u.planExpiry : '30-Day'})</span>`;
+                } else {
+                    badgeHtml = `<span style="font-size:11px;font-weight:700;background:#FFFBEB;color:#B45309;border:1px solid #FDE68A;padding:2px 8px;border-radius:10px;display:inline-flex;align-items:center;gap:4px;"><i class="fa-solid fa-clock" style="color:#D97706;"></i> Unpaid / Pending ₹199</span>`;
+                }
+
+                const approveBtnHtml = isUnpaidBoy ? `
+                    <button class="btn btn-sm" style="background:#059669;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:5px;cursor:pointer;box-shadow:0 2px 6px rgba(5,150,105,0.25);white-space:nowrap;" onclick="adminApproveBoyPass('${u.id}')">
+                        <i class="fa-solid fa-circle-check"></i> Approve ₹199 Pass
+                    </button>` : '';
+
                 row.innerHTML = `
-      <img class="ravatar" src="${u.img}" alt="${u.name}">
-      <div class="rbody"><div class="rtitle">${u.name}${u.featured ? ' <i class="fa-solid fa-star" style="color:var(--accent);font-size:11px;"></i>' : ''}</div><div class="rsub">${u.city} · ${u.gender === 'girls' ? 'Girls' : 'Boys'}</div></div>
-      <div class="rmeta" style="flex-direction:row;gap:14px;align-items:center;">
-        <button class="icon-btn" style="width:34px;height:34px;font-size:12px;${u.featured ? 'color:var(--accent-deep);' : ''}" onclick="toggleFeatured('${u.id}', this)"><i class="${u.featured ? 'fa-solid' : 'fa-regular'} fa-star"></i></button>
-        <button class="toggle ${(u.visible !== false && u.visible !== 'false' && u.visible !== 0) ? 'on' : ''}" onclick="toggleVisible('${u.id}', this)"></button>
-      </div>`;
+                    <img class="ravatar" src="${photo}" alt="${escapeHtmlAdmin(u.name || '')}" style="width:48px;height:48px;border-radius:10px;object-fit:cover;" onerror="this.src='images/default-avatar.png'">
+                    <div class="rbody" style="flex:1;min-width:0;">
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                            <span class="rtitle" style="font-weight:800;font-size:14px;">${escapeHtmlAdmin(u.name || 'Member')}${u.age ? ', ' + u.age : ''}</span>
+                            ${u.featured ? '<i class="fa-solid fa-star" style="color:var(--accent-deep);font-size:12px;"></i>' : ''}
+                            ${badgeHtml}
+                        </div>
+                        <div class="rsub" style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">
+                            <i class="fa-solid fa-location-dot" style="font-size:10px;"></i> ${escapeHtmlAdmin(u.city || u.village || '')}${u.district ? ', ' + escapeHtmlAdmin(u.district) : ''} · 
+                            <i class="fa-solid fa-users" style="font-size:10px;"></i> ${escapeHtmlAdmin(u.community || u.caste || '')} · 
+                            <i class="fa-solid fa-phone" style="font-size:10px;"></i> ${escapeHtmlAdmin(phone)}
+                        </div>
+                    </div>
+                    <div class="rmeta" style="flex-direction:row;gap:10px;align-items:center;flex-shrink:0;">
+                        ${approveBtnHtml}
+                        <button class="icon-btn" style="width:34px;height:34px;font-size:12px;${u.featured ? 'color:var(--accent-deep);' : ''}" onclick="toggleFeatured('${u.id}', this)" title="Feature on homepage"><i class="${u.featured ? 'fa-solid' : 'fa-regular'} fa-star"></i></button>
+                        <button class="toggle ${(u.visible !== false && u.visible !== 'false' && u.visible !== 0) ? 'on' : ''}" onclick="toggleVisible('${u.id}', this)" title="Toggle visibility in search"></button>
+                    </div>`;
                 wrap.appendChild(row);
             });
         }
+
+        async function adminApproveBoyPass(id) {
+            const u = (typeof findUser === 'function') ? findUser(id) : USERS.find(x => String(x.id) === String(id));
+            if (!u) {
+                if (typeof showToast === 'function') showToast('Member profile not found');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to approve ₹199 Pass for ${u.name}? This will activate 30-day full access immediately.`)) {
+                return;
+            }
+
+            const today = new Date();
+            const expiry = new Date();
+            expiry.setDate(today.getDate() + 30);
+            const planStart = today.toISOString().split('T')[0];
+            const planExpiry = expiry.toISOString().split('T')[0];
+
+            // 1. Update in-memory user
+            u.paymentStatus = 'Active';
+            u.payment_status = 'paid';
+            u.planStart = planStart;
+            u.planExpiry = planExpiry;
+            u.visible = true;
+            u.accountStatus = 'active';
+
+            if (typeof computeSecureToken === 'function') {
+                u.paymentToken = computeSecureToken('payment', u.id, u.email, planExpiry);
+                u.genderToken = computeSecureToken('gender', u.id, u.email, 'Boy');
+            }
+
+            // 2. Sync to PROFILES in memory & session
+            if (Array.isArray(window.PROFILES)) {
+                const pIdx = window.PROFILES.findIndex(p => p && (String(p.id) === String(u.id) || (p.email && u.email && p.email.toLowerCase() === u.email.toLowerCase())));
+                if (pIdx !== -1) {
+                    window.PROFILES[pIdx].paymentStatus = 'paid';
+                    window.PROFILES[pIdx].planStart = planStart;
+                    window.PROFILES[pIdx].planExpiry = planExpiry;
+                    window.PROFILES[pIdx].visible = true;
+                    window.PROFILES[pIdx].accountStatus = 'active';
+                }
+            }
+
+            // 3. Persist admin data & LS_ADMIN_PAYMENTS
+            if (typeof saveAdminData === 'function') saveAdminData();
+
+            const txnId = 'UPI_ADMIN_' + Date.now().toString().slice(-6);
+            try {
+                const adminPayments = JSON.parse(localStorage.getItem('LS_ADMIN_PAYMENTS') || '[]');
+                const newTxn = {
+                    id: txnId,
+                    userId: u.id,
+                    profileId: u.id,
+                    userEmail: u.email,
+                    userName: u.name,
+                    plan: 'Boys 30 Days Pass (₹199)',
+                    amount: 199,
+                    planStart: planStart,
+                    planExpiry: planExpiry,
+                    date: today.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+                    time: today.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                    method: 'UPI (WhatsApp Verified)',
+                    status: 'success'
+                };
+                adminPayments.unshift(newTxn);
+                localStorage.setItem('LS_ADMIN_PAYMENTS', JSON.stringify(adminPayments));
+            } catch (_) {}
+
+            // 4. Record to Supabase PostgreSQL live
+            if (typeof supabaseRecordPayment === 'function') {
+                try {
+                    await supabaseRecordPayment({
+                        id: txnId,
+                        userId: u.id,
+                        profileId: u.id,
+                        userName: u.name,
+                        userEmail: u.email,
+                        email: u.email,
+                        planStart: planStart,
+                        planExpiry: planExpiry,
+                        method: 'UPI (WhatsApp Verified)',
+                        amount: 199
+                    });
+                } catch (err) {
+                    console.warn('[Admin] Record payment error:', err);
+                }
+            }
+
+            // 5. Update profiles table directly in Supabase
+            if (typeof supabaseUpdateProfileStatus === 'function') {
+                try {
+                    await supabaseUpdateProfileStatus(u.id, {
+                        accountStatus: 'active',
+                        email: u.email
+                    });
+                } catch (_) {}
+            }
+
+            if (typeof showToast === 'function') {
+                showToast(`✅ ₹199 Pass approved for ${u.name}! Profile is now Active for 30 days 🎉`);
+            }
+
+            // 6. Refresh admin profiles list
+            const searchVal = document.getElementById('profileMgmtSearch') ? document.getElementById('profileMgmtSearch').value : '';
+            renderProfileMgmt(searchVal);
+        }
+        window.adminApproveBoyPass = adminApproveBoyPass;
 
         function toggleFeatured(id, btn) {
             const u = findUser(id);
@@ -1685,6 +1885,8 @@ if (typeof renderUsers !== 'undefined') window.renderUsers = renderUsers;
 if (typeof renderInterests !== 'undefined') window.renderInterests = renderInterests;
 if (typeof renderPayments !== 'undefined') window.renderPayments = renderPayments;
 if (typeof renderProfileMgmt !== 'undefined') window.renderProfileMgmt = renderProfileMgmt;
+if (typeof setProfileMgmtTab !== 'undefined') window.setProfileMgmtTab = setProfileMgmtTab;
+if (typeof adminApproveBoyPass !== 'undefined') window.adminApproveBoyPass = adminApproveBoyPass;
 if (typeof renderCastes !== 'undefined') window.renderCastes = renderCastes;
 if (typeof renderReports !== 'undefined') window.renderReports = renderReports;
 if (typeof renderNotifs !== 'undefined') window.renderNotifs = renderNotifs;

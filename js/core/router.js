@@ -108,13 +108,7 @@ function go(id, replace = false) {
     // If profile is FULLY complete, prevent navigation back into registration steps
     if (state.currentUser && state.profileComplete) {
         if (id === 'scr-reg-caste' || id === 'scr-reg2' || id === 'scr-reg3' || id === 'scr-reg4') {
-            const isBoy = typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy');
-            const passCheck = typeof checkBoyPassStatus === 'function' ? checkBoyPassStatus(state.currentUser) : { active: state.currentUser.paymentStatus === 'Active' };
-            if (isBoy && !passCheck.active) {
-                id = 'scr-membership';
-            } else {
-                id = 'scr-home';
-            }
+            id = 'scr-home';
         }
     }
 
@@ -128,7 +122,7 @@ function go(id, replace = false) {
         }
     }
 
-    // Boys Paywall Gatekeeper (Strict 30-Day & Unpaid Access Enforcement - ONLY FOR BOYS)
+    // Boys Paywall Gatekeeper (Smart Teaser Preview: Unpaid boys can browse Home & Browse, but Chat & Contacts are strictly locked)
     const isBoyUser = state.currentUser && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
     if (isBoyUser) {
         const passCheck = typeof checkBoyPassStatus === 'function' 
@@ -138,21 +132,29 @@ function go(id, replace = false) {
         if (!passCheck.active) {
             state.membershipPaid = false;
             state.currentUser.paymentStatus = (passCheck.reason === 'expired') ? 'Expired' : 'Unpaid';
+            
+            // Strictly guard direct 1-to-1 chat for unpaid boys
+            if (id === 'scr-chat') {
+                if (typeof openPaymentModal === 'function') {
+                    openPaymentModal();
+                } else if (typeof openModal === 'function') {
+                    openModal('modalPaywall');
+                }
+                if (typeof showToast === 'function') {
+                    showToast('🔒 દીકરીઓ સાથે ચેટ કરવા માટે ₹૧૯૯ પાસ જરૂરી છે.');
+                }
+                return;
+            }
+
             const UNPAID_ALLOWED = new Set([
+                'scr-home', 'scr-browse', 'scr-profile', 'scr-inbox', 'scr-favorites',
                 'scr-membership', 'scr-welcome', 'scr-login', 'scr-howitworks', 'scr-help', 
                 'scr-editprofile', 'scr-splash', 'scr-reg1', 'scr-reg-caste', 
                 'scr-reg2', 'scr-reg3', 'scr-reg4'
             ]);
             if (!UNPAID_ALLOWED.has(id)) {
-                // Strictly deny entry to home, browse, or any girl profiles — direct straight to scr-membership
-                if (id !== 'scr-membership') {
-                    go('scr-membership', true);
-                    openModal('modalPaywall');
-                    if (passCheck.reason === 'expired') {
-                        showToast('Your 30-Day Pass has expired! Pay ₹199 via UPI to renew.');
-                    } else {
-                        showToast('Boys ₹199 Pass required: Pay via UPI to explore community brides.');
-                    }
+                if (id !== 'scr-home') {
+                    go('scr-home', true);
                     return;
                 }
             }
