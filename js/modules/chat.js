@@ -347,7 +347,7 @@ function getDailyInterestUsage() {
         } else if (item && typeof item === 'object' && item.timestamp) {
             const diff = now - item.timestamp;
             if (diff >= -60000 && diff < TWENTY_FOUR_HOURS) {
-                const key = item.profileId ? ('p_' + item.profileId) : ('ts_' + item.timestamp);
+                const key = 'ts_' + item.timestamp + '_' + (item.profileId || '');
                 mergedMap.set(key, item);
             }
         }
@@ -361,7 +361,7 @@ function getDailyInterestUsage() {
             if (ts > 0) {
                 const diff = now - ts;
                 if (diff >= -60000 && diff < TWENTY_FOUR_HOURS) {
-                    const key = r.profileId ? ('p_' + r.profileId) : ('ts_' + ts);
+                    const key = 'ts_' + ts + '_' + (r.profileId || '');
                     mergedMap.set(key, { profileId: r.profileId, timestamp: ts });
                 }
             }

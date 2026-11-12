@@ -358,6 +358,20 @@ function copyUpiId() {
 }
 window.copyUpiId = copyUpiId;
 
+function payViaUpiApp() {
+    const upiUrl = 'upi://pay?pa=9726362863@ybl&pn=MangalSetu%20Matrimony&am=199&cu=INR';
+    const isMobile = (typeof navigator !== 'undefined') && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+    if (isMobile) {
+        window.location.href = upiUrl;
+    } else {
+        copyUpiId();
+        if (typeof showToast === 'function') {
+            showToast('📱 Scan QR from your mobile UPI app, or UPI ID copied!');
+        }
+    }
+}
+window.payViaUpiApp = payViaUpiApp;
+
 function sendPaymentScreenshotWhatsApp() {
     const u = (typeof state !== 'undefined' && state.currentUser) || {};
     const name = u.name || (state.regData && state.regData.name) || 'Member';
