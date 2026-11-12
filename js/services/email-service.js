@@ -1025,6 +1025,254 @@ async function sendOtpEmail(toEmail, otpCode, toName = 'Member', purpose = 'sign
   return { success: otpSuccess, error: otpError, reason: 'emailjs_dispatch_failed' };
 }
 
+/**
+ * 8. Send Pass Approval Notification Email (Sent to Boy when Admin Approves ₹199 Pass)
+ */
+async function sendPassApprovedEmail(userObj, planExpiry) {
+  if (!userObj) return { success: false, reason: 'missing_user_object' };
+
+  let cleanEmail = String(userObj.rawEmail || userObj.email || userObj.cleanEmail || (userObj.raw_data && userObj.raw_data.email) || '').trim().toLowerCase();
+  const isCleanEmail = (str) => Boolean(
+    str &&
+    typeof str === 'string' &&
+    str.includes('@') &&
+    !str.includes('•') &&
+    !str.includes('*') &&
+    !str.endsWith('@deleted.local')
+  );
+
+  // Self-healing: lookup from Supabase if email is missing or masked
+  if (!isCleanEmail(cleanEmail) && userObj.id && typeof getSupabaseClient === 'function') {
+    try {
+      const client = getSupabaseClient();
+      if (client) {
+        const numId = Number(userObj.id);
+        if (!isNaN(numId) && numId > 0) {
+          const { data: p } = await client.from('profiles').select('email, raw_data').eq('id', numId).maybeSingle();
+          if (p && isCleanEmail(p.email)) cleanEmail = p.email.trim().toLowerCase();
+          else if (p?.raw_data && isCleanEmail(p.raw_data.rawEmail)) cleanEmail = p.raw_data.rawEmail.trim().toLowerCase();
+          else if (p?.raw_data && isCleanEmail(p.raw_data.email)) cleanEmail = p.raw_data.email.trim().toLowerCase();
+        }
+        if (!isCleanEmail(cleanEmail)) {
+          const { data: u } = await client.from('users').select('email').eq('id', String(userObj.id)).maybeSingle();
+          if (u && isCleanEmail(u.email)) cleanEmail = u.email.trim().toLowerCase();
+        }
+      }
+    } catch (e) {
+      console.warn('[EmailService] Self-healing pass approval email note:', e);
+    }
+  }
+
+  if (!isCleanEmail(cleanEmail)) {
+    console.warn('[EmailService] sendPassApprovedEmail: Valid unmasked recipient email missing:', userObj);
+    return { success: false, reason: 'missing_or_invalid_email' };
+  }
+
+  const safeName = safeEmailText(userObj.name || 'Member');
+  let formattedExpiry = planExpiry || '30 Days from today';
+  try {
+    if (planExpiry) {
+      const expDate = new Date(planExpiry);
+      if (!isNaN(expDate.getTime())) {
+        formattedExpiry = expDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      }
+    }
+  } catch (_) {}
+
+  const subject = `🎉 Congratulations ${safeName}! Your Mangal Setu 30-Day Pass is Approved (પાસ મંજૂર થયો છે)`;
+  const preheader = `તમારું ₹૧૯૯ પેમેન્ટ વેરિફાય થઈ ગયું છે. હવે તમે દીકરીઓ સાથે સુરક્ષિત ચેટ અને ઇન્ટરેસ્ટ મોકલી શકો છો.`;
+
+  const bodyContent = `
+      <div style="text-align:center;margin-bottom:20px;">
+        <div style="display:inline-block;padding:8px 18px;background:linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);border:1.5px solid #10B981;border-radius:30px;color:#047857;font-size:12.5px;font-weight:800;letter-spacing:0.5px;">
+          ✓ PASS APPROVED &amp; ACTIVE (પેમેન્ટ મંજૂર)
+        </div>
+      </div>
+
+      <div style="font-size:19px;font-weight:800;color:#202124;margin-bottom:12px;line-height:1.3;">
+        નમસ્તે ${safeName}, આપનું હાર્દિક સ્વાગત છે! 🎉
+      </div>
+
+      <p style="font-size:14.5px;line-height:1.65;color:#374151;margin:0 0 16px 0;">
+        અભિનંદન! તમે WhatsApp પર મોકલેલ <b>₹૧૯૯</b> નું UPI પેમેન્ટ એડમિન ટીમ દ્વારા સફળતાપૂર્વક વેરિફાય કરવામાં આવ્યું છે. તમારો <b>Mangal Setu 30-Day Access Pass</b> હવે સક્રિય (Active) થઈ ગયો છે.
+      </p>
+
+      <!-- Plan Details Box -->
+      <table border="0" cellpadding="0" cellspacing="0" width="100%"
+        style="background:linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);border:1.5px solid #FCD34D;border-radius:14px;margin-bottom:22px;">
+        <tr>
+          <td style="padding:18px 20px;">
+            <div style="font-size:11px;font-weight:800;color:#B45309;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">
+              👑 પાસ વિગત (Pass Subscription Details)
+            </div>
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-size:13.5px;line-height:1.8;color:#78350F;">
+              <tr>
+                <td style="font-weight:700;width:40%;">પ્લાન / સેવા:</td>
+                <td><b>Mangal Setu 30-Day Access Pass</b></td>
+              </tr>
+              <tr>
+                <td style="font-weight:700;">રકમ ચૂકવી:</td>
+                <td><b style="color:#B45309;">₹199</b> (UPI WhatsApp Verified)</td>
+              </tr>
+              <tr>
+                <td style="font-weight:700;">વેલિડિટી:</td>
+                <td><b>${safeEmailText(formattedExpiry)}</b> સુધી (૩૦ દિવસ)</td>
+              </tr>
+              <tr>
+                <td style="font-weight:700;">એકાઉન્ટ સ્ટેટસ:</td>
+                <td><span style="background:#059669;color:#ffffff;padding:2px 8px;border-radius:6px;font-size:11.5px;font-weight:800;">✓ સક્રિય (Active)</span></td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Benefits Unlocked Box -->
+      <div style="background:#F9FAFB;border:1.2px solid #E5E7EB;border-radius:14px;padding:16px 20px;margin-bottom:24px;">
+        <div style="font-size:13px;font-weight:800;color:#1F2937;margin-bottom:10px;">
+          🚀 તમને મળેલા વિશેષ લાભો (Unlocked Features):
+        </div>
+        <div style="font-size:13px;line-height:1.7;color:#4B5563;">
+          <div style="margin-bottom:5px;"><b style="color:#059669;">✓</b> <b>રોજના ૩ ઇન્ટરેસ્ટ:</b> યોગ્ય દીકરીઓને દરરોજ ૩ ઇન્ટરેસ્ટ રિક્વેસ્ટ મોકલો.</div>
+          <div style="margin-bottom:5px;"><b style="color:#059669;">✓</b> <b>આવેલી રિક્વેસ્ટ સ્વીકારો:</b> દીકરીઓ તરફથી આવેલ ઇન્ટરેસ્ટ એક્સેપ્ટ કરો.</div>
+          <div style="margin-bottom:5px;"><b style="color:#059669;">✓</b> <b>સુરક્ષિત ચેટિંગ:</b> રિક્વેસ્ટ સ્વીકારાયા બાદ દીકરી સાથે સુરક્ષિત ટેક્સ્ટ ચેટ કરો.</div>
+          <div><b style="color:#059669;">✓</b> <b>પરિવારનો સંપર્ક:</b> પરસ્પર સંમતિ બાદ પિતાનો નંબર અને પરિવારની વિગત અનલોક થશે.</div>
+        </div>
+      </div>
+
+      <!-- CTA Button -->
+      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;">
+        <tr>
+          <td align="center">
+            <a href="https://mangalsetu.in/app.html#browse" class="btn-action"
+              style="display:inline-block;background:linear-gradient(135deg, #7B2CBF 0%, #9D4EDD 100%);color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;padding:14px 32px;border-radius:12px;box-shadow:0 4px 16px rgba(123,44,191,0.28);text-align:center;">
+              દીકરીઓની પ્રોફાઇલ જુઓ અને વાત શરૂ કરો →
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Help Notice -->
+      <div style="background:#FAF8FC;border-left:3.5px solid #7B2CBF;border-radius:8px;padding:12px 16px;font-size:12.5px;color:#5F5B67;line-height:1.55;margin-bottom:18px;">
+        કોઈપણ મદદ અથવા પ્રશ્ન માટે તમે સીધો અમારા સપોર્ટ નંબર <b>+91 9726362863</b> પર WhatsApp કરી શકો છો.
+      </div>
+
+      <p style="font-size:12px;color:#9CA3AF;margin:0;line-height:1.5;">
+        This confirmation was sent automatically to ${cleanEmail} upon administrative verification of your UPI transaction.
+      </p>
+  `;
+
+  const html = wrapEmailTemplate('Pass Approved — Mangal Setu Matrimony', preheader, bodyContent);
+
+  console.info(`[EmailService] 👑 Sending pass approval notification to: ${cleanEmail}`);
+
+  const logId = 'pass_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+  const client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
+
+  // Log intent to Supabase email_logs
+  if (client) {
+    try {
+      await client.from('email_logs').insert({
+        id: logId,
+        recipient_email: cleanEmail,
+        recipient_name: safeName,
+        subject: subject,
+        notification_type: 'PASS_APPROVED',
+        payload: { plan: 'Boys 30 Days Pass (₹199)', planExpiry: formattedExpiry, approved_at: new Date().toISOString() },
+        status: 'sending'
+      });
+    } catch (e) {
+      console.warn('[EmailService] email_logs initial note:', e);
+    }
+  }
+
+  const templateParams = {
+    to_email: cleanEmail,
+    recipient_email: cleanEmail,
+    user_email: cleanEmail,
+    email: cleanEmail,
+    to: cleanEmail,
+    reply_to: EMAIL_CONFIG.fromEmail || 'mangalsetu.in@gmail.com',
+    to_name: safeName,
+    recipient_name: safeName,
+    user_name: safeName,
+    name: safeName,
+    from_name: EMAIL_CONFIG.fromName,
+    subject: subject,
+    message: html,
+    message_html: html,
+    html: html,
+    body: html,
+    content: html
+  };
+
+  let dispatchSuccess = false;
+  let dispatchError = null;
+
+  // 1. Dispatch via EmailJS SDK
+  if (window.emailjs && EMAIL_CONFIG.emailjs && EMAIL_CONFIG.emailjs.publicKey) {
+    try {
+      await window.emailjs.send(
+        EMAIL_CONFIG.emailjs.serviceId,
+        EMAIL_CONFIG.emailjs.templateId,
+        templateParams,
+        EMAIL_CONFIG.emailjs.publicKey
+      );
+      dispatchSuccess = true;
+      console.info(`[EmailService] ✅ Pass approved email dispatched via EmailJS SDK to ${cleanEmail}`);
+    } catch (sdkErr) {
+      console.warn('[EmailService] EmailJS SDK note, attempting REST fallback:', sdkErr);
+      dispatchError = sdkErr;
+    }
+  }
+
+  // 2. Direct REST API Fallback
+  if (!dispatchSuccess && EMAIL_CONFIG.emailjs && EMAIL_CONFIG.emailjs.publicKey && typeof fetch === 'function') {
+    try {
+      const resp = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service_id: EMAIL_CONFIG.emailjs.serviceId,
+          template_id: EMAIL_CONFIG.emailjs.templateId,
+          user_id: EMAIL_CONFIG.emailjs.publicKey,
+          template_params: templateParams
+        })
+      });
+      if (resp.ok) {
+        dispatchSuccess = true;
+        console.info(`[EmailService] ✅ Pass approved email dispatched via REST API to ${cleanEmail}`);
+      } else {
+        const respText = await resp.text();
+        dispatchError = new Error(`EmailJS REST returned ${resp.status}: ${respText}`);
+        console.warn('[EmailService] EmailJS REST API dispatch failed:', respText);
+      }
+    } catch (fetchErr) {
+      console.warn('[EmailService] EmailJS REST API fetch error:', fetchErr);
+      dispatchError = fetchErr;
+    }
+  }
+
+  // Finalize log status in Supabase email_logs
+  if (client) {
+    try {
+      await client.from('email_logs').update({
+        status: dispatchSuccess ? 'sent' : 'failed',
+        payload: {
+          plan: 'Boys 30 Days Pass (₹199)',
+          planExpiry: formattedExpiry,
+          approved_at: new Date().toISOString(),
+          error: dispatchSuccess ? null : (dispatchError?.message || String(dispatchError))
+        }
+      }).eq('id', logId);
+    } catch (updErr) {
+      console.warn('[EmailService] email_logs update note:', updErr);
+    }
+  }
+
+  return { success: dispatchSuccess, email: cleanEmail, error: dispatchError };
+}
+
 // Global Window Exports
 window.EMAIL_CONFIG = EMAIL_CONFIG;
 window.renderEmailAvatar = renderEmailAvatar;
@@ -1034,3 +1282,4 @@ window.getInterestDeclinedEmailHtml = getInterestDeclinedEmailHtml;
 window.sendMatrimonialEmailNotification = sendMatrimonialEmailNotification;
 window.sendOtpEmail = sendOtpEmail;
 window.sendAccountDeletionEmail = sendAccountDeletionEmail;
+window.sendPassApprovedEmail = sendPassApprovedEmail;

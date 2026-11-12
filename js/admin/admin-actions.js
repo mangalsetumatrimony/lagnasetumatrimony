@@ -1036,11 +1036,28 @@ window.escapeHtml = escapeHtmlAdmin;
                 } catch (_) {}
             }
 
-            if (typeof showToast === 'function') {
-                showToast(`✅ ₹199 Pass approved for ${u.name}! Profile is now Active for 30 days 🎉`);
+            // 6. Send Pass Approval Email Notification to the User!
+            const sendPassEmailFn = (typeof sendPassApprovedEmail === 'function')
+                ? sendPassApprovedEmail
+                : ((typeof window !== 'undefined' && typeof window.sendPassApprovedEmail === 'function') ? window.sendPassApprovedEmail : null);
+
+            if (sendPassEmailFn) {
+                sendPassEmailFn(u, planExpiry).then(res => {
+                    if (res && res.success) {
+                        console.info(`[Admin] ✅ Pass approval email successfully sent to ${res.email}`);
+                    } else {
+                        console.warn('[Admin] Pass approval email status note:', res);
+                    }
+                }).catch(err => {
+                    console.warn('[Admin] Pass approval email error:', err);
+                });
             }
 
-            // 6. Refresh admin profiles list, users list, and active detail view
+            if (typeof showToast === 'function') {
+                showToast(`✅ ₹199 Pass approved for ${u.name}! Email sent & account is Active 🎉`);
+            }
+
+            // 7. Refresh admin profiles list, users list, and active detail view
             const searchVal = document.getElementById('profileMgmtSearch') ? document.getElementById('profileMgmtSearch').value : '';
             renderProfileMgmt(searchVal);
             if (typeof renderUsers === 'function') renderUsers();
