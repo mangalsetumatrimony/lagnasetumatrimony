@@ -372,6 +372,29 @@ function payViaUpiApp() {
 }
 window.payViaUpiApp = payViaUpiApp;
 
+async function downloadUpiQr() {
+    const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=upi%3A%2F%2Fpay%3Fpa%3D9726362863%40ybl%26pn%3DMangalSetu%2520Matrimony%26am%3D199%26cu%3DINR';
+    try {
+        if (typeof showToast === 'function') showToast('⏳ Downloading QR code image...');
+        const resp = await fetch(qrUrl);
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = 'MangalSetu-UPI-QR-199.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        if (typeof showToast === 'function') {
+            showToast('✅ QR Code downloaded! Open PhonePe/GPay scanner & scan from Gallery.');
+        }
+    } catch (_) {
+        window.open(qrUrl, '_blank');
+    }
+}
+window.downloadUpiQr = downloadUpiQr;
+
 function sendPaymentScreenshotWhatsApp() {
     const u = (typeof state !== 'undefined' && state.currentUser) || {};
     const name = u.name || (state.regData && state.regData.name) || 'Member';
