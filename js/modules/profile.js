@@ -748,44 +748,48 @@ function processMockPayment() {
 }
 
 function activateDemoTestPass() {
-    closeModal('modalPaywall');
-    closeModal('modalBoyComplete');
-    closeModal('modalRazorpayCheckout');
-    closeModal('modalCompleteProfile');
-
-    if (typeof state === 'undefined' || !state.currentUser) {
-        showToast('Please log in or register first');
-        return;
+    console.warn('[Production Guard] Demo pass activation is permanently disabled for production.');
+    if (typeof showToast === 'function') {
+        showToast('ડેમો પાસ બંધ છે. ₹199 પેમેન્ટ એડમિન વેરિફિકેશન પછી જ પાસ એક્ટિવ થશે.');
     }
-
-    const testTxnId = 'DEMO_TEST_' + Math.floor(10000 + Math.random() * 90000);
-    processSuccessfulPayment(testTxnId, 'Testing Demo Pass (Free)');
-    showToast('🧪 30-Day Testing Pass Activated! Full access unlocked 🎉');
-
-    setTimeout(() => {
-        closeModal('modalPaySuccess');
-        if (typeof enterHome === 'function') {
-            enterHome();
-        } else if (typeof go === 'function') {
-            go('scr-home');
-        }
-    }, 500);
 }
 window.activateDemoTestPass = activateDemoTestPass;
 
 function resetDemoTestPass() {
     if (typeof state === 'undefined' || !state.currentUser) return;
-    state.currentUser.paymentStatus = 'Unpaid';
-    state.currentUser.planStart = null;
-    state.currentUser.planExpiry = null;
+    const u = state.currentUser;
+    u.paymentStatus = 'Unpaid';
+    u.payment_status = 'unpaid';
+    u.planStart = null;
+    u.planExpiry = null;
     state.membershipPaid = false;
-    delete state.currentUser.paymentToken;
+    delete u.paymentToken;
+
+    // Purge demo payments from LS_ADMIN_PAYMENTS
     try {
+        const adminPayments = JSON.parse(localStorage.getItem('LS_ADMIN_PAYMENTS') || '[]');
+        const filtered = adminPayments.filter(p => !(
+            (String(p.userId) === String(u.id) || (p.userEmail && p.userEmail.toLowerCase() === (u.email || '').toLowerCase())) &&
+            (String(p.id).startsWith('DEMO_') || String(p.plan).includes('Demo') || String(p.method).includes('Testing') || String(p.method).includes('Demo'))
+        ));
+        localStorage.setItem('LS_ADMIN_PAYMENTS', JSON.stringify(filtered));
         localStorage.setItem('mangalSetu_membershipPaid', 'false');
     } catch (_) {}
+
+    // Update in window.PROFILES
+    if (typeof window !== 'undefined' && Array.isArray(window.PROFILES)) {
+        const pIdx = window.PROFILES.findIndex(p => p && (String(p.id) === String(u.id) || (p.email && u.email && p.email.toLowerCase() === u.email.toLowerCase())));
+        if (pIdx !== -1) {
+            window.PROFILES[pIdx].paymentStatus = 'unpaid';
+            window.PROFILES[pIdx].payment_status = 'unpaid';
+            window.PROFILES[pIdx].planExpiry = null;
+            window.PROFILES[pIdx].planStart = null;
+        }
+    }
+
     if (typeof saveSessionState === 'function') saveSessionState();
     if (typeof updateMembershipScreen === 'function') updateMembershipScreen();
-    showToast('Pass reset to Unpaid for testing.');
+    showToast('પાસ રીસેટ થઈ ગયો છે (Unpaid). હવે એડમિન મંજૂરી આપશે ત્યારે જ એક્ટિવ થશે.');
     if (typeof go === 'function') go('scr-membership');
 }
 window.resetDemoTestPass = resetDemoTestPass;
@@ -813,7 +817,7 @@ function updateMembershipScreen() {
         : { count: 0, remaining: 3, limitReached: false };
 
     let expiryFormatted = '30 Days from Approval';
-    let daysLeftDisplay = (typeof passStatus.daysLeft === 'number') ? passStatus.daysLeft : 30;
+    let daysLeftDisplay = Math.min(30, Math.max(0, (typeof passStatus.daysLeft === 'number') ? passStatus.daysLeft : 30));
     let percentLeft = Math.min(100, Math.max(0, Math.round((daysLeftDisplay / 30) * 100)));
     if (u.planExpiry) {
         try {
@@ -1329,15 +1333,9 @@ function updateMembershipScreen() {
                 </div>
             </div>
 
-            <!-- Demo Pass for quick testing -->
-            <button type="button" class="btn btn-outline" onclick="activateDemoTestPass()"
-                style="margin-top:2px;border:1.2px dashed var(--primary);color:var(--primary);background:#fcf8ff;font-weight:700;padding:10px;font-size:12px;border-radius:10px;">
-                <i class="fa-solid fa-flask"></i> 🧪 Test Mode: Activate 30-Day Free Pass
-            </button>
-
             <!-- 3. View Payment History -->
             <button type="button" class="btn btn-outline" onclick="openPaymentHistoryModal()"
-                style="border:1.2px solid #E5E7EB;color:#4B5563;font-size:12.5px;padding:10px;border-radius:10px;">
+                style="margin-top:2px;border:1.2px solid #E5E7EB;color:#4B5563;font-size:12.5px;padding:10px;border-radius:10px;">
                 <i class="fa-solid fa-receipt"></i> View Payment History (પેમેન્ટ હિસ્ટ્રી જુઓ)
             </button>
         </div>

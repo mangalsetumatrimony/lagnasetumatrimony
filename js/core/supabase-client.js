@@ -926,7 +926,7 @@ async function supabaseFetchActiveUserPayment(userId, email) {
                     const expiryStr = p.plan_expiry || new Date(expTime).toISOString().split('T')[0];
 
                     if (expTime > now) {
-                        const daysRemaining = Math.max(0, Math.ceil((expTime - now) / (1000 * 60 * 60 * 24)));
+                        const daysRemaining = Math.min(30, Math.max(1, Math.ceil((expTime - now) / (1000 * 60 * 60 * 24))));
                         return {
                             ...p,
                             active: true,

@@ -1534,10 +1534,6 @@
                         style="display:none;margin-bottom:12px;font-size:15.5px;padding:14px;box-shadow:0 6px 20px rgba(217,119,6,0.3);"
                         onclick="openPaymentCheckout()"><i class="fa-solid fa-bolt"></i> Pay ₹199 via UPI (30 Days
                         Pass)</button>
-                    <button class="btn btn-outline" id="btnDemoPassAction"
-                        style="display:none;margin-bottom:12px;width:100%;border:1.5px dashed var(--primary);color:var(--primary);background:#fcf8ff;font-weight:700;padding:12px;"
-                        onclick="activateDemoTestPass()"><i class="fa-solid fa-flask"></i> 🧪 Test Mode: Activate 30-Day
-                        Free Pass</button>
                     <button class="btn btn-outline" onclick="openPaymentHistoryModal()"><i
                             class="fa-solid fa-receipt"></i> View payment history</button>
                     <div class="center-txt p-muted" style="margin-top:18px;font-size:13px;">
@@ -1950,11 +1946,6 @@
                     onclick="closeModal('modalBoyComplete'); if(typeof enterHome==='function'){enterHome();}else{go('scr-home');} showToast('Welcome! You can now explore community profiles.');">
                     <i class="fa-solid fa-magnifying-glass"></i> Explore Profiles First (Free Preview)
                 </button>
-                <button class="btn btn-outline"
-                    style="margin-top:8px;border:1.5px dashed var(--primary);color:var(--primary);background:#fcf8ff;font-weight:700;width:100%;padding:10px;font-size:12px;"
-                    onclick="activateDemoTestPass()">
-                    <i class="fa-solid fa-flask"></i> 🧪 Test Mode: Activate 30-Day Free Pass
-                </button>
                 <div
                     style="text-align:center;margin-top:12px;font-size:11.5px;color:var(--text-muted);line-height:1.4;">
                     <a href="legal/terms.html" target="_blank"
@@ -2077,16 +2068,9 @@
                     <i class="fa-brands fa-whatsapp" style="font-size:18px;"></i> Send Screenshot on WhatsApp
                 </button>
 
-                <!-- Test Pass for Demo -->
-                <button class="btn btn-outline"
-                    style="margin-top:8px;border:1px dashed var(--primary);color:var(--primary);background:#fcf8ff;font-weight:700;width:100%;padding:8px;font-size:11.5px;"
-                    onclick="activateDemoTestPass()">
-                    <i class="fa-solid fa-flask"></i> 🧪 Test Mode: Activate 30-Day Free Pass
-                </button>
-
                 <!-- Shortcut to Full Plan Screen -->
                 <button type="button" class="btn btn-ghost" onclick="closeModal('modalPaywall'); go('scr-membership');"
-                    style="margin-top:6px;width:100%;font-size:12px;font-weight:700;color:var(--primary);padding:8px;cursor:pointer;">
+                    style="margin-top:8px;width:100%;font-size:12px;font-weight:700;color:var(--primary);padding:8px;cursor:pointer;">
                     <i class="fa-solid fa-crown"></i> View Plan Details &amp; Benefits (પ્લાનની વિગતો જુઓ)
                 </button>
 

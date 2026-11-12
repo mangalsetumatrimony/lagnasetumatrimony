@@ -586,7 +586,8 @@ function checkBoyPassStatus(user) {
     }
     
     const diffMs = expiry.getTime() - now.getTime();
-    const daysLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+    // Cap at 30 days max for standard 30-day pass so Day 1 displays exactly 30 days remaining
+    const daysLeft = Math.min(30, Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24))));
     return { active: true, reason: 'active', daysLeft: daysLeft };
 }
 window.checkBoyPassStatus = checkBoyPassStatus;
