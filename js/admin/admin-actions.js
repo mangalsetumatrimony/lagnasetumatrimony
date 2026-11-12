@@ -1227,14 +1227,83 @@ window.escapeHtml = escapeHtmlAdmin;
         }
         window.adminRejectBoyPass = adminRejectBoyPass;
 
-        async function adminApproveBoyPass(id) {
-            const u = (typeof findUser === 'function') ? findUser(id) : USERS.find(x => String(x.id) === String(id));
+        function openApprovePassModal(userId) {
+            const u = (typeof findUser === 'function') ? findUser(userId) : (Array.isArray(USERS) ? USERS.find(x => String(x.id) === String(userId)) : null);
             if (!u) {
                 if (typeof showToast === 'function') showToast('Member profile not found');
                 return;
             }
 
-            if (!confirm(`Are you sure you want to approve ₹199 Pass for ${u.name}? This will activate 30-day full access immediately.`)) {
+            const nameEl = document.getElementById('approvePassCandidateName');
+            const cityEl = document.getElementById('approvePassCandidateCity');
+            const phoneEl = document.getElementById('approvePassCandidatePhone');
+            const imgEl = document.getElementById('approvePassCandidateImg');
+            const expiryEl = document.getElementById('approvePassExpiryDate');
+            const idEl = document.getElementById('approvePassUserId');
+
+            const phone = typeof getAdminUnmaskedPhone === 'function' ? getAdminUnmaskedPhone(u, 'own') : (u.mobile || '—');
+            const photo = u.img || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop';
+
+            const today = new Date();
+            const expiry = new Date();
+            expiry.setDate(today.getDate() + 30);
+            const expiryFormatted = expiry.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+            if (nameEl) nameEl.textContent = `${u.name || 'Member'}${u.age ? ', ' + u.age : ''}`;
+            if (cityEl) cityEl.textContent = u.village || u.city || 'Botad';
+            if (phoneEl) phoneEl.textContent = phone;
+            if (imgEl) imgEl.src = photo;
+            if (expiryEl) expiryEl.textContent = `${expiryFormatted} (30 Days)`;
+            if (idEl) idEl.value = String(u.id);
+
+            const btnConfirm = document.getElementById('btnConfirmApprovePass');
+            if (btnConfirm) {
+                btnConfirm.disabled = false;
+                btnConfirm.innerHTML = `<i class="fa-solid fa-circle-check"></i> Approve &amp; Activate Pass`;
+            }
+
+            if (typeof openModal === 'function') {
+                openModal('modalApprovePass');
+            } else if (document.getElementById('modalApprovePass')) {
+                document.getElementById('modalApprovePass').classList.add('open');
+            }
+        }
+        window.openApprovePassModal = openApprovePassModal;
+
+        async function confirmApprovePassAction() {
+            const idEl = document.getElementById('approvePassUserId');
+            const uid = idEl ? idEl.value : null;
+            if (!uid) {
+                if (typeof showToast === 'function') showToast('Invalid member reference');
+                return;
+            }
+
+            const btnConfirm = document.getElementById('btnConfirmApprovePass');
+            if (btnConfirm) {
+                btnConfirm.disabled = true;
+                btnConfirm.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Activating Pass...`;
+            }
+
+            try {
+                await executeAdminApproveBoyPass(uid);
+            } finally {
+                if (typeof closeModal === 'function') {
+                    closeModal('modalApprovePass');
+                } else if (document.getElementById('modalApprovePass')) {
+                    document.getElementById('modalApprovePass').classList.remove('open');
+                }
+                if (btnConfirm) {
+                    btnConfirm.disabled = false;
+                    btnConfirm.innerHTML = `<i class="fa-solid fa-circle-check"></i> Approve &amp; Activate Pass`;
+                }
+            }
+        }
+        window.confirmApprovePassAction = confirmApprovePassAction;
+
+        async function executeAdminApproveBoyPass(id) {
+            const u = (typeof findUser === 'function') ? findUser(id) : USERS.find(x => String(x.id) === String(id));
+            if (!u) {
+                if (typeof showToast === 'function') showToast('Member profile not found');
                 return;
             }
 
@@ -1352,6 +1421,14 @@ window.escapeHtml = escapeHtmlAdmin;
             if (document.getElementById('scr-userdetail')?.classList.contains('active')) {
                 openUserDetail(u.id);
             }
+        }
+        window.executeAdminApproveBoyPass = executeAdminApproveBoyPass;
+
+        async function adminApproveBoyPass(id, skipModal = false) {
+            if (skipModal) {
+                return await executeAdminApproveBoyPass(id);
+            }
+            openApprovePassModal(id);
         }
         window.adminApproveBoyPass = adminApproveBoyPass;
 
@@ -2237,6 +2314,9 @@ if (typeof renderPayments !== 'undefined') window.renderPayments = renderPayment
 if (typeof renderProfileMgmt !== 'undefined') window.renderProfileMgmt = renderProfileMgmt;
 if (typeof setProfileMgmtTab !== 'undefined') window.setProfileMgmtTab = setProfileMgmtTab;
 if (typeof adminApproveBoyPass !== 'undefined') window.adminApproveBoyPass = adminApproveBoyPass;
+if (typeof openApprovePassModal !== 'undefined') window.openApprovePassModal = openApprovePassModal;
+if (typeof confirmApprovePassAction !== 'undefined') window.confirmApprovePassAction = confirmApprovePassAction;
+if (typeof executeAdminApproveBoyPass !== 'undefined') window.executeAdminApproveBoyPass = executeAdminApproveBoyPass;
 if (typeof renderCastes !== 'undefined') window.renderCastes = renderCastes;
 if (typeof renderReports !== 'undefined') window.renderReports = renderReports;
 if (typeof renderNotifs !== 'undefined') window.renderNotifs = renderNotifs;
