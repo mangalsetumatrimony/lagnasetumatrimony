@@ -470,6 +470,16 @@ function openInterestModal(id) {
     const p = findProfile(id);
     if (!p) return;
 
+    // Security Gatekeeper 0: Unpaid boy must purchase ₹199 Pass
+    const isViewerBoy = state.currentUser && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
+    const isViewerUnpaidBoy = isViewerBoy && (typeof checkBoyPassStatus === 'function' ? !checkBoyPassStatus(state.currentUser).active : (state.currentUser.paymentStatus !== 'Active' && state.currentUser.paymentStatus !== 'paid'));
+    if (isViewerUnpaidBoy) {
+        if (typeof openPaymentModal === 'function') openPaymentModal('interest');
+        else if (typeof openModal === 'function') openModal('modalPaywall');
+        if (typeof showToast === 'function') showToast('🔒 દીકરીઓને ઇન્ટરેસ્ટ મોકલવા માટે ₹૧૯૯ પાસ જરૂરી છે.');
+        return;
+    }
+
     // Security Gatekeeper 1: Prevent sending interest to own profile
     if (typeof isSelfProfile === 'function' && isSelfProfile(p)) {
         showToast('You cannot send an interest request to your own profile.');
@@ -518,6 +528,17 @@ async function confirmSendInterest() {
         closeModal('modalInterest');
         showToast('Please log in or register to send an interest');
         if (typeof go === 'function') go('scr-welcome', true);
+        return;
+    }
+
+    // Security Gatekeeper 0: Unpaid boy cannot send interest
+    const isViewerBoy = currentUsr && (typeof isBoyGender === 'function' ? isBoyGender(currentUsr.gender) : (currentUsr.gender === 'Boy' || currentUsr.gender === 'boy'));
+    const isViewerUnpaidBoy = isViewerBoy && (typeof checkBoyPassStatus === 'function' ? !checkBoyPassStatus(currentUsr).active : (currentUsr.paymentStatus !== 'Active' && currentUsr.paymentStatus !== 'paid'));
+    if (isViewerUnpaidBoy) {
+        closeModal('modalInterest');
+        if (typeof openPaymentModal === 'function') openPaymentModal('interest');
+        else if (typeof openModal === 'function') openModal('modalPaywall');
+        if (typeof showToast === 'function') showToast('🔒 દીકરીઓને ઇન્ટરેસ્ટ મોકલવા માટે ₹૧૯૯ પાસ જરૂરી છે.');
         return;
     }
 
@@ -1466,6 +1487,17 @@ function chatThreadCard(t) {
 
 async function acceptRequest(profileId) {
     const pid = Number(profileId);
+
+    // Unpaid Boy Gatekeeper: incoming interest accept is locked until ₹199 pass is active
+    const isViewerBoy = state.currentUser && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
+    const isViewerUnpaidBoy = isViewerBoy && (typeof checkBoyPassStatus === 'function' ? !checkBoyPassStatus(state.currentUser).active : (state.currentUser.paymentStatus !== 'Active' && state.currentUser.paymentStatus !== 'paid'));
+    if (isViewerUnpaidBoy) {
+        if (typeof openPaymentModal === 'function') openPaymentModal('accept');
+        else if (typeof openModal === 'function') openModal('modalPaywall');
+        if (typeof showToast === 'function') showToast('🔒 રિક્વેસ્ટ સ્વીકારવા અને દીકરી સાથે ચેટ કરવા માટે ₹૧૯૯ પાસ જરૂરી છે.');
+        return;
+    }
+
     const r = INCOMING_REQUESTS.find(x => Number(x.profileId) === pid || Number(x.senderId) === pid);
     if (!r || r.status === 'accepted') {
         if (!r) showToast('No pending request found for this member.');
@@ -1545,6 +1577,17 @@ async function acceptRequest(profileId) {
 
 async function declineRequest(profileId) {
     const pid = Number(profileId);
+
+    // Unpaid Boy Gatekeeper: incoming interest response is locked until ₹199 pass is active
+    const isViewerBoy = state.currentUser && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
+    const isViewerUnpaidBoy = isViewerBoy && (typeof checkBoyPassStatus === 'function' ? !checkBoyPassStatus(state.currentUser).active : (state.currentUser.paymentStatus !== 'Active' && state.currentUser.paymentStatus !== 'paid'));
+    if (isViewerUnpaidBoy) {
+        if (typeof openPaymentModal === 'function') openPaymentModal('decline');
+        else if (typeof openModal === 'function') openModal('modalPaywall');
+        if (typeof showToast === 'function') showToast('🔒 રિક્વેસ્ટ મેનેજ કરવા માટે ₹૧૯૯ પાસ જરૂરી છે.');
+        return;
+    }
+
     const r = INCOMING_REQUESTS.find(x => Number(x.profileId) === pid || Number(x.senderId) === pid);
     if (!r || r.status === 'declined') {
         if (!r) showToast('No pending request found for this member.');

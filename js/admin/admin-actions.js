@@ -155,7 +155,11 @@ window.escapeHtml = escapeHtmlAdmin;
             const checkGirl = typeof isGirlGender === 'function' ? isGirlGender : g => (g === 'girls' || g === 'Girl' || g === 'girl');
             const isGirl = checkGirl(u.gender);
             const isPaid = isUserPaidInAdmin(u);
-            const payBadge = isGirl ? '<span class="status-badge paid"><i class="fa-solid fa-heart"></i> Free</span>' : (isPaid ? '<span class="status-badge paid"><i class="fa-solid fa-crown"></i> Paid ₹199</span>' : '<span class="status-badge pending">Unpaid</span>');
+            const payBadge = isGirl 
+                ? '<span class="status-badge paid"><i class="fa-solid fa-heart"></i> Free</span>' 
+                : (isPaid 
+                    ? '<span class="status-badge paid"><i class="fa-solid fa-crown"></i> Paid ₹199</span>' 
+                    : '<span class="status-badge pending" style="background:#FFFBEB;color:#B45309;border:1px solid #FCD34D;font-weight:700;"><i class="fa-solid fa-clock"></i> Pending ₹199</span>');
             const isSuspended = (u.accountStatus || u.account_status || u.status || '').toLowerCase() === 'suspended';
             const statusBadge = isSuspended
                 ? '<span class="status-badge rejected"><i class="fa-solid fa-ban"></i> Suspended</span>'
@@ -169,6 +173,11 @@ window.escapeHtml = escapeHtmlAdmin;
             const fatherPhone = getAdminUnmaskedPhone(u, 'father');
             const phoneToDisplay = (ownPhone !== '—' && !ownPhone.includes('••')) ? ownPhone : ((fatherPhone !== '—' && !fatherPhone.includes('••')) ? fatherPhone : '');
 
+            const quickApproveHtml = (!isGirl && !isPaid) ? `
+                <button class="btn btn-sm" style="background:#059669;color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;gap:3px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 6px rgba(5,150,105,0.25);" onclick="event.stopPropagation();adminApproveBoyPass('${u.id}')" title="Approve WhatsApp Payment">
+                    <i class="fa-solid fa-circle-check"></i> Approve
+                </button>` : '';
+
             row.innerHTML = `
     <img class="ravatar" src="${u.img || ((u.photos && u.photos[0]) || '')}" alt="${escapeHtmlAdmin(u.name || '')}">
     <div class="rbody">
@@ -176,6 +185,7 @@ window.escapeHtml = escapeHtmlAdmin;
       <div class="rsub">${photoBadge}${phoneToDisplay ? `<strong style="color:var(--primary);letter-spacing:0.3px;"><i class="fa-solid fa-phone" style="font-size:10px;"></i> ${escapeHtmlAdmin(phoneToDisplay)}</strong> • ` : ''}<i class="fa-solid fa-location-dot"></i> ${escapeHtmlAdmin(u.village || u.city || '')} • ${isGirl ? 'Girl' : 'Boy'}${occEdu ? ` • ${escapeHtmlAdmin(occEdu)}` : ''}</div>
     </div>
     <div class="rmeta">
+      ${quickApproveHtml}
       ${statusBadge}
       ${payBadge}
       ${termsBadge}
@@ -285,6 +295,37 @@ window.escapeHtml = escapeHtmlAdmin;
     <div class="card" style="margin-top:14px;background:var(--error-bg);border:1px solid rgba(217,4,41,0.2);padding:12px 14px;">
       <div style="color:var(--error);font-weight:800;font-size:13px;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-circle-exclamation"></i> This account is currently Suspended</div>
       <p style="font-size:12px;color:var(--text);margin-top:4px;">This profile is hidden from the community. You can reactivate it below anytime.</p>
+    </div>` : ''}
+
+    ${(!isGirl && !isPaid) ? `
+    <div class="card" style="margin-top:14px;background:linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);border:1.5px solid #FCD34D;border-radius:14px;padding:14px 16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+        <div style="color:#92400E;font-weight:800;font-size:14px;display:flex;align-items:center;gap:6px;">
+          <i class="fa-solid fa-clock" style="color:#D97706;"></i> 30-Day Pass Approval Pending (વોટ્સએપ સ્ક્રીનશોટ મંજૂરી)
+        </div>
+        <span style="font-size:11px;font-weight:800;background:rgba(217,119,6,0.15);color:#92400E;padding:2px 8px;border-radius:8px;">₹199 Plan</span>
+      </div>
+      <p style="font-size:12px;color:#78350F;line-height:1.45;margin:0 0 12px;">
+        જો આ ઉમેદવારે WhatsApp પર ₹199 નો UPI પેમેન્ટ સ્ક્રીનશોટ મોકલ્યો હોય, તો નીચે ક્લિક કરીને એકાઉન્ટ તાત્કાલિક એક્ટિવ કરો (ચેટ અને રિક્વેસ્ટ અનલોક થશે).
+      </p>
+      <button class="btn" style="background:#059669;color:#fff;border:none;border-radius:10px;padding:11px 16px;font-size:13.5px;font-weight:800;display:flex;align-items:center;gap:8px;cursor:pointer;width:100%;justify-content:center;box-shadow:0 3px 12px rgba(5,150,105,0.3);" onclick="adminApproveBoyPass('${u.id}')">
+        <i class="fa-solid fa-circle-check"></i> ✓ Approve ₹199 Pass (વોટ્સએપ સ્ક્રીનશોટ મંજૂર કરો)
+      </button>
+    </div>` : ''}
+
+    ${(!isGirl && isPaid) ? `
+    <div class="card" style="margin-top:14px;background:#EEF2FF;border:1.2px solid #C7D2FE;border-radius:14px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-weight:800;color:#3730A3;font-size:13px;display:flex;align-items:center;gap:6px;">
+          <i class="fa-solid fa-crown" style="color:#F59E0B;"></i> 30-Day Pass Active (વેરિફાઈડ પેઇડ એકાઉન્ટ)
+        </div>
+        <div style="font-size:11.5px;color:#4F46E5;margin-top:2px;">
+          Valid until: <b>${escapeHtmlAdmin(u.planExpiry || 'Active 30 Days')}</b>
+        </div>
+      </div>
+      <span class="status-badge paid" style="background:#E0E7FF;color:#4338CA;border:1px solid #A5B4FC;font-weight:800;font-size:11px;padding:4px 10px;">
+        ✓ Pass Active
+      </span>
     </div>` : ''}
 
     <div class="section-label">Admin Controls & Actions</div>
@@ -999,9 +1040,13 @@ window.escapeHtml = escapeHtmlAdmin;
                 showToast(`✅ ₹199 Pass approved for ${u.name}! Profile is now Active for 30 days 🎉`);
             }
 
-            // 6. Refresh admin profiles list
+            // 6. Refresh admin profiles list, users list, and active detail view
             const searchVal = document.getElementById('profileMgmtSearch') ? document.getElementById('profileMgmtSearch').value : '';
             renderProfileMgmt(searchVal);
+            if (typeof renderUsers === 'function') renderUsers();
+            if (document.getElementById('scr-userdetail')?.classList.contains('active')) {
+                openUserDetail(u.id);
+            }
         }
         window.adminApproveBoyPass = adminApproveBoyPass;
 

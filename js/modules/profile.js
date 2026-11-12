@@ -376,7 +376,11 @@ function openPaymentModal(reason = 'general') {
 
     const sub = document.getElementById('paywallModalSubtitle');
     if (sub) {
-        if (reason === 'contact') {
+        if (reason === 'accept') {
+            sub.textContent = 'દીકરીની રિક્વેસ્ટ સ્વીકારવા અને સુરક્ષિત વાતચીત શરૂ કરવા માટે ₹૧૯૯ પાસ જરૂરી છે.';
+        } else if (reason === 'decline') {
+            sub.textContent = 'રિક્વેસ્ટ મેનેજ કરવા અને પ્રોફાઇલ્સ સાથે કનેક્ટ થવા માટે ₹૧૯૯ પાસ જરૂરી છે.';
+        } else if (reason === 'contact') {
             sub.textContent = 'દીકરી કે પરિવારનો સંપર્ક કરવા માટે ₹૧૯૯ પાસ જરૂરી છે (Contact & Chat unlock upon accepted interest).';
         } else if (reason === 'chat') {
             sub.textContent = 'દીકરીઓ સાથે સુરક્ષિત ચેટ કરવા માટે ₹૧૯૯ પાસ જરૂરી છે (Chat unlocks upon accepted interest).';
@@ -991,6 +995,11 @@ function isProfileDetailsUnlocked(p) {
     const isAdmin = (typeof isSessionValidSync === 'function' && isSessionValidSync()) || 
                     (typeof window !== 'undefined' && window.location && window.location.pathname && window.location.pathname.includes('admin'));
     if (isAdmin) return true;
+
+    // Unpaid Boy Guard: can NEVER unlock family details or direct contacts
+    const isViewerBoy = state.currentUser && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
+    const isViewerUnpaidBoy = isViewerBoy && (typeof checkBoyPassStatus === 'function' ? !checkBoyPassStatus(state.currentUser).active : (state.currentUser.paymentStatus !== 'Active' && state.currentUser.paymentStatus !== 'paid'));
+    if (isViewerUnpaidBoy) return false;
 
     const status = (typeof interestStatusFor === 'function')
         ? interestStatusFor(p.id)
