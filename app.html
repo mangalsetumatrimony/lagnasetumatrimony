@@ -124,6 +124,7 @@
                     'mangalSetu_profiles', 'LS_PURGED_USER_CACHE'
                 ];
                 legacyKeys.forEach(function (k) { localStorage.removeItem(k); });
+                sessionStorage.removeItem('LS_PURGED_USER_CACHE');
                 if (localStorage.getItem(PURGE_FLAG) !== 'true') {
                     localStorage.setItem(PURGE_FLAG, 'true');
                 }

@@ -235,10 +235,27 @@ function registerPurgedUserId(...idsOrEmails) {
     } catch (_) {}
 }
 
+function unregisterPurgedUserId(...idsOrEmails) {
+    idsOrEmails.forEach(val => {
+        if (val !== undefined && val !== null) {
+            const s = String(val).trim().toLowerCase();
+            PURGED_USER_CACHE.delete(s);
+        }
+    });
+    try {
+        let stored = JSON.parse(sessionStorage.getItem('LS_PURGED_USER_CACHE') || '[]');
+        const toRemove = new Set(idsOrEmails.filter(Boolean).map(v => String(v).trim().toLowerCase()));
+        stored = stored.filter(s => !toRemove.has(s));
+        sessionStorage.setItem('LS_PURGED_USER_CACHE', JSON.stringify(stored));
+    } catch (_) {}
+}
+
 function isUserPurged(profile) {
-    if (!profile) return true;
+    if (!profile) return false;
     if (profile.account_status === 'deleted' || profile.accountStatus === 'deleted') return true;
     if (profile.name === '[Deleted Account]') return true;
+    // An explicitly active profile is NEVER purged
+    if (profile.account_status === 'active' || profile.accountStatus === 'active') return false;
     const checks = [
         profile.id,
         profile.userId,
@@ -248,21 +265,28 @@ function isUserPurged(profile) {
         profile.email
     ];
     for (const c of checks) {
-        if (c !== undefined && c !== null && PURGED_USER_CACHE.has(String(c).trim().toLowerCase())) {
-            return true;
+        if (c !== undefined && c !== null && String(c).trim() !== '' && String(c).trim() !== 'null' && String(c).trim() !== 'undefined') {
+            const s = String(c).trim().toLowerCase();
+            if (PURGED_USER_CACHE.has(s)) {
+                return true;
+            }
         }
     }
     try {
         const stored = JSON.parse(sessionStorage.getItem('LS_PURGED_USER_CACHE') || '[]');
         for (const c of checks) {
-            if (c !== undefined && c !== null && stored.includes(String(c).trim().toLowerCase())) {
-                return true;
+            if (c !== undefined && c !== null && String(c).trim() !== '' && String(c).trim() !== 'null' && String(c).trim() !== 'undefined') {
+                const s = String(c).trim().toLowerCase();
+                if (stored.includes(s)) {
+                    return true;
+                }
             }
         }
     } catch (_) {}
     return false;
 }
 window.registerPurgedUserId = registerPurgedUserId;
+window.unregisterPurgedUserId = unregisterPurgedUserId;
 window.isUserPurged = isUserPurged;
 
 /**

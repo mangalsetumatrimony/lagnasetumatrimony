@@ -231,9 +231,16 @@ async function syncProfilesFromSupabase(force = false, silent = false) {
 function handleRemoteProfileUpsert(incoming) {
     if (!incoming) return;
 
-    if (typeof isUserPurged === 'function' && isUserPurged(incoming)) {
-        handleRemoteAccountPurge(incoming.id, incoming.email, incoming);
-        return;
+    const isActiveProfile = (incoming.account_status === 'active' || incoming.accountStatus === 'active');
+    if (isActiveProfile) {
+        if (typeof unregisterPurgedUserId === 'function') {
+            unregisterPurgedUserId(incoming.id, incoming.email, incoming.user_id);
+        }
+    } else {
+        if (typeof isUserPurged === 'function' && isUserPurged(incoming)) {
+            handleRemoteAccountPurge(incoming.id, incoming.email, incoming);
+            return;
+        }
     }
 
     const prof = typeof mapProfileFromSupabase === 'function' ? mapProfileFromSupabase(incoming) : incoming;
@@ -486,7 +493,12 @@ function handleRemoteAccountPurge(delId, delEmail, rawPayload = {}) {
         const isMe = (ids.some(id => id && (id === myId || id === myProfId))) ||
                      (emails.some(eml => eml && eml === myEmail));
 
-        if (isMe) {
+        // CRITICAL GUARD: Never auto-logout if the incoming payload is an active profile
+        // or if the user has just registered in this session!
+        const isPayloadActive = rawPayload && (rawPayload.account_status === 'active' || rawPayload.accountStatus === 'active');
+        const isJustRegistered = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('mangalSetu_just_registered') === 'true');
+
+        if (isMe && !isPayloadActive && !isJustRegistered) {
             console.warn('[Realtime] Current user account was deleted remotely. Auto-logging out.');
             if (typeof purgeUserAccountLocally === 'function') {
                 purgeUserAccountLocally(state.currentUser.email, state.currentUser.id);

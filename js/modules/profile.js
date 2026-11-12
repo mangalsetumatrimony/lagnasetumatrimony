@@ -63,6 +63,15 @@ async function submitProfileCompletion() {
     }
     const userEmail = (state.currentUser && state.currentUser.email) ? state.currentUser.email : (state.regData.email || '');
 
+    // Unregister this user from any stale purge caches and mark as freshly registered
+    if (typeof unregisterPurgedUserId === 'function') {
+        unregisterPurgedUserId(userEmail, cleanProfileId, rawId);
+    }
+    try {
+        sessionStorage.removeItem('LS_PURGED_USER_CACHE');
+        sessionStorage.setItem('mangalSetu_just_registered', 'true');
+    } catch (_) {}
+
     // Photos list
     const photosList = (Array.isArray(state.regData.photos) && state.regData.photos.filter(Boolean).length > 0)
         ? state.regData.photos.filter(Boolean)

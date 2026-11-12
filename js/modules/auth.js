@@ -405,14 +405,34 @@ async function syncAndPruneDeletedAccounts() {
             }
         }
 
-        // If currently logged-in user is not in Supabase, auto-logout
-        if (state.currentUser && state.currentUser.email && !activeEmails.has(state.currentUser.email.toLowerCase())) {
-            console.warn('[MangalSetu] Current active user was deleted in Supabase. Logging out immediately.');
-            purgeUserAccountLocally(state.currentUser.email, state.currentUser.id);
-            if (typeof showToast === 'function') {
-                showToast('Your account has been deleted. Please register for a new account.');
+        // If currently logged-in user is not in Supabase, auto-logout ONLY if profile was previously complete
+        // and user is not in the middle of active registration or fresh post-registration grace period
+        const isJustRegistered = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('mangalSetu_just_registered') === 'true');
+        const isProfileCompleteUser = Boolean(state.profileComplete && state.currentUser && state.currentUser.profileComplete);
+
+        if (isProfileCompleteUser && state.currentUser && state.currentUser.email && !isJustRegistered) {
+            const currentEmailNorm = state.currentUser.email.trim().toLowerCase();
+            if (activeEmails.size > 0 && !activeEmails.has(currentEmailNorm)) {
+                // Double check with direct individual queries to prevent false positive logouts
+                let stillExistsInDb = false;
+                try {
+                    const { data: directU } = await client.from('users').select('id, email').ilike('email', currentEmailNorm).limit(1);
+                    if (Array.isArray(directU) && directU.length > 0) stillExistsInDb = true;
+                    if (!stillExistsInDb) {
+                        const { data: directP } = await client.from('profiles').select('id, email').ilike('email', currentEmailNorm).limit(1);
+                        if (Array.isArray(directP) && directP.length > 0) stillExistsInDb = true;
+                    }
+                } catch (_) {}
+
+                if (!stillExistsInDb) {
+                    console.warn('[MangalSetu] Current active user was confirmed deleted in Supabase. Logging out.');
+                    purgeUserAccountLocally(state.currentUser.email, state.currentUser.id);
+                    if (typeof showToast === 'function') {
+                        showToast('Your account has been deleted. Please register for a new account.');
+                    }
+                    if (typeof go === 'function') go('scr-welcome', true);
+                }
             }
-            if (typeof go === 'function') go('scr-welcome', true);
         }
     } catch(err) {
         console.warn('[MangalSetu] Prune deleted accounts note:', err);
@@ -1259,14 +1279,14 @@ async function handleSocialUserAuthenticated(socialUser) {
             }
         }
 
-        // When connected to live Supabase: If Supabase has NO profile for this email/UID,
-        // it means the account was deleted or is a brand new user.
-        // Purge any stale ghost account from local device storage immediately!
-        if (client && !existingProfile) {
-            if (typeof purgeUserAccountLocally === 'function') {
-                purgeUserAccountLocally(normEmail, socialUser.id);
-            }
+        // If this is a brand new user or returning user starting registration,
+        // explicitly unregister any purge markers so registration can proceed smoothly without false purge triggers
+        if (typeof unregisterPurgedUserId === 'function') {
+            unregisterPurgedUserId(normEmail, socialUser.id);
         }
+        try {
+            sessionStorage.removeItem('LS_PURGED_USER_CACHE');
+        } catch (_) {}
 
         const rawData = (existingProfile && typeof existingProfile.raw_data === 'object') ? existingProfile.raw_data : {};
         const isFullyComplete = existingProfile && (

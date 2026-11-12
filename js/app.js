@@ -74,7 +74,9 @@ function initApp() {
     }
 
     // Live validation against Supabase Single Source of Truth
-    if (state.currentUser && state.currentUser.email) {
+    // Only check users whose profile is already complete and who are not in a fresh registration session
+    const isFreshRegSession = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('mangalSetu_just_registered') === 'true');
+    if (state.currentUser && state.currentUser.email && state.profileComplete && !isFreshRegSession) {
         if (typeof checkCurrentUserStatus === 'function') {
             checkCurrentUserStatus();
         }
