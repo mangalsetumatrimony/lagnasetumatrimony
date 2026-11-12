@@ -217,36 +217,77 @@ window.findChatThread = findChatThread;
 function interestStatusFor(profileId) {
     if (!profileId) return null;
     const pid = Number(profileId);
+    if (!pid || isNaN(pid)) return null;
+
+    const cur = (typeof state !== 'undefined' && state.currentUser) || null;
+    if (!cur) return null;
+
+    const myId = Number(cur.id || cur.profileId || cur.userId || 0);
+    const myEmail = (cur.email && !cur.email.includes('•')) ? cur.email.trim().toLowerCase() : '';
+
     const p = (typeof findProfile === 'function') ? findProfile(profileId) : null;
     const pEmail = (p && p.rawEmail && !p.rawEmail.includes('•'))
         ? p.rawEmail.trim().toLowerCase()
         : ((p && p.email && !p.email.includes('•')) ? p.email.trim().toLowerCase() : '');
 
+    // Strict two-party check: The request MUST be specifically between currentUser AND profileId!
     const matchReq = (r) => {
         if (!r) return false;
-        if (!isNaN(pid) && pid > 0 && (Number(r.profileId) === pid || Number(r.senderId) === pid || Number(r.receiverId) === pid)) return true;
-        if (pEmail && ((r.senderEmail && r.senderEmail.trim().toLowerCase() === pEmail) || (r.receiverEmail && r.receiverEmail.trim().toLowerCase() === pEmail))) return true;
+        const rSenderId = Number(r.senderId || r.userId || 0);
+        const rReceiverId = Number(r.receiverId || r.profileId || 0);
+        const rSenderEmail = (r.senderEmail || '').trim().toLowerCase();
+        const rReceiverEmail = (r.receiverEmail || '').trim().toLowerCase();
+
+        // 1. currentUser sent to profileId
+        const fromMeToThem = (myId > 0 && rSenderId === myId && (rReceiverId === pid || Number(r.profileId) === pid)) ||
+                             (myEmail && rSenderEmail === myEmail && (rReceiverEmail === pEmail || Number(r.profileId) === pid));
+        if (fromMeToThem) return true;
+
+        // 2. profileId sent to currentUser
+        const fromThemToMe = (pid > 0 && rSenderId === pid && (rReceiverId === myId || Number(r.profileId) === myId)) ||
+                             (pEmail && rSenderEmail === pEmail && (rReceiverEmail === myEmail || Number(r.profileId) === myId));
+        if (fromThemToMe) return true;
+
         return false;
     };
 
     const out = Array.isArray(OUTGOING_REQUESTS) ? OUTGOING_REQUESTS.find(matchReq) : null;
     const inc = Array.isArray(INCOMING_REQUESTS) ? INCOMING_REQUESTS.find(matchReq) : null;
-    const thread = findChatThread(pid) || (Array.isArray(CHAT_THREADS) ? CHAT_THREADS.find(t => t && pEmail && t.peerEmail && t.peerEmail.trim().toLowerCase() === pEmail) : null);
 
-    // PRIORITY 1: Explicit Accepted Match (Requests OR Active Chat Thread)
-    // If either party has an active accepted connection in database/requests, they are connected
+    // Verify chat thread belongs strictly to currentUser and pid
+    let thread = null;
+    if (Array.isArray(CHAT_THREADS)) {
+        thread = CHAT_THREADS.find(t => {
+            if (!t) return false;
+            const tPid = Number(t.profileId || 0);
+            const tPeerEmail = (t.peerEmail || '').trim().toLowerCase();
+            const tMyEmail = (t.myEmail || '').trim().toLowerCase();
+            if (myEmail && tMyEmail && tMyEmail !== myEmail) return false;
+            return (pid > 0 && tPid === pid) || (pEmail && tPeerEmail === pEmail);
+        }) || null;
+    }
+
+    // PRIORITY 1: Explicit Accepted Match
     if ((out && out.status === 'accepted') || (inc && inc.status === 'accepted')) {
         return 'accepted';
     }
-
-    // Active Chat Thread with no active disconnection
-    if (thread && (!out || out.status !== 'disconnected') && (!inc || inc.status !== 'disconnected')) {
+    if (thread && (!out || out.status !== 'disconnected') && (!inc || inc.status !== 'disconnected') && (!thread.status || thread.status === 'accepted')) {
         return 'accepted';
     }
 
-    // PRIORITY 2: Disconnected Match (Disconnection takes precedence over old pending/declined)
-    if ((out && out.status === 'disconnected') || (inc && inc.status === 'disconnected')) {
-        return 'disconnected';
+    // PRIORITY 2: Disconnected Match
+    // User requirement: ONLY if interest was previously accepted, and then disconnected!
+    const isExplicitlyDisconnected = (out && out.status === 'disconnected') || (inc && inc.status === 'disconnected') || (thread && thread.status === 'disconnected');
+    if (isExplicitlyDisconnected) {
+        // Ensure this connection actually was accepted/connected before disconnecting
+        const hadAcceptedConnection = (out && (out.wasAccepted || out.acceptedDate || out.chatStarted)) ||
+                                      (inc && (inc.wasAccepted || inc.acceptedDate || inc.chatStarted)) ||
+                                      (thread && (thread.chatStarted || thread.acceptedDate || thread.status === 'disconnected'));
+        if (hadAcceptedConnection) {
+            return 'disconnected';
+        }
+        // If it was never accepted, treat as null (clean new state -> show I'm interested)
+        return null;
     }
 
     // PRIORITY 3: Declined Request

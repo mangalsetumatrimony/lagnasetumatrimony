@@ -1321,14 +1321,6 @@ function openProfile(id) {
             <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-graduation-cap"></i> Education</div><div class="dval">${escapeHtml(p.education || 'Graduate')}</div></div>
             <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-sack-dollar"></i> Monthly income</div><div class="dval">${escapeHtml(p.income || 'Confidential')}</div></div>
             <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-users"></i> Community</div><div class="dval">${escapeHtml(p.community || p.caste || '')}</div></div>
-            ${(!isSelf && isProfileGirl) ? `
-            <div class="detail-row" style="background:rgba(245,158,11,0.06);border:1px dashed #F59E0B;border-radius:12px;padding:10px 12px;margin:8px 0;cursor:pointer;" onclick="if(typeof openPaymentModal==='function'){openPaymentModal('contact');}else{openModal('modalPaywall');}">
-                <div class="dlabel" style="color:#92400E;font-weight:700;"><i class="fa-solid fa-phone" style="color:#D97706;"></i> Mobile &amp; WhatsApp</div>
-                <div class="dval" style="display:flex;align-items:center;gap:6px;">
-                    <span style="letter-spacing:1px;font-weight:700;color:#92400E;">+91 98250 XXXXX</span>
-                    <span style="font-size:11px;font-weight:800;background:#F59E0B;color:#fff;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:3px;"><i class="fa-solid fa-lock"></i> ₹૧૯૯ પાસ જરૂરી</span>
-                </div>
-            </div>` : ''}
             ${(function() {
                 let list = [];
                 if (Array.isArray(p.hobbies)) {
