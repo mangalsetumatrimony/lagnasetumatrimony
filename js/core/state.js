@@ -395,7 +395,9 @@ function loadSessionState() {
             if (Array.isArray(parsedChat) && parsedChat.length > 0) {
                 CHAT_THREADS.length = 0;
                 parsedChat.forEach(c => {
-                    if (c && Array.isArray(c.messages)) {
+                    if (!c) return;
+                    if (typeof isUserPurged === 'function' && (isUserPurged(c.profileId) || isUserPurged(c.peerEmail))) return;
+                    if (Array.isArray(c.messages)) {
                         c.messages.forEach(m => {
                             if (!m.id) m.id = 'msg_' + Math.random().toString(36).substring(2, 9);
                         });
@@ -409,7 +411,13 @@ function loadSessionState() {
             const parsed = JSON.parse(savedIncoming);
             if (Array.isArray(parsed) && parsed.length > 0) {
                 INCOMING_REQUESTS.length = 0;
-                parsed.forEach(r => INCOMING_REQUESTS.push(r));
+                parsed.forEach(r => {
+                    if (!r) return;
+                    const pid = r.profileId || r.senderId;
+                    const eml = r.senderEmail;
+                    if (typeof isUserPurged === 'function' && (isUserPurged(pid) || isUserPurged(eml))) return;
+                    INCOMING_REQUESTS.push(r);
+                });
             }
         }
         const savedOutgoing = sessionStorage.getItem('mangalSetu_outgoingRequests') || localStorage.getItem('mangalSetu_outgoingRequests_v2');
@@ -417,7 +425,13 @@ function loadSessionState() {
             const parsed = JSON.parse(savedOutgoing);
             if (Array.isArray(parsed) && parsed.length > 0) {
                 OUTGOING_REQUESTS.length = 0;
-                parsed.forEach(r => OUTGOING_REQUESTS.push(r));
+                parsed.forEach(r => {
+                    if (!r) return;
+                    const pid = r.profileId || r.receiverId;
+                    const eml = r.receiverEmail;
+                    if (typeof isUserPurged === 'function' && (isUserPurged(pid) || isUserPurged(eml))) return;
+                    OUTGOING_REQUESTS.push(r);
+                });
             }
         }
         const savedHistory = sessionStorage.getItem('mangalSetu_history');
