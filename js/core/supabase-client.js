@@ -224,7 +224,7 @@ function registerPurgedUserId(...idsOrEmails) {
         }
     });
     try {
-        const stored = JSON.parse(sessionStorage.getItem('LS_PURGED_USER_CACHE') || '[]');
+        const stored = JSON.parse(localStorage.getItem('LS_PURGED_USER_CACHE') || sessionStorage.getItem('LS_PURGED_USER_CACHE') || '[]');
         idsOrEmails.forEach(val => {
             if (val && String(val).trim()) {
                 const s = String(val).trim().toLowerCase();
@@ -232,6 +232,7 @@ function registerPurgedUserId(...idsOrEmails) {
             }
         });
         sessionStorage.setItem('LS_PURGED_USER_CACHE', JSON.stringify(stored));
+        localStorage.setItem('LS_PURGED_USER_CACHE', JSON.stringify(stored));
     } catch (_) {}
 }
 
@@ -243,26 +244,44 @@ function unregisterPurgedUserId(...idsOrEmails) {
         }
     });
     try {
-        let stored = JSON.parse(sessionStorage.getItem('LS_PURGED_USER_CACHE') || '[]');
+        let stored = JSON.parse(localStorage.getItem('LS_PURGED_USER_CACHE') || sessionStorage.getItem('LS_PURGED_USER_CACHE') || '[]');
         const toRemove = new Set(idsOrEmails.filter(Boolean).map(v => String(v).trim().toLowerCase()));
         stored = stored.filter(s => !toRemove.has(s));
         sessionStorage.setItem('LS_PURGED_USER_CACHE', JSON.stringify(stored));
+        localStorage.setItem('LS_PURGED_USER_CACHE', JSON.stringify(stored));
     } catch (_) {}
 }
 
 function isUserPurged(profile) {
-    if (!profile) return false;
+    if (!profile && profile !== 0) return false;
+
+    // 1. Primitive string or number check (ID or email passed directly)
+    if (typeof profile === 'string' || typeof profile === 'number') {
+        const s = String(profile).trim().toLowerCase();
+        if (!s || s === 'null' || s === 'undefined') return false;
+        if (PURGED_USER_CACHE.has(s)) return true;
+        try {
+            const stored = JSON.parse(localStorage.getItem('LS_PURGED_USER_CACHE') || sessionStorage.getItem('LS_PURGED_USER_CACHE') || '[]');
+            if (Array.isArray(stored) && stored.includes(s)) return true;
+        } catch (_) {}
+        return false;
+    }
+
+    // 2. Object profile check
     if (profile.account_status === 'deleted' || profile.accountStatus === 'deleted') return true;
     if (profile.name === '[Deleted Account]') return true;
     // An explicitly active profile is NEVER purged
     if (profile.account_status === 'active' || profile.accountStatus === 'active') return false;
+
     const checks = [
         profile.id,
         profile.userId,
         profile.user_id,
         profile.profileId,
         profile.profile_id,
-        profile.email
+        profile.email,
+        profile.rawEmail,
+        profile.userEmail
     ];
     for (const c of checks) {
         if (c !== undefined && c !== null && String(c).trim() !== '' && String(c).trim() !== 'null' && String(c).trim() !== 'undefined') {
@@ -273,12 +292,14 @@ function isUserPurged(profile) {
         }
     }
     try {
-        const stored = JSON.parse(sessionStorage.getItem('LS_PURGED_USER_CACHE') || '[]');
-        for (const c of checks) {
-            if (c !== undefined && c !== null && String(c).trim() !== '' && String(c).trim() !== 'null' && String(c).trim() !== 'undefined') {
-                const s = String(c).trim().toLowerCase();
-                if (stored.includes(s)) {
-                    return true;
+        const stored = JSON.parse(localStorage.getItem('LS_PURGED_USER_CACHE') || sessionStorage.getItem('LS_PURGED_USER_CACHE') || '[]');
+        if (Array.isArray(stored)) {
+            for (const c of checks) {
+                if (c !== undefined && c !== null && String(c).trim() !== '' && String(c).trim() !== 'null' && String(c).trim() !== 'undefined') {
+                    const s = String(c).trim().toLowerCase();
+                    if (stored.includes(s)) {
+                        return true;
+                    }
                 }
             }
         }

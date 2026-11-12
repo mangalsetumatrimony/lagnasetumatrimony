@@ -262,6 +262,10 @@ function purgeUserAccountLocally(email, id) {
 
     // 5. Purge chats, chat threads, interests, and favorites
     try {
+        if (typeof purgeDeletedUserFromAllChatsAndInterests === 'function') {
+            purgeDeletedUserFromAllChatsAndInterests(normId, normEmail);
+        }
+
         if (typeof state !== 'undefined') {
             if (state.chats) {
                 delete state.chats[normId];
@@ -272,12 +276,17 @@ function purgeUserAccountLocally(email, id) {
                 delete state.chatMessages[normEmail];
             }
             if (state.favorites) {
-                state.favorites.delete(Number(normId));
-                state.favorites.delete(normId);
+                if (typeof state.favorites.delete === 'function') {
+                    state.favorites.delete(Number(normId));
+                    state.favorites.delete(normId);
+                } else if (Array.isArray(state.favorites)) {
+                    state.favorites = state.favorites.filter(f => Number(f) !== Number(normId) && String(f) !== String(normId));
+                }
             }
         }
-        // Purge local interest storage
-        const intKeys = ['LS_COMMUNITY_INTERESTS', 'mangalSetu_interests'];
+
+        // Purge local request storage
+        const intKeys = ['LS_COMMUNITY_INTERESTS', 'mangalSetu_interests', 'mangalSetu_incomingRequests', 'mangalSetu_outgoingRequests', 'mangalSetu_incomingRequests_v2', 'mangalSetu_outgoingRequests_v2'];
         intKeys.forEach(k => {
             try {
                 const rawInt = localStorage.getItem(k);
@@ -285,8 +294,9 @@ function purgeUserAccountLocally(email, id) {
                     const list = JSON.parse(rawInt);
                     if (Array.isArray(list)) {
                         const filtered = list.filter(i => {
-                            const matchEmail = normEmail && ((i.sender_email && i.sender_email.toLowerCase() === normEmail) || (i.receiver_email && i.receiver_email.toLowerCase() === normEmail) || (i.fromEmail && i.fromEmail.toLowerCase() === normEmail) || (i.toEmail && i.toEmail.toLowerCase() === normEmail));
-                            const matchId = normId && (String(i.sender_id) === normId || String(i.receiver_id) === normId || String(i.fromUserId) === normId || String(i.toUserId) === normId);
+                            if (!i) return false;
+                            const matchEmail = normEmail && ((i.sender_email && i.sender_email.toLowerCase() === normEmail) || (i.receiver_email && i.receiver_email.toLowerCase() === normEmail) || (i.senderEmail && i.senderEmail.toLowerCase() === normEmail) || (i.receiverEmail && i.receiverEmail.toLowerCase() === normEmail) || (i.fromEmail && i.fromEmail.toLowerCase() === normEmail) || (i.toEmail && i.toEmail.toLowerCase() === normEmail));
+                            const matchId = normId && (String(i.sender_id) === normId || String(i.receiver_id) === normId || String(i.senderId) === normId || String(i.receiverId) === normId || String(i.profileId) === normId || String(i.fromUserId) === normId || String(i.toUserId) === normId);
                             return !matchEmail && !matchId;
                         });
                         localStorage.setItem(k, JSON.stringify(filtered));
@@ -295,15 +305,20 @@ function purgeUserAccountLocally(email, id) {
             } catch(e) {}
         });
 
-        // Purge CHAT_THREADS in memory
+        // Purge CHAT_THREADS in memory & localStorage
         if (typeof CHAT_THREADS !== 'undefined' && Array.isArray(CHAT_THREADS)) {
             const fThreads = CHAT_THREADS.filter(t => {
-                const matchEmail = normEmail && t.profile && t.profile.email && t.profile.email.toLowerCase() === normEmail;
+                if (!t) return false;
+                const matchEmail = normEmail && ((t.peerEmail && t.peerEmail.toLowerCase() === normEmail) || (t.profile && t.profile.email && t.profile.email.toLowerCase() === normEmail));
                 const matchId = normId && String(t.profileId) === normId;
                 return !matchEmail && !matchId;
             });
             CHAT_THREADS.length = 0;
             fThreads.forEach(t => CHAT_THREADS.push(t));
+            try {
+                localStorage.setItem('mangalSetu_chatThreads', JSON.stringify(CHAT_THREADS));
+                sessionStorage.setItem('mangalSetu_chatThreads', JSON.stringify(CHAT_THREADS));
+            } catch (_) {}
         }
 
         // Clean any chat message keys in localStorage

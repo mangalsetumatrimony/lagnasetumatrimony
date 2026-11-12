@@ -67,6 +67,153 @@ function markMessagesSeenLocally(userId, msgIds) {
     } catch (_) {}
 }
 
+/**
+ * Master Purge: Completely removes a deleted user from all chat threads,
+ * incoming requests, outgoing requests, localStorage caches, and active views.
+ */
+function purgeDeletedUserFromAllChatsAndInterests(userId, userEmail, otherIds = []) {
+    const rawIds = [userId, ...(Array.isArray(otherIds) ? otherIds : [otherIds])].filter(Boolean).map(v => String(v).trim());
+    const rawEmails = [userEmail].filter(Boolean).map(v => String(v).trim().toLowerCase());
+
+    if (rawIds.length === 0 && rawEmails.length === 0) return;
+
+    if (typeof registerPurgedUserId === 'function') {
+        registerPurgedUserId(...rawIds, ...rawEmails);
+    }
+
+    const matchIdOrEmail = (id, email) => {
+        const sid = String(id || '').trim();
+        const seml = String(email || '').trim().toLowerCase();
+        if (sid && rawIds.includes(sid)) return true;
+        if (seml && rawEmails.includes(seml)) return true;
+        if (typeof isUserPurged === 'function' && (isUserPurged(sid) || isUserPurged(seml))) return true;
+        return false;
+    };
+
+    // 1. Purge from in-memory CHAT_THREADS
+    if (typeof CHAT_THREADS !== 'undefined' && Array.isArray(CHAT_THREADS)) {
+        const filteredThreads = CHAT_THREADS.filter(t => {
+            if (!t) return false;
+            return !matchIdOrEmail(t.profileId, t.peerEmail);
+        });
+        CHAT_THREADS.length = 0;
+        filteredThreads.forEach(t => CHAT_THREADS.push(t));
+        window.CHAT_THREADS = CHAT_THREADS;
+        try {
+            sessionStorage.setItem('mangalSetu_chatThreads', JSON.stringify(CHAT_THREADS));
+            localStorage.setItem('mangalSetu_chatThreads', JSON.stringify(CHAT_THREADS));
+        } catch (_) {}
+    }
+
+    // 2. Purge from in-memory INCOMING_REQUESTS
+    if (typeof INCOMING_REQUESTS !== 'undefined' && Array.isArray(INCOMING_REQUESTS)) {
+        const filteredInc = INCOMING_REQUESTS.filter(r => {
+            if (!r) return false;
+            return !matchIdOrEmail(r.profileId || r.senderId, r.senderEmail);
+        });
+        INCOMING_REQUESTS.length = 0;
+        filteredInc.forEach(r => INCOMING_REQUESTS.push(r));
+        window.INCOMING_REQUESTS = INCOMING_REQUESTS;
+        try {
+            sessionStorage.setItem('mangalSetu_incomingRequests', JSON.stringify(INCOMING_REQUESTS));
+            localStorage.setItem('mangalSetu_incomingRequests', JSON.stringify(INCOMING_REQUESTS));
+            localStorage.setItem('mangalSetu_incomingRequests_v2', JSON.stringify(INCOMING_REQUESTS));
+        } catch (_) {}
+    }
+
+    // 3. Purge from in-memory OUTGOING_REQUESTS
+    if (typeof OUTGOING_REQUESTS !== 'undefined' && Array.isArray(OUTGOING_REQUESTS)) {
+        const filteredOut = OUTGOING_REQUESTS.filter(r => {
+            if (!r) return false;
+            return !matchIdOrEmail(r.profileId || r.receiverId, r.receiverEmail);
+        });
+        OUTGOING_REQUESTS.length = 0;
+        filteredOut.forEach(r => OUTGOING_REQUESTS.push(r));
+        window.OUTGOING_REQUESTS = OUTGOING_REQUESTS;
+        try {
+            sessionStorage.setItem('mangalSetu_outgoingRequests', JSON.stringify(OUTGOING_REQUESTS));
+            localStorage.setItem('mangalSetu_outgoingRequests', JSON.stringify(OUTGOING_REQUESTS));
+            localStorage.setItem('mangalSetu_outgoingRequests_v2', JSON.stringify(OUTGOING_REQUESTS));
+        } catch (_) {}
+    }
+
+    // 4. Purge from localStorage chat message keys
+    try {
+        rawIds.forEach(id => {
+            localStorage.removeItem('mangalSetu_chat_' + id);
+            localStorage.removeItem('chat_thread_' + id);
+        });
+        rawEmails.forEach(eml => {
+            localStorage.removeItem('mangalSetu_chat_' + eml);
+            localStorage.removeItem('chat_thread_' + eml);
+        });
+
+        const keysToInspect = [];
+        if (typeof localStorage.length === 'number') {
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k) keysToInspect.push(k);
+            }
+        }
+        Object.keys(localStorage).forEach(k => {
+            if (!keysToInspect.includes(k)) keysToInspect.push(k);
+        });
+
+        keysToInspect.forEach(k => {
+            if (k.startsWith('mangalSetu_chat_') || k.startsWith('chat_thread_')) {
+                if (rawIds.some(id => k.includes(id)) || rawEmails.some(eml => k.includes(eml))) {
+                    localStorage.removeItem(k);
+                }
+            }
+        });
+    } catch (_) {}
+
+    // 5. Purge from state
+    if (typeof state !== 'undefined') {
+        if (state.chats) {
+            rawIds.forEach(id => delete state.chats[id]);
+            rawEmails.forEach(eml => delete state.chats[eml]);
+        }
+        if (state.chatMessages) {
+            rawIds.forEach(id => delete state.chatMessages[id]);
+            rawEmails.forEach(eml => delete state.chatMessages[eml]);
+        }
+        if (state.favorites) {
+            rawIds.forEach(id => {
+                if (typeof state.favorites.delete === 'function') {
+                    state.favorites.delete(Number(id));
+                    state.favorites.delete(id);
+                } else if (Array.isArray(state.favorites)) {
+                    state.favorites = state.favorites.filter(f => Number(f) !== Number(id) && String(f) !== String(id));
+                }
+            });
+        }
+    }
+    if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE && typeof window.AUTHORIZED_CONTACT_CACHE.delete === 'function') {
+        rawIds.forEach(id => window.AUTHORIZED_CONTACT_CACHE.delete(Number(id)));
+    }
+
+    // 6. Close chat screen if currently chatting with this deleted user
+    const chatScreen = typeof document !== 'undefined' && document.getElementById ? document.getElementById('scr-chat') : null;
+    if (chatScreen && chatScreen.classList && chatScreen.classList.contains('active')) {
+        const activeId = String(state.activeChatId || '');
+        const activeEmail = String(state.activeChatEmail || '').trim().toLowerCase();
+        if (rawIds.includes(activeId) || rawEmails.includes(activeEmail)) {
+            if (typeof showToast === 'function') showToast('આ સભ્યનું એકાઉન્ટ ડિલીટ થઈ ગયું છે. (This profile is no longer available.)');
+            if (typeof goBack === 'function') goBack();
+            else if (typeof go === 'function') go('scr-inbox', true);
+        }
+    }
+
+    // 7. Update UI
+    if (typeof updateInboxBadge === 'function') updateInboxBadge();
+    const inboxScreen = document.getElementById('scr-inbox');
+    if (inboxScreen && inboxScreen.classList.contains('active')) {
+        if (typeof renderInbox === 'function') renderInbox();
+    }
+}
+window.purgeDeletedUserFromAllChatsAndInterests = purgeDeletedUserFromAllChatsAndInterests;
+
 function findProfile(id, email) { 
     if (!id && !email) return null;
     const pid = Number(id);
@@ -226,9 +373,12 @@ function interestStatusFor(profileId) {
     const myEmail = (cur.email && !cur.email.includes('•')) ? cur.email.trim().toLowerCase() : '';
 
     const p = (typeof findProfile === 'function') ? findProfile(profileId) : null;
+    if (typeof isUserPurged === 'function' && isUserPurged(profileId)) return null;
+    if (p && (p.accountStatus === 'deleted' || p.account_status === 'deleted')) return null;
     const pEmail = (p && p.rawEmail && !p.rawEmail.includes('•'))
         ? p.rawEmail.trim().toLowerCase()
         : ((p && p.email && !p.email.includes('•')) ? p.email.trim().toLowerCase() : '');
+    if (pEmail && typeof isUserPurged === 'function' && isUserPurged(pEmail)) return null;
 
     // Strict two-party check: The request MUST be specifically between currentUser AND profileId!
     const matchReq = (r) => {
@@ -997,6 +1147,9 @@ async function syncUserChatAndInterests() {
                         if (!lr) return;
                         const lPid = Number(lr.profileId || lr.senderId);
                         const lEmail = (lr.senderEmail || '').trim().toLowerCase();
+                        if (typeof isUserPurged === 'function' && (isUserPurged(lPid) || isUserPurged(lEmail))) return;
+                        const lProf = typeof findProfile === 'function' ? findProfile(lPid, lEmail) : null;
+                        if (lProf && (lProf.accountStatus === 'deleted' || lProf.account_status === 'deleted')) return;
                         const lPidKey = lPid ? String(lPid) : '';
                         const lEmailKey = (lEmail && !lEmail.includes('•')) ? lEmail : '';
                         const isAlreadySeen = (lPidKey && seenIn.has(lPidKey)) || (lEmailKey && seenIn.has(lEmailKey));
@@ -1020,6 +1173,8 @@ async function syncUserChatAndInterests() {
                         if (myEmail && pEmail && pEmail === myEmail) return;
                         if (typeof isSelfProfile === 'function' && isSelfProfile(pid)) return;
                         if (typeof isUserPurged === 'function' && (isUserPurged(pid) || isUserPurged(pEmail))) return;
+                        const pProf = typeof findProfile === 'function' ? findProfile(pid, pEmail) : null;
+                        if (pProf && (pProf.accountStatus === 'deleted' || pProf.account_status === 'deleted')) return;
 
                         // Security & Consistency Guard: Database disconnection/declination takes absolute precedence!
                         if (r.status === 'disconnected') {
@@ -1060,6 +1215,9 @@ async function syncUserChatAndInterests() {
                         if (!lr) return;
                         const lPid = Number(lr.profileId || lr.receiverId);
                         const lEmail = (lr.receiverEmail || '').trim().toLowerCase();
+                        if (typeof isUserPurged === 'function' && (isUserPurged(lPid) || isUserPurged(lEmail))) return;
+                        const lProf = typeof findProfile === 'function' ? findProfile(lPid, lEmail) : null;
+                        if (lProf && (lProf.accountStatus === 'deleted' || lProf.account_status === 'deleted')) return;
                         const lPidKey = lPid ? String(lPid) : '';
                         const lEmailKey = (lEmail && !lEmail.includes('•')) ? lEmail : '';
                         const isAlreadySeen = (lPidKey && seenOut.has(lPidKey)) || (lEmailKey && seenOut.has(lEmailKey));
@@ -1153,11 +1311,14 @@ async function syncUserChatAndInterests() {
                 const pid = Number(r.profileId);
                 if (pid === myId || (myProfId && pid === myProfId)) return;
                 if (typeof isSelfProfile === 'function' && isSelfProfile(pid)) return;
+                const pEmail = (r.senderEmail === myEmail ? r.receiverEmail : r.senderEmail) || '';
+                if (typeof isUserPurged === 'function' && (isUserPurged(pid) || isUserPurged(pEmail))) return;
+                const peerProf = findProfile(pid, pEmail);
+                if (!peerProf || peerProf.accountStatus === 'deleted' || peerProf.account_status === 'deleted') return;
+
                 if (!processedPeers.has(pid)) {
                     processedPeers.add(pid);
                     const msgs = messagesByPeer.get(pid) || [];
-                    const pEmail = (r.senderEmail === myEmail ? r.receiverEmail : r.senderEmail) || '';
-                    const peerProf = findProfile(pid, pEmail);
                     const peerName = (peerProf && peerProf.name && peerProf.name !== 'Community Match' && peerProf.name !== 'Community Member')
                         ? peerProf.name
                         : ((r.senderName === state.currentUser.name ? r.receiverName : r.senderName) || 'Member');
@@ -1180,15 +1341,18 @@ async function syncUserChatAndInterests() {
         messagesByPeer.forEach((msgs, pid) => {
             if (pid === myId || (myProfId && pid === myProfId)) return;
             if (typeof isSelfProfile === 'function' && isSelfProfile(pid)) return;
+            const firstMsg = (msgs && msgs.length > 0) ? msgs[0] : null;
+            const peerEmail = firstMsg
+                ? ((Number(firstMsg.senderId) === myId || (firstMsg.senderEmail || '').toLowerCase() === myEmail)
+                    ? (firstMsg.receiverEmail || '')
+                    : (firstMsg.senderEmail || ''))
+                : '';
+            if (typeof isUserPurged === 'function' && (isUserPurged(pid) || isUserPurged(peerEmail))) return;
+            let peerProf = findProfile(pid, peerEmail);
+            if (!peerProf || peerProf.accountStatus === 'deleted' || peerProf.account_status === 'deleted') return;
+
             if (!processedPeers.has(pid)) {
                 processedPeers.add(pid);
-                const firstMsg = (msgs && msgs.length > 0) ? msgs[0] : null;
-                const peerEmail = firstMsg
-                    ? ((Number(firstMsg.senderId) === myId || (firstMsg.senderEmail || '').toLowerCase() === myEmail)
-                        ? (firstMsg.receiverEmail || '')
-                        : (firstMsg.senderEmail || ''))
-                    : '';
-                let peerProf = findProfile(pid, peerEmail);
                 let peerName = (peerProf && peerProf.name && peerProf.name !== 'Community Match' && peerProf.name !== 'Community Member')
                     ? peerProf.name
                     : '';
@@ -1268,8 +1432,30 @@ function renderInbox() {
 
         wrap.innerHTML = '';
         if (state.inboxTab === 'requests') {
-            const received = (INCOMING_REQUESTS || []).filter(Boolean);
-            const sent = (OUTGOING_REQUESTS || []).filter(Boolean);
+            const isPeerValid = (pid, email) => {
+                const sId = String(pid || '');
+                const sEmail = String(email || '').trim().toLowerCase();
+                if (typeof isUserPurged === 'function' && (isUserPurged(sId) || isUserPurged(sEmail))) return false;
+                const prof = (typeof findProfile === 'function') ? findProfile(sId, sEmail) : null;
+                if (prof && (prof.accountStatus === 'deleted' || prof.account_status === 'deleted')) return false;
+                if (!prof && Array.isArray(window.PROFILES) && window.PROFILES.length > 0) {
+                    const inProfs = window.PROFILES.some(p => p && (
+                        (sId && (String(p.id) === sId || String(p.userId) === sId)) ||
+                        (sEmail && p.email && p.email.toLowerCase() === sEmail)
+                    ));
+                    if (!inProfs) return false;
+                }
+                return true;
+            };
+
+            const received = (INCOMING_REQUESTS || []).filter(r => {
+                if (!r) return false;
+                return isPeerValid(r.profileId || r.senderId, r.senderEmail);
+            });
+            const sent = (OUTGOING_REQUESTS || []).filter(r => {
+                if (!r) return false;
+                return isPeerValid(r.profileId || r.receiverId, r.receiverEmail);
+            });
             if (received.length === 0 && sent.length === 0) {
                 wrap.innerHTML = `<div class="empty-state"><i class="fa-solid fa-heart-circle-check"></i><h3>No requests yet</h3><p>Interest requests you send or receive will show up here permanently.</p></div>`;
                 return;
@@ -1297,10 +1483,25 @@ function renderInbox() {
                 });
             }
         } else {
-            // Strict Gatekeeper: Only show chats that have been ACCEPTED and exclude self-chat
+            // Strict Gatekeeper: Only show chats that have been ACCEPTED, exclude self-chat, and exclude deleted/purged users
             const activeAcceptedChats = (CHAT_THREADS || []).filter(t => {
                 if (!t) return false;
-                if (typeof isSelfProfile === 'function' && isSelfProfile(t.profileId)) return false;
+                const tPid = Number(t.profileId || 0);
+                const tEmail = (t.peerEmail || '').trim().toLowerCase();
+                if (typeof isSelfProfile === 'function' && isSelfProfile(tPid)) return false;
+                if (typeof isUserPurged === 'function' && (isUserPurged(tPid) || isUserPurged(tEmail))) return false;
+
+                const peerProf = (typeof findProfile === 'function') ? findProfile(tPid, tEmail) : null;
+                if (peerProf && (peerProf.accountStatus === 'deleted' || peerProf.account_status === 'deleted')) return false;
+
+                if (!peerProf && Array.isArray(window.PROFILES) && window.PROFILES.length > 0) {
+                    const inProfs = window.PROFILES.some(p => p && (
+                        (tPid && (Number(p.id) === tPid || Number(p.userId) === tPid)) ||
+                        (tEmail && p.email && p.email.toLowerCase() === tEmail)
+                    ));
+                    if (!inProfs) return false; // Deleted user ghost thread
+                }
+
                 return interestStatusFor(t.profileId) === 'accepted';
             });
             if (activeAcceptedChats.length === 0) {
@@ -1329,15 +1530,30 @@ function requestCard(r, kind) {
     if (!r) return null;
     const pid = Number(r.profileId || (kind === 'received' ? r.senderId : r.receiverId));
     const reqEmail = (kind === 'received' ? r.senderEmail : r.receiverEmail) || '';
+    if (typeof isUserPurged === 'function' && (isUserPurged(pid) || isUserPurged(reqEmail))) return null;
+
+    let p = pid ? findProfile(pid, reqEmail) : null;
+    if (p && (p.accountStatus === 'deleted' || p.account_status === 'deleted')) return null;
+
+    if (!p && Array.isArray(window.PROFILES) && window.PROFILES.length > 0) {
+        const inProfs = window.PROFILES.some(prof => prof && (
+            (pid && (Number(prof.id) === pid || Number(prof.userId) === pid)) ||
+            (reqEmail && prof.email && prof.email.toLowerCase() === reqEmail.toLowerCase())
+        ));
+        if (!inProfs) return null;
+    }
+
     const fallbackAvatar = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=800&auto=format&fit=crop';
-    const p = (pid ? findProfile(pid, reqEmail) : null) || {
-        id: pid || 0,
-        name: (kind === 'received' ? r.senderName : r.receiverName) || 'Member',
-        img: (kind === 'received' ? r.senderPhoto : r.receiverPhoto) || fallbackAvatar,
-        age: (kind === 'received' ? r.senderAge : r.receiverAge) || 24,
-        city: (kind === 'received' ? r.senderCity : r.receiverCity) || 'Gujarat',
-        community: (kind === 'received' ? r.senderCaste : r.receiverCaste) || 'Community Member'
-    };
+    if (!p) {
+        p = {
+            id: pid || 0,
+            name: (kind === 'received' ? r.senderName : r.receiverName) || 'Member',
+            img: (kind === 'received' ? r.senderPhoto : r.receiverPhoto) || fallbackAvatar,
+            age: (kind === 'received' ? r.senderAge : r.receiverAge) || 24,
+            city: (kind === 'received' ? r.senderCity : r.receiverCity) || 'Gujarat',
+            community: (kind === 'received' ? r.senderCaste : r.receiverCaste) || 'Community Member'
+        };
+    }
     const card = document.createElement('div');
     card.className = 'card';
     card.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:10px;cursor:pointer;';
@@ -1407,8 +1623,21 @@ function requestCard(r, kind) {
 function chatThreadCard(t) {
     if (!t) return null;
     const pid = Number(t.profileId);
+    const peerEmail = (t.peerEmail || '').trim().toLowerCase();
+    if (typeof isUserPurged === 'function' && (isUserPurged(pid) || isUserPurged(peerEmail))) return null;
+
+    let p = findProfile(pid, peerEmail);
+    if (p && (p.accountStatus === 'deleted' || p.account_status === 'deleted')) return null;
+
+    if (!p && Array.isArray(window.PROFILES) && window.PROFILES.length > 0) {
+        const inProfs = window.PROFILES.some(prof => prof && (
+            (pid && (Number(prof.id) === pid || Number(prof.userId) === pid)) ||
+            (peerEmail && prof.email && prof.email.toLowerCase() === peerEmail)
+        ));
+        if (!inProfs) return null; // Ghost thread for deleted member
+    }
+
     const fallbackAvatar = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=800&auto=format&fit=crop';
-    let p = findProfile(pid, t.peerEmail);
     let resolvedName = (p && p.name && p.name !== 'Community Match' && p.name !== 'Community Member')
         ? p.name
         : ((t.name && t.name !== 'Community Match' && t.name !== 'Community Member' && t.name !== 'Member')
@@ -1671,6 +1900,29 @@ function openChatFor(profileId) {
         if (typeof go === 'function') go('scr-welcome', true);
         return;
     }
+
+    const pid = Number(profileId);
+    let thread = findChatThread(pid);
+    const knownEmail = thread ? thread.peerEmail : '';
+    const p = findProfile(pid, knownEmail);
+    const myEmail = (state.currentUser.email || '').trim().toLowerCase();
+
+    // 1. Instantly block and purge if peer is deleted or purged
+    if (typeof isUserPurged === 'function' && (isUserPurged(pid) || isUserPurged(knownEmail))) {
+        if (typeof showToast === 'function') showToast('આ સભ્યનું એકાઉન્ટ ડિલીટ થઈ ગયું છે. (This profile is no longer available.)');
+        if (typeof purgeDeletedUserFromAllChatsAndInterests === 'function') {
+            purgeDeletedUserFromAllChatsAndInterests(pid, knownEmail);
+        }
+        return;
+    }
+    if (!p || p.accountStatus === 'deleted' || p.account_status === 'deleted') {
+        if (typeof showToast === 'function') showToast('આ સભ્યનું એકાઉન્ટ ડિલીટ થઈ ગયું છે. (This profile is no longer available.)');
+        if (typeof purgeDeletedUserFromAllChatsAndInterests === 'function') {
+            purgeDeletedUserFromAllChatsAndInterests(pid, knownEmail);
+        }
+        return;
+    }
+
     if (!state.profileComplete) {
         if (typeof openModal === 'function') openModal('modalCompleteProfile');
         return;
@@ -1685,16 +1937,10 @@ function openChatFor(profileId) {
         return;
     }
 
-    const pid = Number(profileId);
     if (typeof isSelfProfile === 'function' && isSelfProfile(pid)) {
         if (typeof showToast === 'function') showToast('You cannot chat with yourself');
         return;
     }
-
-    let thread = findChatThread(pid);
-    const knownEmail = thread ? thread.peerEmail : '';
-    const p = findProfile(pid, knownEmail);
-    const myEmail = (state.currentUser.email || '').trim().toLowerCase();
 
     // Strict Gatekeeper: verify that interest between currentUser and profileId is ACCEPTED
     let status = interestStatusFor(pid);

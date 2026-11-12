@@ -1598,7 +1598,14 @@
                 purgeKeyList('LS_AUTH_ACCOUNTS');
                 purgeKeyList('LS_COMMUNITY_USERS');
                 purgeKeyList('LS_ADMIN_PAYMENTS', true);
+                purgeKeyList('mangalSetu_incomingRequests');
+                purgeKeyList('mangalSetu_outgoingRequests');
+                purgeKeyList('mangalSetu_incomingRequests_v2');
+                purgeKeyList('mangalSetu_outgoingRequests_v2');
                 sessionStorage.removeItem('mangalSetu_profiles');
+                if (typeof purgeDeletedUserFromAllChatsAndInterests === 'function') {
+                    purgeDeletedUserFromAllChatsAndInterests(normId, normEmail, ids);
+                }
             } catch(e) {
                 console.warn('[Admin Delete] Local storage purge note:', e);
             }

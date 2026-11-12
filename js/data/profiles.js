@@ -456,8 +456,12 @@ function handleRemoteAccountPurge(delId, delEmail, rawPayload = {}) {
     // 2. Remove from favorites
     if (typeof state !== 'undefined' && state.favorites) {
         ids.forEach(id => {
-            state.favorites.delete(Number(id));
-            state.favorites.delete(id);
+            if (typeof state.favorites.delete === 'function') {
+                state.favorites.delete(Number(id));
+                state.favorites.delete(id);
+            } else if (Array.isArray(state.favorites)) {
+                state.favorites = state.favorites.filter(f => Number(f) !== Number(id) && String(f) !== String(id));
+            }
         });
         saveSessionState();
     }
@@ -482,6 +486,11 @@ function handleRemoteAccountPurge(delId, delEmail, rawPayload = {}) {
             else if (typeof go === 'function') go('scr-inbox');
             if (typeof showToast === 'function') showToast('This user account is no longer active.');
         }
+    }
+
+    // 3c. Completely purge deleted user from all chats, threads, and interests
+    if (typeof purgeDeletedUserFromAllChatsAndInterests === 'function') {
+        purgeDeletedUserFromAllChatsAndInterests(normId, normEmail, ids);
     }
 
     // 4. Check if currently logged-in user is the one deleted
