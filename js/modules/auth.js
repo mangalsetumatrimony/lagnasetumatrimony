@@ -322,13 +322,27 @@ function purgeUserAccountLocally(email, id) {
         }
 
         // Clean any chat message keys in localStorage
-        Object.keys(localStorage).forEach(k => {
-            if (k.startsWith('mangalSetu_chat_') || k.startsWith('chat_thread_')) {
-                if ((normId && k.includes(normId)) || (normEmail && k.includes(normEmail))) {
-                    localStorage.removeItem(k);
+        try {
+            const chatKeysToRemove = [];
+            if (typeof localStorage.length === 'number') {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && (k.startsWith('mangalSetu_chat_') || k.startsWith('chat_thread_'))) {
+                        if ((normId && k.includes(normId)) || (normEmail && k.includes(normEmail))) {
+                            chatKeysToRemove.push(k);
+                        }
+                    }
                 }
             }
-        });
+            Object.keys(localStorage).forEach(k => {
+                if (k && (k.startsWith('mangalSetu_chat_') || k.startsWith('chat_thread_')) && !chatKeysToRemove.includes(k)) {
+                    if ((normId && k.includes(normId)) || (normEmail && k.includes(normEmail))) {
+                        chatKeysToRemove.push(k);
+                    }
+                }
+            });
+            chatKeysToRemove.forEach(k => localStorage.removeItem(k));
+        } catch (_) {}
     } catch(e) {}
 
     // 6. Terminate session ONLY if the currently logged-in user is the one being purged
@@ -347,6 +361,53 @@ function purgeUserAccountLocally(email, id) {
             if (typeof supabaseLeavePresence === 'function') {
                 supabaseLeavePresence();
             }
+
+            // COMPLETE DEVICE PURGE of all chat threads, requests, and messages for this self-deleted account
+            if (typeof CHAT_THREADS !== 'undefined' && Array.isArray(CHAT_THREADS)) {
+                CHAT_THREADS.length = 0;
+            }
+            if (typeof INCOMING_REQUESTS !== 'undefined' && Array.isArray(INCOMING_REQUESTS)) {
+                INCOMING_REQUESTS.length = 0;
+            }
+            if (typeof OUTGOING_REQUESTS !== 'undefined' && Array.isArray(OUTGOING_REQUESTS)) {
+                OUTGOING_REQUESTS.length = 0;
+            }
+            if (typeof state !== 'undefined') {
+                state.chats = {};
+                state.chatMessages = {};
+                if (state.favorites && typeof state.favorites.clear === 'function') {
+                    state.favorites.clear();
+                } else if (state.favorites && Array.isArray(state.favorites)) {
+                    state.favorites.length = 0;
+                }
+                state.activeChatId = null;
+                state.activeChatEmail = null;
+            }
+            localStorage.removeItem('mangalSetu_chatThreads');
+            localStorage.removeItem('mangalSetu_incomingRequests');
+            localStorage.removeItem('mangalSetu_outgoingRequests');
+            localStorage.removeItem('mangalSetu_incomingRequests_v2');
+            localStorage.removeItem('mangalSetu_outgoingRequests_v2');
+            localStorage.removeItem('mangalSetu_interests');
+            localStorage.removeItem('LS_COMMUNITY_INTERESTS');
+            try {
+                const devKeysToRemove = [];
+                if (typeof localStorage.length === 'number') {
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const k = localStorage.key(i);
+                        if (k && (k.startsWith('mangalSetu_chat_') || k.startsWith('chat_thread_'))) {
+                            devKeysToRemove.push(k);
+                        }
+                    }
+                }
+                Object.keys(localStorage).forEach(k => {
+                    if (k && (k.startsWith('mangalSetu_chat_') || k.startsWith('chat_thread_')) && !devKeysToRemove.includes(k)) {
+                        devKeysToRemove.push(k);
+                    }
+                });
+                devKeysToRemove.forEach(k => localStorage.removeItem(k));
+            } catch (_) {}
+
             sessionStorage.removeItem('mangalSetu_currentUser');
             sessionStorage.removeItem('mangalSetu_user');
             sessionStorage.removeItem('mangalSetu_activeScreen');
@@ -546,6 +607,23 @@ function checkBoyPassStatus(user) {
     }
     
     // For Boy:
+    const userEmail = (user.email || '').trim().toLowerCase();
+    const curId = String(user.id || user.userId || user.profileId || '');
+    const authProf = (typeof window !== 'undefined' && Array.isArray(window.PROFILES))
+        ? window.PROFILES.find(p => p && ((curId && (String(p.id) === curId || String(p.userId) === curId)) || (p.email && p.email.toLowerCase() === userEmail)))
+        : null;
+
+    // Strict Server-Authoritative Anti-Bypass Guard:
+    // If authentic database profile exists and is NOT approved/paid by Admin, block completely!
+    if (authProf) {
+        const isServerPaid = (authProf.paymentStatus === 'paid' || authProf.payment_status === 'paid' || authProf.paymentStatus === 'Active');
+        if (!isServerPaid) {
+            user.paymentStatus = authProf.paymentStatus || authProf.payment_status || 'unpaid';
+            delete user.paymentToken;
+            return { active: false, reason: 'unpaid' };
+        }
+    }
+
     const isPaid = (user.paymentStatus === 'Active' || user.paymentStatus === 'paid');
     if (!isPaid || !user.planExpiry) {
         return { active: false, reason: 'unpaid' };
@@ -557,29 +635,14 @@ function checkBoyPassStatus(user) {
         : (user.paymentToken === computeSecureToken('payment', user.id, user.email, user.planExpiry)));
 
     if (!isPayTokenValid) {
-        // Self-Healing: Verify against authentic payment records before declaring tampered
-        const userEmail = (user.email || '').trim().toLowerCase();
-        let genuinePayment = false;
-        try {
-            const adminPayments = JSON.parse(localStorage.getItem('LS_ADMIN_PAYMENTS') || '[]');
-            const validPay = adminPayments.find(p =>
-                p && p.status === 'success' &&
-                (String(p.userId) === String(user.id) || (p.userEmail && p.userEmail.toLowerCase() === userEmail) || (p.email && p.email.toLowerCase() === userEmail)) &&
-                Boolean(p.id)
-            );
-            if (validPay) genuinePayment = true;
-        } catch (_) {}
-
         // Cross-check against authentic server profile in PROFILES
-        if (!genuinePayment && typeof window !== 'undefined' && Array.isArray(window.PROFILES)) {
-            const authProf = window.PROFILES.find(p => p && ((p.id && String(p.id) === String(user.id)) || (p.email && p.email.toLowerCase() === userEmail)));
-            if (authProf && (authProf.paymentStatus === 'paid' || authProf.payment_status === 'paid' || authProf.paymentStatus === 'Active') && (authProf.planExpiry || authProf.plan_expiry)) {
-                const expDate = authProf.planExpiry || authProf.plan_expiry;
-                const exp = new Date(expDate);
-                if (exp.getTime() > Date.now()) {
-                    genuinePayment = true;
-                    user.planExpiry = expDate;
-                }
+        let genuinePayment = false;
+        if (authProf && (authProf.paymentStatus === 'paid' || authProf.payment_status === 'paid' || authProf.paymentStatus === 'Active') && (authProf.planExpiry || authProf.plan_expiry)) {
+            const expDate = authProf.planExpiry || authProf.plan_expiry;
+            const exp = new Date(expDate);
+            if (exp.getTime() > Date.now()) {
+                genuinePayment = true;
+                user.planExpiry = expDate;
             }
         }
 
@@ -605,7 +668,15 @@ function checkBoyPassStatus(user) {
     const daysLeft = Math.min(30, Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24))));
     return { active: true, reason: 'active', daysLeft: daysLeft };
 }
-window.checkBoyPassStatus = checkBoyPassStatus;
+try {
+    Object.defineProperty(window, 'checkBoyPassStatus', {
+        value: checkBoyPassStatus,
+        writable: false,
+        configurable: false
+    });
+} catch (_) {
+    window.checkBoyPassStatus = checkBoyPassStatus;
+}
 
 /* ============================================================ REGISTRATION PROGRESS & DRAFT RECOVERY ============================================================ */
 function saveRegDraft(step = null) {
@@ -1415,6 +1486,65 @@ async function handleSocialUserAuthenticated(socialUser) {
             }
         } else {
             // NEW USER: Create account record and navigate directly to Step 1 of Profile Completion!
+            // Clean-slate guarantee: Ensure 0 chats, 0 interests, and 0 ghost threads for newly registered account
+            if (typeof unregisterPurgedUserId === 'function') {
+                unregisterPurgedUserId(normEmail);
+            }
+            if (typeof CHAT_THREADS !== 'undefined' && Array.isArray(CHAT_THREADS)) {
+                CHAT_THREADS.length = 0;
+            }
+            if (typeof INCOMING_REQUESTS !== 'undefined' && Array.isArray(INCOMING_REQUESTS)) {
+                INCOMING_REQUESTS.length = 0;
+            }
+            if (typeof OUTGOING_REQUESTS !== 'undefined' && Array.isArray(OUTGOING_REQUESTS)) {
+                OUTGOING_REQUESTS.length = 0;
+            }
+            if (typeof state !== 'undefined') {
+                state.chats = {};
+                state.chatMessages = {};
+                if (state.favorites && typeof state.favorites.clear === 'function') {
+                    state.favorites.clear();
+                } else if (state.favorites && Array.isArray(state.favorites)) {
+                    state.favorites.length = 0;
+                }
+                state.activeChatId = null;
+                state.activeChatEmail = null;
+            }
+            localStorage.removeItem('mangalSetu_chatThreads');
+            localStorage.removeItem('mangalSetu_incomingRequests');
+            localStorage.removeItem('mangalSetu_outgoingRequests');
+            localStorage.removeItem('mangalSetu_incomingRequests_v2');
+            localStorage.removeItem('mangalSetu_outgoingRequests_v2');
+            localStorage.removeItem('mangalSetu_interests');
+            localStorage.removeItem('LS_COMMUNITY_INTERESTS');
+            try {
+                const devKeysToRemove = [];
+                if (typeof localStorage.length === 'number') {
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const k = localStorage.key(i);
+                        if (k && (k.startsWith('mangalSetu_chat_') || k.startsWith('chat_thread_'))) {
+                            devKeysToRemove.push(k);
+                        }
+                    }
+                }
+                Object.keys(localStorage).forEach(k => {
+                    if (k && (k.startsWith('mangalSetu_chat_') || k.startsWith('chat_thread_')) && !devKeysToRemove.includes(k)) {
+                        devKeysToRemove.push(k);
+                    }
+                });
+                devKeysToRemove.forEach(k => localStorage.removeItem(k));
+            } catch (_) {}
+
+            // Proactively wipe any stale messages or interests in Supabase from prior deleted account
+            if (client) {
+                try {
+                    client.from('messages').delete().ilike('sender_email', normEmail).then(() => {}).catch(() => {});
+                    client.from('messages').delete().ilike('receiver_email', normEmail).then(() => {}).catch(() => {});
+                    client.from('interests').delete().ilike('sender_email', normEmail).then(() => {}).catch(() => {});
+                    client.from('interests').delete().ilike('receiver_email', normEmail).then(() => {}).catch(() => {});
+                } catch (_) {}
+            }
+
             const newUser = {
                 id: Date.now(),
                 email: normEmail,

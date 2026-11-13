@@ -302,7 +302,7 @@ async function submitProfileCompletion() {
     try {
         localStorage.setItem('mangalSetu_profileComplete', 'true');
         localStorage.setItem('mangalSetu_membershipPaid', JSON.stringify(isGirl));
-        localStorage.setItem('mangalSetu_activeScreen', isGirl ? 'scr-home' : 'scr-membership');
+        localStorage.setItem('mangalSetu_activeScreen', 'scr-home');
         sessionStorage.setItem('mangalSetu_profileComplete', 'true');
         sessionStorage.setItem('mangalSetu_just_registered', 'true');
     } catch (_) {}
@@ -318,11 +318,13 @@ async function submitProfileCompletion() {
         renderHome();
         openModal('modalGirlComplete');
     } else {
-        // Boy can explore Home in teaser preview, show welcome modal with option to activate pass or browse
+        // Boy explores Home cleanly without any blocking paywall modal upon profile completion
         state.history = ['scr-home'];
         localStorage.setItem('mangalSetu_activeScreen', 'scr-home');
         renderHome();
-        openModal('modalBoyComplete');
+        if (typeof showToast === 'function') {
+            showToast('તમારી પ્રોફાઇલ સફળતાપૂર્વક પૂર્ણ થઈ ગઈ છે! 🎉 (Profile Completed)');
+        }
     }
 }
 
@@ -489,6 +491,8 @@ function openPaymentModal(reason = 'general') {
             sub.textContent = 'દીકરીઓ સાથે સુરક્ષિત ચેટ કરવા માટે ₹૧૯૯ પાસ જરૂરી છે (Chat unlocks upon active pass).';
         } else if (reason === 'interest') {
             sub.textContent = 'દીકરીઓને ઇન્ટરેસ્ટ રિક્વેસ્ટ મોકલવા માટે ₹૧૯૯ પાસ જરૂરી છે (રોજના ૩ ઇન્ટરેસ્ટ).';
+        } else if (reason === 'notification') {
+            sub.textContent = 'દીકરીઓ સાથે વાતચીત, રિક્વેસ્ટ સ્વીકારવા અને વિગતો જોવા માટે ₹૧૯૯ પાસ જરૂરી છે.';
         } else {
             sub.textContent = 'સુરક્ષિત અને વેરિફાઇડ સંબંધો શોધવા માટે ૩૦ દિવસનો એક્સેસ પાસ';
         }

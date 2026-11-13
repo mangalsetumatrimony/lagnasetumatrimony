@@ -1721,9 +1721,8 @@ async function supabaseDeleteUserCompletely(id, email, extraId, options = {}) {
             console.warn('[Supabase] RPC purge exception:', rpcEx);
         }
 
-        // PRIORITY 1.5: Direct client-side cleanup across all tables if RPC was not available
-        if (!rpcExecuted) {
-            console.warn('[Supabase] RPC not executed or unavailable, performing direct table-by-table purges...');
+        // PRIORITY 1.5: Direct client-side cleanup across all tables (Always executed as a guaranteed 100% fail-safe)
+        console.info('[Supabase] Performing direct table-by-table purges for messages, interests, and profile records...');
 
         // 1. Delete all chat messages (sent or received)
         for (const eml of emailList) {
@@ -1832,7 +1831,6 @@ async function supabaseDeleteUserCompletely(id, email, extraId, options = {}) {
                 await client.from('payments').delete().eq('user_id', String(normId));
             } catch(e) {}
         }
-    }
 
         // 8. Broadcast Realtime deletion event so ALL connected users immediately remove profile from screen
         try {

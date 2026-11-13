@@ -510,21 +510,27 @@
                 <h1>Manage profiles</h1>
             </div>
             <div class="screen-pad no-tab panel-wrap">
-                <p class="p-muted">Control profile visibility, feature top profiles, and approve ₹199 passes for boys.</p>
-                
+                <p class="p-muted">Control profile visibility, feature top profiles, and approve ₹199 passes for boys.
+                </p>
+
                 <!-- 4 Filter Tabs -->
-                <div class="tab-scroll" style="display:flex;gap:8px;margin-top:14px;overflow-x:auto;padding-bottom:4px;" id="profileMgmtTabs">
+                <div class="tab-scroll" style="display:flex;gap:8px;margin-top:14px;overflow-x:auto;padding-bottom:4px;"
+                    id="profileMgmtTabs">
                     <button class="filter-pill active" id="pTabAll" onclick="setProfileMgmtTab('all', this)">
                         All (<span id="pCountAll">0</span>)
                     </button>
                     <button class="filter-pill" id="pTabGirls" onclick="setProfileMgmtTab('girls', this)">
-                        <i class="fa-solid fa-person-dress" style="color:var(--success);"></i> Girls Free (<span id="pCountGirls">0</span>)
+                        <i class="fa-solid fa-person-dress" style="color:var(--success);"></i> Girls Free (<span
+                            id="pCountGirls">0</span>)
                     </button>
                     <button class="filter-pill" id="pTabPaidBoys" onclick="setProfileMgmtTab('paid_boys', this)">
-                        <i class="fa-solid fa-crown" style="color:#D97706;"></i> Boys with Pass (<span id="pCountPaidBoys">0</span>)
+                        <i class="fa-solid fa-crown" style="color:#D97706;"></i> Boys with Pass (<span
+                            id="pCountPaidBoys">0</span>)
                     </button>
-                    <button class="filter-pill" id="pTabUnpaidBoys" onclick="setProfileMgmtTab('unpaid_boys', this)" style="border-color:#FCD34D;color:#B45309;font-weight:700;">
-                        <i class="fa-solid fa-clock" style="color:#D97706;"></i> Boys Pending Pass / WhatsApp (<span id="pCountUnpaidBoys">0</span>)
+                    <button class="filter-pill" id="pTabUnpaidBoys" onclick="setProfileMgmtTab('unpaid_boys', this)"
+                        style="border-color:#FCD34D;color:#B45309;font-weight:700;">
+                        <i class="fa-solid fa-clock" style="color:#D97706;"></i> Boys Pending Pass / WhatsApp (<span
+                            id="pCountUnpaidBoys">0</span>)
                     </button>
                 </div>
 
@@ -747,24 +753,30 @@
                 <div class="card"
                     style="margin-bottom:14px;background:var(--bg-card);border:1px solid var(--border);padding:14px;">
                     <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">
-                        Configure Cloudinary API Key &amp; Secret so that when an account is deleted (by admin or member), all photos are permanently destroyed from Cloudinary CDN.
+                        Configure Cloudinary API Key &amp; Secret so that when an account is deleted (by admin or
+                        member), all photos are permanently destroyed from Cloudinary CDN.
                     </div>
                     <div class="field" style="margin-bottom:8px;"><label>Cloud Name</label>
-                        <input class="input" id="settingsCloudinaryCloud" type="text" value="yohel4bd" placeholder="yohel4bd">
+                        <input class="input" id="settingsCloudinaryCloud" type="text" value="yohel4bd"
+                            placeholder="yohel4bd">
                     </div>
                     <div class="row-2">
                         <div class="field" style="margin-bottom:8px;"><label>API Key</label>
-                            <input class="input" id="settingsCloudinaryKey" type="text" placeholder="e.g. 123456789012345">
+                            <input class="input" id="settingsCloudinaryKey" type="text"
+                                placeholder="e.g. 123456789012345">
                         </div>
                         <div class="field" style="margin-bottom:8px;"><label>API Secret</label>
                             <div class="input-icon-wrap">
-                                <input class="input" id="settingsCloudinarySecret" type="password" placeholder="••••••••••••••••">
-                                <button class="trailing-btn" type="button" onclick="togglePw('settingsCloudinarySecret', this)"
-                                    title="Show/Hide password"><i class="fa-solid fa-eye"></i></button>
+                                <input class="input" id="settingsCloudinarySecret" type="password"
+                                    placeholder="••••••••••••••••">
+                                <button class="trailing-btn" type="button"
+                                    onclick="togglePw('settingsCloudinarySecret', this)" title="Show/Hide password"><i
+                                        class="fa-solid fa-eye"></i></button>
                             </div>
                         </div>
                     </div>
-                    <button class="btn btn-outline" type="button" onclick="saveCloudinarySettings()" style="margin-top:6px;">
+                    <button class="btn btn-outline" type="button" onclick="saveCloudinarySettings()"
+                        style="margin-top:6px;">
                         <i class="fa-solid fa-cloud-arrow-up"></i> Save Cloudinary CDN Keys
                     </button>
                 </div>
@@ -806,21 +818,27 @@
             </div>
         </div>
 
-                <!-- Approve Pass Modal with Rich Candidate Preview & Instant Activation Confirmation -->
+        <!-- Approve Pass Modal with Rich Candidate Preview & Instant Activation Confirmation -->
         <div class="modal-backdrop modal-center" id="modalApprovePass" style="z-index:9999;padding:16px;">
-            <div class="modal-card" style="max-width:450px;width:100%;padding:22px;border-radius:20px;text-align:left;position:relative;box-shadow:0 20px 45px rgba(0,0,0,0.18);border:1px solid rgba(5,150,105,0.2);">
+            <div class="modal-card"
+                style="max-width:450px;width:100%;padding:22px;border-radius:20px;text-align:left;position:relative;box-shadow:0 20px 45px rgba(0,0,0,0.18);border:1px solid rgba(5,150,105,0.2);">
                 <!-- Header -->
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
                     <div style="display:flex;align-items:center;gap:10px;">
-                        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg, rgba(5,150,105,0.12) 0%, rgba(16,185,129,0.22) 100%);color:#059669;display:flex;align-items:center;justify-content:center;font-size:20px;border:1.5px solid rgba(5,150,105,0.3);box-shadow:0 3px 10px rgba(5,150,105,0.15);flex-shrink:0;">
+                        <div
+                            style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg, rgba(5,150,105,0.12) 0%, rgba(16,185,129,0.22) 100%);color:#059669;display:flex;align-items:center;justify-content:center;font-size:20px;border:1.5px solid rgba(5,150,105,0.3);box-shadow:0 3px 10px rgba(5,150,105,0.15);flex-shrink:0;">
                             <i class="fa-solid fa-crown" style="color:#F59E0B;"></i>
                         </div>
                         <div>
-                            <div style="font-size:16.5px;font-weight:800;color:#065F46;letter-spacing:-0.2px;">Approve ₹199 Pass</div>
-                            <div style="font-size:11.5px;font-weight:600;color:#047857;margin-top:1px;">૩૦ દિવસનો પાસ મંજૂર કરો</div>
+                            <div style="font-size:16.5px;font-weight:800;color:#065F46;letter-spacing:-0.2px;">Approve
+                                ₹199 Pass</div>
+                            <div style="font-size:11.5px;font-weight:600;color:#047857;margin-top:1px;">૩૦ દિવસનો પાસ
+                                મંજૂર કરો</div>
                         </div>
                     </div>
-                    <button class="icon-btn" onclick="closeModal('modalApprovePass')" style="width:32px;height:32px;border-radius:50%;cursor:pointer;border:1px solid #E5E7EB;background:#F9FAFB;" title="Close">
+                    <button class="icon-btn" onclick="closeModal('modalApprovePass')"
+                        style="width:32px;height:32px;border-radius:50%;cursor:pointer;border:1px solid #E5E7EB;background:#F9FAFB;"
+                        title="Close">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
@@ -828,91 +846,129 @@
                 <input type="hidden" id="approvePassUserId">
 
                 <!-- Candidate Info Card -->
-                <div style="display:flex;align-items:center;gap:12px;background:#F0FDF4;border:1.5px solid #BBF7D0;padding:12px 14px;border-radius:14px;margin-bottom:12px;">
-                    <img id="approvePassCandidateImg" src="images/default_avatar.png" style="width:52px;height:52px;border-radius:12px;object-fit:cover;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.08);flex-shrink:0;" onerror="this.onerror=null;this.src='images/default_avatar.png';" alt="">
+                <div
+                    style="display:flex;align-items:center;gap:12px;background:#F0FDF4;border:1.5px solid #BBF7D0;padding:12px 14px;border-radius:14px;margin-bottom:12px;">
+                    <img id="approvePassCandidateImg" src="images/default_avatar.png"
+                        style="width:52px;height:52px;border-radius:12px;object-fit:cover;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.08);flex-shrink:0;"
+                        onerror="this.onerror=null;this.src='images/default_avatar.png';" alt="">
                     <div style="flex:1;min-width:0;">
                         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                            <span id="approvePassCandidateName" style="font-size:14.5px;font-weight:800;color:#111827;">Candidate Name</span>
-                            <span style="font-size:10px;font-weight:800;background:#DCFCE7;color:#15803D;padding:2px 7px;border-radius:6px;border:1px solid #86EFAC;">Boy Member</span>
+                            <span id="approvePassCandidateName"
+                                style="font-size:14.5px;font-weight:800;color:#111827;">Candidate Name</span>
+                            <span
+                                style="font-size:10px;font-weight:800;background:#DCFCE7;color:#15803D;padding:2px 7px;border-radius:6px;border:1px solid #86EFAC;">Boy
+                                Member</span>
                         </div>
-                        <div style="font-size:11.5px;color:#4B5563;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                            <span><i class="fa-solid fa-location-dot" style="color:#059669;font-size:10px;"></i> <span id="approvePassCandidateCity">Botad</span></span>
+                        <div
+                            style="font-size:11.5px;color:#4B5563;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                            <span><i class="fa-solid fa-location-dot" style="color:#059669;font-size:10px;"></i> <span
+                                    id="approvePassCandidateCity">Botad</span></span>
                             <span>•</span>
-                            <span><i class="fa-solid fa-phone" style="color:#059669;font-size:10px;"></i> <span id="approvePassCandidatePhone">+91 9726362863</span></span>
+                            <span><i class="fa-solid fa-phone" style="color:#059669;font-size:10px;"></i> <span
+                                    id="approvePassCandidatePhone">+91 9726362863</span></span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Plan & Expiry Details -->
-                <div style="background:#FFFBEB;border:1.2px solid #FDE68A;border-radius:12px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <div
+                    style="background:#FFFBEB;border:1.2px solid #FDE68A;border-radius:12px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
                     <div style="font-size:11.5px;color:#92400E;display:flex;align-items:center;gap:6px;">
                         <i class="fa-solid fa-calendar-check" style="font-size:13px;color:#D97706;"></i>
                         <span>પાસ વેલિડિટી (Expiry):</span>
                     </div>
-                    <strong id="approvePassExpiryDate" style="font-size:12px;color:#78350F;background:#FEF3C7;padding:3px 9px;border-radius:6px;border:1px solid #FCD34D;">Active 30 Days</strong>
+                    <strong id="approvePassExpiryDate"
+                        style="font-size:12px;color:#78350F;background:#FEF3C7;padding:3px 9px;border-radius:6px;border:1px solid #FCD34D;">Active
+                        30 Days</strong>
                 </div>
 
                 <!-- What User Receives (Features Checklist) -->
-                <div style="font-size:11.5px;color:#374151;line-height:1.55;margin-bottom:16px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;padding:10px 12px;">
-                    <div style="font-weight:700;color:#1F2937;margin-bottom:5px;display:flex;align-items:center;gap:5px;">
-                        <i class="fa-solid fa-shield-check" style="color:#059669;"></i> મંજૂરી આપતાં જ નીચે મુજબ સુવિધાઓ શરૂ થશે:
+                <div
+                    style="font-size:11.5px;color:#374151;line-height:1.55;margin-bottom:16px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;padding:10px 12px;">
+                    <div
+                        style="font-weight:700;color:#1F2937;margin-bottom:5px;display:flex;align-items:center;gap:5px;">
+                        <i class="fa-solid fa-shield-check" style="color:#059669;"></i> મંજૂરી આપતાં જ નીચે મુજબ સુવિધાઓ
+                        શરૂ થશે:
                     </div>
                     <div style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:#4B5563;">
-                        <div><i class="fa-solid fa-circle-check" style="color:#059669;margin-right:4px;"></i> ૩૦ દિવસ સુધી દરરોજ ૩ પ્રોફાઇલમાં Interested મોકલી શકશે.</div>
-                        <div><i class="fa-solid fa-circle-check" style="color:#059669;margin-right:4px;"></i> એક્સેપ્ટ થયેલ કન્યા સાથે અમર્યાદિત ચેટિંગ અને કોન્ટેક્ટ વિગતો અનલોક થશે.</div>
-                        <div><i class="fa-solid fa-circle-check" style="color:#059669;margin-right:4px;"></i> ઉમેદવારને કન્ફર્મેશન ઇમેઇલ તરત જ સેન્ડ થશે.</div>
+                        <div><i class="fa-solid fa-circle-check" style="color:#059669;margin-right:4px;"></i> ૩૦ દિવસ
+                            સુધી દરરોજ ૩ પ્રોફાઇલમાં Interested મોકલી શકશે.</div>
+                        <div><i class="fa-solid fa-circle-check" style="color:#059669;margin-right:4px;"></i> એક્સેપ્ટ
+                            થયેલ કન્યા સાથે અમર્યાદિત ચેટિંગ અને કોન્ટેક્ટ વિગતો અનલોક થશે.</div>
+                        <div><i class="fa-solid fa-circle-check" style="color:#059669;margin-right:4px;"></i> ઉમેદવારને
+                            કન્ફર્મેશન ઇમેઇલ તરત જ સેન્ડ થશે.</div>
                     </div>
                 </div>
 
                 <!-- Action Buttons -->
                 <div style="display:flex;gap:10px;">
-                    <button type="button" class="btn btn-outline" style="flex:1;padding:11px;font-weight:700;border-radius:10px;" onclick="closeModal('modalApprovePass')">
+                    <button type="button" class="btn btn-outline"
+                        style="flex:1;padding:11px;font-weight:700;border-radius:10px;"
+                        onclick="closeModal('modalApprovePass')">
                         રદ કરો (Cancel)
                     </button>
-                    <button type="button" class="btn" id="btnConfirmApprovePass" style="flex:1.6;background:linear-gradient(135deg, #059669 0%, #047857 100%);color:#fff;border:none;border-radius:10px;font-weight:800;padding:11px 16px;font-size:13px;cursor:pointer;box-shadow:0 3px 12px rgba(5,150,105,0.35);display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.2s;" onclick="confirmApprovePassAction()">
+                    <button type="button" class="btn" id="btnConfirmApprovePass"
+                        style="flex:1.6;background:linear-gradient(135deg, #059669 0%, #047857 100%);color:#fff;border:none;border-radius:10px;font-weight:800;padding:11px 16px;font-size:13px;cursor:pointer;box-shadow:0 3px 12px rgba(5,150,105,0.35);display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.2s;"
+                        onclick="confirmApprovePassAction()">
                         <i class="fa-solid fa-circle-check"></i> Approve &amp; Activate Pass
                     </button>
                 </div>
             </div>
         </div>
 
-<!-- Reject Pass Modal with Custom Reason & Preset Options -->
+        <!-- Reject Pass Modal with Custom Reason & Preset Options -->
         <div class="modal-backdrop modal-center" id="modalRejectPass" style="z-index:9999;padding:16px;">
-            <div class="modal-card" style="max-width:440px;width:100%;padding:22px;border-radius:18px;text-align:left;position:relative;">
+            <div class="modal-card"
+                style="max-width:440px;width:100%;padding:22px;border-radius:18px;text-align:left;position:relative;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
                     <div style="font-size:16px;font-weight:800;color:#991B1B;display:flex;align-items:center;gap:8px;">
                         <i class="fa-solid fa-circle-xmark"></i> Reject ₹199 Pass / Screenshot
                     </div>
-                    <button class="icon-btn" onclick="closeModal('modalRejectPass')" style="width:30px;height:30px;border-radius:50%;cursor:pointer;">
+                    <button class="icon-btn" onclick="closeModal('modalRejectPass')"
+                        style="width:30px;height:30px;border-radius:50%;cursor:pointer;">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
                 <p style="font-size:12.5px;color:#4B5563;line-height:1.45;margin-bottom:14px;">
-                    તમે <b id="rejectPassCandidateName">—</b> નો પાસ રિજેક્ટ કરી રહ્યા છો. રિજેક્ટ કરવાનું કારણ નીચે લખો, આ નોંધ <b>યુઝરને ઇમેઇલ દ્વારા તરત જ મોકલવામાં આવશે</b>.
+                    તમે <b id="rejectPassCandidateName">—</b> નો પાસ રિજેક્ટ કરી રહ્યા છો. રિજેક્ટ કરવાનું કારણ નીચે
+                    લખો, આ નોંધ <b>યુઝરને ઇમેઇલ દ્વારા તરત જ મોકલવામાં આવશે</b>.
                 </p>
                 <input type="hidden" id="rejectPassUserId">
-                
+
                 <!-- Preset Quick Reason Chips -->
-                <div style="font-size:11.5px;font-weight:700;color:#374151;margin-bottom:6px;">ક્વિક કારણ પસંદ કરો:</div>
+                <div style="font-size:11.5px;font-weight:700;color:#374151;margin-bottom:6px;">ક્વિક કારણ પસંદ કરો:
+                </div>
                 <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
-                    <button type="button" class="btn btn-sm" style="font-size:11px;background:#F3F4F6;color:#374151;padding:4px 8px;border-radius:6px;border:1px solid #D1D5DB;cursor:pointer;" onclick="setRejectPreset('અમાન્ય અથવા અસ્પષ્ટ સ્ક્રીનશોટ (Invalid or unreadable screenshot)')">
+                    <button type="button" class="btn btn-sm"
+                        style="font-size:11px;background:#F3F4F6;color:#374151;padding:4px 8px;border-radius:6px;border:1px solid #D1D5DB;cursor:pointer;"
+                        onclick="setRejectPreset('અમાન્ય અથવા અસ્પષ્ટ સ્ક્રીનશોટ (Invalid or unreadable screenshot)')">
                         અસ્પષ્ટ સ્ક્રીનશોટ
                     </button>
-                    <button type="button" class="btn btn-sm" style="font-size:11px;background:#F3F4F6;color:#374151;padding:4px 8px;border-radius:6px;border:1px solid #D1D5DB;cursor:pointer;" onclick="setRejectPreset('બેંક ખાતામાં રકમ જમા થઈ નથી (Payment not received in bank account)')">
+                    <button type="button" class="btn btn-sm"
+                        style="font-size:11px;background:#F3F4F6;color:#374151;padding:4px 8px;border-radius:6px;border:1px solid #D1D5DB;cursor:pointer;"
+                        onclick="setRejectPreset('બેંક ખાતામાં રકમ જમા થઈ નથી (Payment not received in bank account)')">
                         પેમેન્ટ જમા થયું નથી
                     </button>
-                    <button type="button" class="btn btn-sm" style="font-size:11px;background:#F3F4F6;color:#374151;padding:4px 8px;border-radius:6px;border:1px solid #D1D5DB;cursor:pointer;" onclick="setRejectPreset('ખોટો UTR નંબર / જૂનો ટ્રાન્ઝેક્શન સ્ક્રીનશોટ (Invalid UTR or duplicate screenshot)')">
+                    <button type="button" class="btn btn-sm"
+                        style="font-size:11px;background:#F3F4F6;color:#374151;padding:4px 8px;border-radius:6px;border:1px solid #D1D5DB;cursor:pointer;"
+                        onclick="setRejectPreset('ખોટો UTR નંબર / જૂનો ટ્રાન્ઝેક્શન સ્ક્રીનશોટ (Invalid UTR or duplicate screenshot)')">
                         ખોટો UTR / ડુપ્લિકેટ
                     </button>
                 </div>
 
                 <!-- Custom Textarea -->
-                <label style="font-size:11.5px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">રિજેક્શન કારણ / નોંધ (User will see this):</label>
-                <textarea id="rejectPassReasonInput" rows="3" style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1.2px solid #D1D5DB;font-size:13px;resize:vertical;" placeholder="દા.ત. તમે મોકલેલ સ્ક્રીનશોટમાં UTR નંબર સ્પષ્ટ દેખાતો નથી, કૃપા કરીને સાચો સ્ક્રીનશોટ વોટ્સએપ કરો..."></textarea>
+                <label style="font-size:11.5px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">રિજેક્શન
+                    કારણ / નોંધ (User will see this):</label>
+                <textarea id="rejectPassReasonInput" rows="3"
+                    style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1.2px solid #D1D5DB;font-size:13px;resize:vertical;"
+                    placeholder="દા.ત. તમે મોકલેલ સ્ક્રીનશોટમાં UTR નંબર સ્પષ્ટ દેખાતો નથી, કૃપા કરીને સાચો સ્ક્રીનશોટ વોટ્સએપ કરો..."></textarea>
 
                 <div style="display:flex;gap:10px;margin-top:16px;">
-                    <button type="button" class="btn btn-outline" style="flex:1;padding:10px;" onclick="closeModal('modalRejectPass')">રદ કરો (Cancel)</button>
-                    <button type="button" class="btn" id="btnConfirmRejectPass" style="flex:1.5;background:#DC2626;color:#fff;border:none;border-radius:8px;font-weight:800;padding:10px;cursor:pointer;" onclick="confirmRejectPassAction()">
+                    <button type="button" class="btn btn-outline" style="flex:1;padding:10px;"
+                        onclick="closeModal('modalRejectPass')">રદ કરો (Cancel)</button>
+                    <button type="button" class="btn" id="btnConfirmRejectPass"
+                        style="flex:1.5;background:#DC2626;color:#fff;border:none;border-radius:8px;font-weight:800;padding:10px;cursor:pointer;"
+                        onclick="confirmRejectPassAction()">
                         <i class="fa-solid fa-paper-plane"></i> Reject &amp; Send Email
                     </button>
                 </div>
@@ -1667,4 +1723,3 @@
 </body>
 
 </html>
-
