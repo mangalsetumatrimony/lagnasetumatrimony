@@ -243,18 +243,21 @@ function initApp() {
                 }
             }
             // Route Guard B: Boy 30-Day Pass Paywall Check (ONLY FOR BOYS, GIRLS ARE 100% FREE)
+            // Freemium Teaser Mode: Unpaid boys can freely explore Home, Browse, Profiles, Inbox, and Notifications!
+            // Direct chat & contact reveals are protected behind ₹199 pass.
             else if (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy' || state.currentUser.gender === 'boys')) {
                 const passStatus = typeof checkBoyPassStatus === 'function' 
                     ? checkBoyPassStatus(state.currentUser) 
                     : { active: state.currentUser.paymentStatus === 'Active' };
                 if (!passStatus.active) {
                     const UNPAID_ALLOWED = new Set([
+                        'scr-home', 'scr-browse', 'scr-profile', 'scr-inbox', 'scr-favorites', 'scr-notifs',
                         'scr-membership', 'scr-welcome', 'scr-login', 'scr-howitworks', 'scr-help', 
                         'scr-editprofile', 'scr-splash', 'scr-reg1', 'scr-reg-caste', 
                         'scr-reg2', 'scr-reg3', 'scr-reg4'
                     ]);
                     if (!UNPAID_ALLOWED.has(targetScreen)) {
-                        targetScreen = 'scr-membership';
+                        targetScreen = 'scr-home';
                     }
                 }
             } else if (typeof isGirlGender === 'function' ? isGirlGender(state.currentUser.gender) : (state.currentUser.gender === 'Girl' || state.currentUser.gender === 'girls')) {

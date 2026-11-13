@@ -882,10 +882,12 @@ function resolveFullUserProfile(userObj) {
 function refreshProfileButtons() {
     const btn = document.getElementById('fullInterestBtn');
     if (btn) {
-        const pid = parseInt(btn.dataset.pid);
-        setInterestBtnState(btn, pid);
-        if (typeof window.refreshProfileContactState === 'function') {
-            window.refreshProfileContactState(pid);
+        const pid = (btn.dataset && btn.dataset.pid) ? parseInt(btn.dataset.pid) : (typeof btn.getAttribute === 'function' ? parseInt(btn.getAttribute('data-pid') || 0) : 0);
+        if (pid) {
+            setInterestBtnState(btn, pid);
+            if (typeof window.refreshProfileContactState === 'function') {
+                window.refreshProfileContactState(pid);
+            }
         }
     }
 }

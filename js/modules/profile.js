@@ -324,13 +324,16 @@ async function submitProfileCompletion() {
         state.regData.currentStep = 'scr-home';
     }
 
+    const enterFn = (typeof enterHome === 'function') ? enterHome : ((typeof window !== 'undefined' && typeof window.enterHome === 'function') ? window.enterHome : null);
+    const goFn = (typeof go === 'function') ? go : ((typeof window !== 'undefined' && typeof window.go === 'function') ? window.go : null);
+
     if (isGirl) {
         state.history = ['scr-home'];
         localStorage.setItem('mangalSetu_activeScreen', 'scr-home');
-        if (typeof enterHome === 'function') {
-            enterHome();
-        } else if (typeof go === 'function') {
-            go('scr-home', true);
+        if (enterFn) {
+            enterFn();
+        } else if (goFn) {
+            goFn('scr-home', true);
         }
         if (typeof openModal === 'function') {
             openModal('modalGirlComplete');
@@ -339,14 +342,14 @@ async function submitProfileCompletion() {
         // Boy explores Home cleanly without any blocking paywall modal upon profile completion
         state.history = ['scr-home'];
         localStorage.setItem('mangalSetu_activeScreen', 'scr-home');
-        if (typeof enterHome === 'function') {
-            enterHome();
-        } else if (typeof go === 'function') {
-            go('scr-home', true);
+        if (enterFn) {
+            enterFn();
+        } else if (goFn) {
+            goFn('scr-home', true);
         }
         // Strict fallback navigation: guarantee scr-home is active
-        if (typeof go === 'function') {
-            go('scr-home', true);
+        if (goFn) {
+            goFn('scr-home', true);
         }
         if (typeof showToast === 'function') {
             showToast('તમારી પ્રોફાઇલ સફળતાપૂર્વક પૂર્ણ થઈ ગઈ છે! 🎉 (Profile Completed)');

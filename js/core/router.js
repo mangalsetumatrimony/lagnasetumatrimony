@@ -145,7 +145,7 @@ function go(id, replace = false) {
             }
 
             const UNPAID_ALLOWED = new Set([
-                'scr-home', 'scr-browse', 'scr-profile', 'scr-inbox', 'scr-favorites',
+                'scr-home', 'scr-browse', 'scr-profile', 'scr-inbox', 'scr-favorites', 'scr-notifs',
                 'scr-membership', 'scr-welcome', 'scr-login', 'scr-howitworks', 'scr-help', 
                 'scr-editprofile', 'scr-splash', 'scr-reg1', 'scr-reg-caste', 
                 'scr-reg2', 'scr-reg3', 'scr-reg4'

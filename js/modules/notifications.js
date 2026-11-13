@@ -306,21 +306,19 @@ function handleUserNotifClick(notifId) {
     }
 
     // Trigger target action
-    // Unpaid Boy Gatekeeper: Clicking interaction notifications (chat / interest / matches) prompts ₹199 pass
+    // Unpaid Boy Gatekeeper: Clicking ANY notification item prompts ₹199 pass modal
     const isViewerBoy = (typeof state !== 'undefined' && state.currentUser) && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
     const isViewerUnpaidBoy = isViewerBoy && (typeof checkBoyPassStatus === 'function' ? !checkBoyPassStatus(state.currentUser).active : (state.currentUser.paymentStatus !== 'Active' && state.currentUser.paymentStatus !== 'paid'));
     if (isViewerUnpaidBoy) {
-        if (target.actionType === 'chat' || (target.actionType === 'screen' && (target.actionTarget === 'scr-inbox' || target.actionTarget === 'scr-chat'))) {
-            if (typeof openPaymentModal === 'function') {
-                openPaymentModal('notification');
-            } else if (typeof openModal === 'function') {
-                openModal('modalPaywall');
-            }
-            if (typeof showToast === 'function') {
-                showToast('🔒 દીકરીઓ સાથે વાતચીત અને રિક્વેસ્ટ જોવા માટે ₹૧૯૯ પાસ જરૂરી છે.');
-            }
-            return;
+        if (typeof openPaymentModal === 'function') {
+            openPaymentModal('notification');
+        } else if (typeof openModal === 'function') {
+            openModal('modalPaywall');
         }
+        if (typeof showToast === 'function') {
+            showToast('🔒 વિગતો જોવા અને આગળ વધવા માટે ₹૧૯૯ પાસ જરૂરી છે.');
+        }
+        return;
     }
 
     if (target.actionType === 'chat' && target.actionTarget) {
