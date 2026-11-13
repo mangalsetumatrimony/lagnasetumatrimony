@@ -1199,32 +1199,32 @@ function syncGenderUI() {
     if (isBoy) {
         // Boy: Tile 1 is All Brides, Tile 2 is My Community Brides!
         if (heroTitleGirls) heroTitleGirls.textContent = 'All Brides';
-        if (homeGirlsCount) homeGirlsCount.textContent = `${totalGirls} verified profile${totalGirls === 1 ? '' : 's'}`;
+        if (homeGirlsCount) homeGirlsCount.textContent = 'Explore verified matches';
 
         if (heroTileBoys) {
             heroTileBoys.className = 'hero-tile girls';
             if (heroTitleBoys) heroTitleBoys.textContent = userCaste ? `${userCaste}` : 'My Community';
-            if (homeBoysCount) homeBoysCount.textContent = `${myCasteGirls} community bride${myCasteGirls === 1 ? '' : 's'}`;
+            if (homeBoysCount) homeBoysCount.textContent = userCaste ? `Matches in ${userCaste}` : 'Matches in your community';
         }
     } else if (isGirl) {
         // Girl: Tile 1 is All Grooms, Tile 2 is My Community Grooms!
         if (heroTileGirls) {
             heroTileGirls.className = 'hero-tile boys';
             if (heroTitleGirls) heroTitleGirls.textContent = 'All Grooms';
-            if (homeGirlsCount) homeGirlsCount.textContent = `${totalBoys} verified profile${totalBoys === 1 ? '' : 's'}`;
+            if (homeGirlsCount) homeGirlsCount.textContent = 'Explore verified matches';
         }
         if (heroTileBoys) {
             heroTileBoys.className = 'hero-tile boys';
             if (heroTitleBoys) heroTitleBoys.textContent = userCaste ? `${userCaste}` : 'My Community';
-            if (homeBoysCount) homeBoysCount.textContent = `${myCasteBoys} community groom${myCasteBoys === 1 ? '' : 's'}`;
+            if (homeBoysCount) homeBoysCount.textContent = userCaste ? `Matches in ${userCaste}` : 'Matches in your community';
         }
     } else {
         if (heroTileGirls) heroTileGirls.className = 'hero-tile girls';
         if (heroTileBoys) heroTileBoys.className = 'hero-tile boys';
-        if (heroTitleGirls) heroTitleGirls.textContent = 'Girls';
-        if (heroTitleBoys) heroTitleBoys.textContent = 'Boys';
-        if (homeGirlsCount) homeGirlsCount.textContent = `${totalGirls} verified profile${totalGirls === 1 ? '' : 's'}`;
-        if (homeBoysCount) homeBoysCount.textContent = `${totalBoys} verified profile${totalBoys === 1 ? '' : 's'}`;
+        if (heroTitleGirls) heroTitleGirls.textContent = 'All Brides';
+        if (heroTitleBoys) heroTitleBoys.textContent = 'Community';
+        if (homeGirlsCount) homeGirlsCount.textContent = 'Explore verified matches';
+        if (homeBoysCount) homeBoysCount.textContent = 'Matches in your community';
     }
 
     // 3. Side menu items
@@ -1350,17 +1350,11 @@ function updateHomeStats() {
             boysCount++;
         }
     });
-    const totalMembers = girlsCount + boysCount;
 
     const gc = document.getElementById('homeGirlsCount');
-    if (gc) gc.textContent = `${girlsCount} verified profiles`;
+    if (gc && !gc.textContent) gc.textContent = 'Explore verified matches';
     const bc = document.getElementById('homeBoysCount');
-    if (bc) bc.textContent = `${boysCount} verified profiles`;
-
-    const totalEl = document.getElementById('homeTotalMembers');
-    if (totalEl) {
-        totalEl.textContent = totalMembers;
-    }
+    if (bc && !bc.textContent) bc.textContent = 'Matches in your community';
 
     const favEl = document.getElementById('favCountHome');
     if (favEl && state.favorites) {

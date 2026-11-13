@@ -1193,13 +1193,23 @@ async function syncUserChatAndInterests() {
                                 go('scr-inbox', true);
                             }
                         } else if (r.status === 'pending') {
-                            const localAccepted = OUTGOING_REQUESTS.find(lr => {
+                            const isPeerAccepted = (INCOMING_REQUESTS || []).some(ir => {
+                                if (!ir) return false;
+                                const iPid = Number(ir.profileId || ir.senderId);
+                                const iEmail = (ir.senderEmail || '').trim().toLowerCase();
+                                return ((pid && iPid === pid) || (pEmail && iEmail && pEmail === iEmail)) && ir.status === 'accepted';
+                            }) || (OUTGOING_REQUESTS || []).some(lr => {
                                 if (!lr) return false;
                                 const lPid = Number(lr.profileId || lr.receiverId);
                                 const lEmail = (lr.receiverEmail || '').trim().toLowerCase();
                                 return ((pid && lPid === pid) || (pEmail && lEmail && pEmail === lEmail)) && lr.status === 'accepted';
+                            }) || (CHAT_THREADS || []).some(t => {
+                                if (!t) return false;
+                                const tPid = Number(t.profileId || 0);
+                                const tEmail = (t.peerEmail || '').trim().toLowerCase();
+                                return ((pid && tPid === pid) || (pEmail && tEmail && pEmail === tEmail)) && (!t.status || t.status === 'accepted');
                             });
-                            if (localAccepted) {
+                            if (isPeerAccepted) {
                                 r.status = 'accepted';
                             }
                         }
@@ -1232,6 +1242,54 @@ async function syncUserChatAndInterests() {
                     });
                     OUTGOING_REQUESTS.length = 0;
                     mergedOut.forEach(r => OUTGOING_REQUESTS.push(r));
+                }
+
+                // Global Cross-Reconciliation Pass: Any peer accepted anywhere must be marked accepted across both arrays!
+                const allAcceptedPeers = new Set();
+                const allAcceptedEmails = new Set();
+                (INCOMING_REQUESTS || []).forEach(r => {
+                    if (r && r.status === 'accepted') {
+                        const p = Number(r.profileId || r.senderId || 0);
+                        const e = (r.senderEmail || '').trim().toLowerCase();
+                        if (p) allAcceptedPeers.add(p);
+                        if (e && !e.includes('•')) allAcceptedEmails.add(e);
+                    }
+                });
+                (OUTGOING_REQUESTS || []).forEach(r => {
+                    if (r && r.status === 'accepted') {
+                        const p = Number(r.profileId || r.receiverId || 0);
+                        const e = (r.receiverEmail || '').trim().toLowerCase();
+                        if (p) allAcceptedPeers.add(p);
+                        if (e && !e.includes('•')) allAcceptedEmails.add(e);
+                    }
+                });
+                (CHAT_THREADS || []).forEach(t => {
+                    if (t && (!t.status || t.status === 'accepted')) {
+                        const p = Number(t.profileId || 0);
+                        const e = (t.peerEmail || '').trim().toLowerCase();
+                        if (p) allAcceptedPeers.add(p);
+                        if (e && !e.includes('•')) allAcceptedEmails.add(e);
+                    }
+                });
+                (INCOMING_REQUESTS || []).forEach(r => {
+                    if (!r || r.status === 'disconnected') return;
+                    const p = Number(r.profileId || r.senderId || 0);
+                    const e = (r.senderEmail || '').trim().toLowerCase();
+                    if ((p && allAcceptedPeers.has(p)) || (e && allAcceptedEmails.has(e))) {
+                        r.status = 'accepted';
+                    }
+                });
+                (OUTGOING_REQUESTS || []).forEach(r => {
+                    if (!r || r.status === 'disconnected') return;
+                    const p = Number(r.profileId || r.receiverId || 0);
+                    const e = (r.receiverEmail || '').trim().toLowerCase();
+                    if ((p && allAcceptedPeers.has(p)) || (e && allAcceptedEmails.has(e))) {
+                        r.status = 'accepted';
+                    }
+                });
+                if (typeof window !== 'undefined') {
+                    window.INCOMING_REQUESTS = INCOMING_REQUESTS;
+                    window.OUTGOING_REQUESTS = OUTGOING_REQUESTS;
                 }
                 saveSessionState();
                 if (typeof syncUserNotificationsFromData === 'function') {
@@ -1451,12 +1509,28 @@ function renderInbox() {
                 return true;
             };
 
+            const receivedPeerIds = new Set();
+            const receivedPeerEmails = new Set();
+
             const received = (INCOMING_REQUESTS || []).filter(r => {
                 if (!r) return false;
-                return isPeerValid(r.profileId || r.senderId, r.senderEmail);
+                const valid = isPeerValid(r.profileId || r.senderId, r.senderEmail);
+                if (valid) {
+                    const p = Number(r.profileId || r.senderId || 0);
+                    const e = (r.senderEmail || '').trim().toLowerCase();
+                    if (p) receivedPeerIds.add(p);
+                    if (e && !e.includes('•')) receivedPeerEmails.add(e);
+                }
+                return valid;
             });
             const sent = (OUTGOING_REQUESTS || []).filter(r => {
                 if (!r) return false;
+                const p = Number(r.profileId || r.receiverId || 0);
+                const e = (r.receiverEmail || '').trim().toLowerCase();
+                // Prevent duplicate card if this peer is already shown in RECEIVED!
+                if ((p && receivedPeerIds.has(p)) || (e && receivedPeerEmails.has(e))) {
+                    return false;
+                }
                 return isPeerValid(r.profileId || r.receiverId, r.receiverEmail);
             });
             if (received.length === 0 && sent.length === 0) {
@@ -1560,6 +1634,14 @@ function requestCard(r, kind) {
     const card = document.createElement('div');
     card.className = 'card';
     card.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:10px;cursor:pointer;';
+
+    // Auto-heal status: If this peer connection is accepted anywhere, guarantee r.status is accepted!
+    const isPeerAccepted = (r.status === 'accepted') || 
+                           (typeof interestStatusFor === 'function' && interestStatusFor(pid) === 'accepted') || 
+                           (typeof findChatThread === 'function' && Boolean(findChatThread(pid)));
+    if (isPeerAccepted && r.status !== 'disconnected' && r.status !== 'declined') {
+        r.status = 'accepted';
+    }
 
     let actionContent = '';
     const isViewerBoy = state.currentUser && (typeof isBoyGender === 'function' ? isBoyGender(state.currentUser.gender) : (state.currentUser.gender === 'Boy' || state.currentUser.gender === 'boy'));
@@ -1750,8 +1832,18 @@ async function acceptRequest(profileId) {
     
     // Also update matching outgoing request if bidirectional record exists
     if (Array.isArray(window.OUTGOING_REQUESTS)) {
-        const outReq = window.OUTGOING_REQUESTS.find(o => Number(o.profileId) === pid || Number(o.receiverId) === pid);
-        if (outReq) outReq.status = 'accepted';
+        window.OUTGOING_REQUESTS.forEach(o => {
+            if (o && (Number(o.profileId) === pid || Number(o.receiverId) === pid || (r.senderEmail && o.receiverEmail && o.receiverEmail.toLowerCase() === r.senderEmail.toLowerCase()))) {
+                o.status = 'accepted';
+            }
+        });
+    }
+    if (Array.isArray(OUTGOING_REQUESTS)) {
+        OUTGOING_REQUESTS.forEach(o => {
+            if (o && (Number(o.profileId) === pid || Number(o.receiverId) === pid || (r.senderEmail && o.receiverEmail && o.receiverEmail.toLowerCase() === r.senderEmail.toLowerCase()))) {
+                o.status = 'accepted';
+            }
+        });
     }
 
     const p = findProfile(pid, r ? r.senderEmail : '');

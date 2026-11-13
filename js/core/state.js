@@ -188,8 +188,18 @@ function isProfileFullyComplete(user) {
     // Explicit incomplete flag takes precedence only if no profile data exists anywhere
     if (user.profileComplete === false) return false;
 
-    // If profileComplete is true with valid name, gender, and caste -> Complete!
-    if (user.profileComplete === true) {
+    // If profileComplete is true -> Complete!
+    if (user.profileComplete === true || (typeof state !== 'undefined' && state.profileComplete)) {
+        if (!user.name || user.name === 'Member') {
+            user.name = (typeof state !== 'undefined' && state.regData && state.regData.name) || (user.email ? user.email.split('@')[0] : 'Member');
+        }
+        if (!user.gender && typeof state !== 'undefined' && state.regData && state.regData.gender) {
+            user.gender = state.regData.gender;
+        }
+        if (!user.caste && typeof state !== 'undefined' && state.regData && state.regData.caste) {
+            user.caste = state.regData.caste;
+        }
+        user.profileComplete = true;
         return true;
     }
 

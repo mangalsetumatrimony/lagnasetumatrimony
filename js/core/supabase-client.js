@@ -2591,7 +2591,7 @@ async function supabaseUpdateInterestStatus(interestId, newStatus, senderProfile
             }
 
             // 2. Cleaned interestId (strip usr_ prefix)
-            if (!updated && cleanInterestId && cleanInterestId !== interestId) {
+            if (cleanInterestId && cleanInterestId !== interestId) {
                 const { data: updData2, error: updErr2 } = await client.from('interests').update({
                     status: newStatus,
                     updated_at: new Date().toISOString()
@@ -2602,8 +2602,8 @@ async function supabaseUpdateInterestStatus(interestId, newStatus, senderProfile
                 }
             }
 
-            // 3. Bidirectional ID query: int_sId_rId or int_rId_sId
-            if (!updated && sId && rId) {
+            // 3. Bidirectional ID query: int_sId_rId or int_rId_sId (Always ensure both directions are synced)
+            if (sId && rId) {
                 const { data: updData3, error: updErr3 } = await client.from('interests').update({
                     status: newStatus,
                     updated_at: new Date().toISOString()
@@ -2615,7 +2615,7 @@ async function supabaseUpdateInterestStatus(interestId, newStatus, senderProfile
             }
 
             // 4. Bidirectional column query: (sender_id = sId AND receiver_id = rId) OR (sender_id = rId AND receiver_id = sId)
-            if (!updated && sId && rId) {
+            if (sId && rId) {
                 const { data: updData4, error: updErr4 } = await client.from('interests').update({
                     status: newStatus,
                     updated_at: new Date().toISOString()
@@ -2627,7 +2627,7 @@ async function supabaseUpdateInterestStatus(interestId, newStatus, senderProfile
             }
 
             // 5. Bidirectional email query fallback
-            if (!updated && sEmail && rEmail && !sEmail.includes('•') && !rEmail.includes('•')) {
+            if (sEmail && rEmail && !sEmail.includes('•') && !rEmail.includes('•')) {
                 const { data: updData5, error: updErr5 } = await client.from('interests').update({
                     status: newStatus,
                     updated_at: new Date().toISOString()

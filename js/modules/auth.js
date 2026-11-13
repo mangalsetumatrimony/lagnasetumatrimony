@@ -858,6 +858,10 @@ function clearRegDraft(email) {
 window.clearRegDraft = clearRegDraft;
 
 function determineRemainingRegStep(regData, user) {
+    if ((typeof state !== 'undefined' && state.profileComplete) || (user && user.profileComplete === true)) {
+        return 'scr-home';
+    }
+
     const caste = (regData && regData.caste) || (user && user.caste);
     const gender = (regData && regData.gender) || (user && user.gender);
     const name = (regData && regData.name) || (user && user.name);
@@ -1033,9 +1037,7 @@ function enterHome() {
     }
 
     // Guard 1: Profile must be strictly complete
-    const isComplete = typeof isProfileFullyComplete === 'function'
-        ? isProfileFullyComplete(state.currentUser)
-        : false;
+    const isComplete = (state.profileComplete === true) || (typeof isProfileFullyComplete === 'function' && isProfileFullyComplete(state.currentUser));
     state.profileComplete = isComplete;
     if (state.currentUser) state.currentUser.profileComplete = isComplete;
 

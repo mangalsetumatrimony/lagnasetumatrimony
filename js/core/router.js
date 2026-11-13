@@ -82,9 +82,9 @@ function go(id, replace = false) {
 
     // 3. Profile completion verification using strict validator
     if (state.currentUser) {
-        const isComplete = typeof isProfileFullyComplete === 'function' 
+        const isComplete = (state.profileComplete === true) || (typeof isProfileFullyComplete === 'function' 
             ? isProfileFullyComplete(state.currentUser) 
-            : false;
+            : false);
         state.profileComplete = isComplete;
         state.currentUser.profileComplete = isComplete;
     }

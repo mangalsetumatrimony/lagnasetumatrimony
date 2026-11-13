@@ -313,6 +313,20 @@ async function submitProfileCompletion() {
     renderFilterCasteOptions();
     updateHeaderUserDisplay();
 
+    state.profileComplete = true;
+    if (state.currentUser) {
+        state.currentUser.profileComplete = true;
+        if (!state.currentUser.name || state.currentUser.name === 'Member') {
+            state.currentUser.name = newProfile.name;
+        }
+        if (!state.currentUser.gender) {
+            state.currentUser.gender = isGirl ? 'Girl' : 'Boy';
+        }
+        if (!state.currentUser.caste) {
+            state.currentUser.caste = newProfile.community;
+        }
+    }
+
     // Dismiss all registration/completion modals cleanly
     if (typeof closeModal === 'function') {
         closeModal('modalCompleteProfile');
@@ -327,9 +341,10 @@ async function submitProfileCompletion() {
     const enterFn = (typeof enterHome === 'function') ? enterHome : ((typeof window !== 'undefined' && typeof window.enterHome === 'function') ? window.enterHome : null);
     const goFn = (typeof go === 'function') ? go : ((typeof window !== 'undefined' && typeof window.go === 'function') ? window.go : null);
 
+    state.history = ['scr-home'];
+    localStorage.setItem('mangalSetu_activeScreen', 'scr-home');
+
     if (isGirl) {
-        state.history = ['scr-home'];
-        localStorage.setItem('mangalSetu_activeScreen', 'scr-home');
         if (enterFn) {
             enterFn();
         } else if (goFn) {
@@ -340,14 +355,11 @@ async function submitProfileCompletion() {
         }
     } else {
         // Boy explores Home cleanly without any blocking paywall modal upon profile completion
-        state.history = ['scr-home'];
-        localStorage.setItem('mangalSetu_activeScreen', 'scr-home');
         if (enterFn) {
             enterFn();
         } else if (goFn) {
             goFn('scr-home', true);
         }
-        // Strict fallback navigation: guarantee scr-home is active
         if (goFn) {
             goFn('scr-home', true);
         }
@@ -358,7 +370,6 @@ async function submitProfileCompletion() {
 }
 
 var selectedUpiApp = 'Google Pay';
-window.RAZORPAY_KEY_ID = window.RAZORPAY_KEY_ID || 'rzp_test_Tw25YYQHJqbeOA';
 
 function selectUpiApp(appName, el) {
     selectedUpiApp = appName;
@@ -813,35 +824,11 @@ function processSuccessfulPayment(txnId, upiMethod) {
         closeModal('modalPaywall');
         closeModal('modalBoyComplete');
         closeModal('modalCompleteProfile');
-        closeModal('modalRazorpayCheckout');
     }
 
     if (typeof updateMembershipScreen === 'function') updateMembershipScreen();
     openModal('modalPaySuccess');
     showToast('₹199 Paid Successfully via UPI! Account Activated 🎉');
-}
-
-function processMockPayment() {
-    closeModal('modalRazorpayCheckout');
-
-    // Route to official Razorpay if a real merchant key is configured (Test or Live)
-    if (window.RAZORPAY_KEY_ID && !window.RAZORPAY_KEY_ID.includes('demo') && (window.RAZORPAY_KEY_ID.startsWith('rzp_live_') || window.RAZORPAY_KEY_ID.startsWith('rzp_test_'))) {
-        showToast('Connecting to Razorpay gateway...');
-        if (typeof openRazorpayCheckout === 'function') {
-            openRazorpayCheckout();
-        }
-        return;
-    }
-
-    const upiInput = document.getElementById('upiCustomVpaInput');
-    const customVpa = upiInput ? upiInput.value.trim() : '';
-    const methodStr = customVpa ? `UPI (${customVpa})` : `UPI (${selectedUpiApp || 'Google Pay'})`;
-
-    showToast('Processing test payment via ' + methodStr + '...');
-    setTimeout(() => {
-        const txnId = 'DEMO_UPI_' + Math.floor(10000 + Math.random() * 90000);
-        processSuccessfulPayment(txnId, methodStr);
-    }, 600);
 }
 
 function activateDemoTestPass() {
