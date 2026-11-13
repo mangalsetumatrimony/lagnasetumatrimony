@@ -381,28 +381,26 @@ function interestStatusFor(profileId) {
     if (pEmail && typeof isUserPurged === 'function' && isUserPurged(pEmail)) return null;
 
     // Strict two-party check: The request MUST be specifically between currentUser AND profileId!
-    const matchReq = (r) => {
+    const matchOut = (r) => {
         if (!r) return false;
-        const rSenderId = Number(r.senderId || r.userId || 0);
-        const rReceiverId = Number(r.receiverId || r.profileId || 0);
-        const rSenderEmail = (r.senderEmail || '').trim().toLowerCase();
+        const rReceiverId = Number(r.receiverId || 0);
+        const rProfId = Number(r.profileId || 0);
         const rReceiverEmail = (r.receiverEmail || '').trim().toLowerCase();
-
-        // 1. currentUser sent to profileId
-        const fromMeToThem = (myId > 0 && rSenderId === myId && (rReceiverId === pid || Number(r.profileId) === pid)) ||
-                             (myEmail && rSenderEmail === myEmail && (rReceiverEmail === pEmail || Number(r.profileId) === pid));
-        if (fromMeToThem) return true;
-
-        // 2. profileId sent to currentUser
-        const fromThemToMe = (pid > 0 && rSenderId === pid && (rReceiverId === myId || Number(r.profileId) === myId)) ||
-                             (pEmail && rSenderEmail === pEmail && (rReceiverEmail === myEmail || Number(r.profileId) === myId));
-        if (fromThemToMe) return true;
-
-        return false;
+        return (pid > 0 && (rReceiverId === pid || rProfId === pid)) ||
+               (pEmail && (rReceiverEmail === pEmail || (rProfId === pid)));
     };
 
-    const out = Array.isArray(OUTGOING_REQUESTS) ? OUTGOING_REQUESTS.find(matchReq) : null;
-    const inc = Array.isArray(INCOMING_REQUESTS) ? INCOMING_REQUESTS.find(matchReq) : null;
+    const matchInc = (r) => {
+        if (!r) return false;
+        const rSenderId = Number(r.senderId || 0);
+        const rProfId = Number(r.profileId || 0);
+        const rSenderEmail = (r.senderEmail || '').trim().toLowerCase();
+        return (pid > 0 && (rSenderId === pid || rProfId === pid)) ||
+               (pEmail && (rSenderEmail === pEmail || (rProfId === pid)));
+    };
+
+    const out = Array.isArray(OUTGOING_REQUESTS) ? OUTGOING_REQUESTS.find(matchOut) : null;
+    const inc = Array.isArray(INCOMING_REQUESTS) ? INCOMING_REQUESTS.find(matchInc) : null;
 
     // Verify chat thread belongs strictly to currentUser and pid
     let thread = null;
@@ -1511,6 +1509,7 @@ function renderInbox() {
 
             const receivedPeerIds = new Set();
             const receivedPeerEmails = new Set();
+            const receivedPeerNames = new Set();
 
             const received = (INCOMING_REQUESTS || []).filter(r => {
                 if (!r) return false;
@@ -1518,8 +1517,17 @@ function renderInbox() {
                 if (valid) {
                     const p = Number(r.profileId || r.senderId || 0);
                     const e = (r.senderEmail || '').trim().toLowerCase();
+                    const n = (r.senderName || '').trim().toLowerCase();
                     if (p) receivedPeerIds.add(p);
                     if (e && !e.includes('•')) receivedPeerEmails.add(e);
+                    if (n) receivedPeerNames.add(n);
+                    const prof = (typeof findProfile === 'function') ? findProfile(p, e) : null;
+                    if (prof) {
+                        if (prof.id) receivedPeerIds.add(Number(prof.id));
+                        if (prof.userId) receivedPeerIds.add(Number(prof.userId));
+                        if (prof.email && !prof.email.includes('•')) receivedPeerEmails.add(prof.email.toLowerCase().trim());
+                        if (prof.name) receivedPeerNames.add(prof.name.toLowerCase().trim());
+                    }
                 }
                 return valid;
             });
@@ -1527,10 +1535,32 @@ function renderInbox() {
                 if (!r) return false;
                 const p = Number(r.profileId || r.receiverId || 0);
                 const e = (r.receiverEmail || '').trim().toLowerCase();
+                const n = (r.receiverName || '').trim().toLowerCase();
+                const prof = (typeof findProfile === 'function') ? findProfile(p, e) : null;
+                const profId = prof ? Number(prof.id) : 0;
+                const profUserId = prof ? Number(prof.userId) : 0;
+                const profEmail = (prof && prof.email && !prof.email.includes('•')) ? prof.email.toLowerCase().trim() : '';
+                const profName = (prof && prof.name) ? prof.name.toLowerCase().trim() : '';
+
                 // Prevent duplicate card if this peer is already shown in RECEIVED!
-                if ((p && receivedPeerIds.has(p)) || (e && receivedPeerEmails.has(e))) {
+                if ((p && receivedPeerIds.has(p)) ||
+                    (profId && receivedPeerIds.has(profId)) ||
+                    (profUserId && receivedPeerIds.has(profUserId)) ||
+                    (e && !e.includes('•') && receivedPeerEmails.has(e)) ||
+                    (profEmail && receivedPeerEmails.has(profEmail)) ||
+                    (n && receivedPeerNames.has(n)) ||
+                    (profName && receivedPeerNames.has(profName))) {
                     return false;
                 }
+
+                // If this outgoing request has been accepted, guarantee r.status is accepted
+                const isAccepted = (r.status === 'accepted') ||
+                                   (p && typeof interestStatusFor === 'function' && interestStatusFor(p) === 'accepted') ||
+                                   (profId && typeof interestStatusFor === 'function' && interestStatusFor(profId) === 'accepted');
+                if (isAccepted && r.status !== 'disconnected' && r.status !== 'declined') {
+                    r.status = 'accepted';
+                }
+
                 return isPeerValid(r.profileId || r.receiverId, r.receiverEmail);
             });
             if (received.length === 0 && sent.length === 0) {
@@ -1638,6 +1668,8 @@ function requestCard(r, kind) {
     // Auto-heal status: If this peer connection is accepted anywhere, guarantee r.status is accepted!
     const isPeerAccepted = (r.status === 'accepted') || 
                            (typeof interestStatusFor === 'function' && interestStatusFor(pid) === 'accepted') || 
+                           (p && p.id && typeof interestStatusFor === 'function' && interestStatusFor(p.id) === 'accepted') ||
+                           (reqEmail && !reqEmail.includes('•') && typeof interestStatusFor === 'function' && interestStatusFor(reqEmail) === 'accepted') ||
                            (typeof findChatThread === 'function' && Boolean(findChatThread(pid)));
     if (isPeerAccepted && r.status !== 'disconnected' && r.status !== 'declined') {
         r.status = 'accepted';

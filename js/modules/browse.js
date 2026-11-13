@@ -490,12 +490,46 @@ function pickEditProfileCreatedBy(type) {
 }
 window.pickEditProfileCreatedBy = pickEditProfileCreatedBy;
 
-function populateEditProfile() {
+async function populateEditProfile() {
     if (!state.currentUser || !state.currentUser.email) {
         if (typeof go === 'function') go('scr-welcome', true);
         return;
     }
-    const myProfile = getCurrentUserProfile();
+
+    // Single Source of Truth: Fetch live, unmasked profile directly from Supabase profiles table
+    let myProfile = null;
+    const client = (typeof getSupabaseClient === 'function') ? getSupabaseClient() : null;
+    if (client && state.currentUser.email) {
+        try {
+            const myEmail = state.currentUser.email.trim().toLowerCase();
+            const myId = state.currentUser.id || state.currentUser.profileId;
+            const uidFilter = myId ? `,id.eq.${myId},user_id.eq.${myId}` : '';
+            const { data: dbRows, error: dbErr } = await client
+                .from('profiles')
+                .select('*')
+                .or(`email.ilike.${myEmail}${uidFilter}`)
+                .order('created_at', { ascending: false })
+                .limit(1);
+            if (!dbErr && Array.isArray(dbRows) && dbRows.length > 0) {
+                myProfile = (typeof mapProfileFromSupabase === 'function')
+                    ? mapProfileFromSupabase(dbRows[0], true)
+                    : dbRows[0];
+                if (myProfile && Array.isArray(window.PROFILES)) {
+                    const pIdx = window.PROFILES.findIndex(p => p && (
+                        (p.id && (String(p.id) === String(myProfile.id) || Number(p.id) === Number(myProfile.id))) ||
+                        (p.email && myProfile.email && p.email.toLowerCase().trim() === myProfile.email.toLowerCase().trim())
+                    ));
+                    if (pIdx !== -1) window.PROFILES[pIdx] = { ...window.PROFILES[pIdx], ...myProfile };
+                }
+            }
+        } catch (fetchErr) {
+            console.warn('[EditProfile] Live Supabase fetch fallback:', fetchErr);
+        }
+    }
+
+    if (!myProfile) {
+        myProfile = getCurrentUserProfile();
+    }
     if (!myProfile) return;
 
     // Profile Managed By Selection (Myself vs Parents)
@@ -631,15 +665,6 @@ function populateEditProfile() {
         myProfile.raw_data?.family_details_enabled === true
     );
 
-    const isFamilyExplicitlyDisabled = !isFamExplicitlyOn && (
-        myProfile.familyDetailsEnabled === false ||
-        myProfile.family_details_enabled === false ||
-        state.currentUser?.familyDetailsEnabled === false ||
-        state.currentUser?.family_details_enabled === false ||
-        myProfile.raw_data?.familyDetailsEnabled === false ||
-        myProfile.raw_data?.family_details_enabled === false
-    );
-
     const hasFamilyDetails = Boolean(
         (fNameVal && fNameVal.trim() !== '' && fNameVal !== '—') ||
         (fOccVal && fOccVal.trim() !== '' && fOccVal !== '—') ||
@@ -650,11 +675,20 @@ function populateEditProfile() {
         (brotherVal && brotherVal.trim() !== '' && brotherVal !== '—' && brotherVal !== 'None')
     );
 
+    const isFamExplicitlyOff = !isFamExplicitlyOn && (
+        myProfile.familyDetailsEnabled === false ||
+        myProfile.family_details_enabled === false ||
+        state.currentUser?.familyDetailsEnabled === false ||
+        state.currentUser?.family_details_enabled === false ||
+        myProfile.raw_data?.familyDetailsEnabled === false ||
+        myProfile.raw_data?.family_details_enabled === false
+    );
+
     const tglEditFam = document.getElementById('tglEditFamily');
     const editFamContainer = document.getElementById('editFamilyInputsContainer');
     const editFamSubtext = document.getElementById('editFamilyToggleSubtext');
     if (tglEditFam && editFamContainer) {
-        if (!isFamilyExplicitlyDisabled && (isFamExplicitlyOn || hasFamilyDetails)) {
+        if (!isFamExplicitlyOff && (isFamExplicitlyOn || hasFamilyDetails)) {
             tglEditFam.classList.add('on');
             editFamContainer.style.display = 'block';
             if (editFamSubtext) editFamSubtext.textContent = 'Family details enabled • Turn OFF if you wish to skip (પરિવારની વિગત ચાલુ છે • છુપાવવા માટે બંધ કરો)';
@@ -662,7 +696,7 @@ function populateEditProfile() {
             tglEditFam.classList.remove('on');
             editFamContainer.style.display = 'none';
             if (editFamSubtext) editFamSubtext.textContent = 'Optional • Turn ON to add or update family details (મરજીયાત • પરિવાર વિગત ઉમેરવા ચાલુ કરો)';
-            if (isFamilyExplicitlyDisabled) {
+            if (isFamExplicitlyOff) {
                 if (fNameEl) fNameEl.value = '';
                 if (fOccEl) fOccEl.value = '';
                 if (fMobileEl) fMobileEl.value = '';
@@ -759,7 +793,7 @@ function toggleEditFamily(e) {
 }
 window.toggleEditFamily = toggleEditFamily;
 
-function saveEditProfile() {
+async function saveEditProfile() {
     const myProfile = getCurrentUserProfile();
 
     const fullNameEl = document.getElementById('editFullName');
@@ -849,7 +883,22 @@ function saveEditProfile() {
     for (let slot = 1; slot <= 3; slot++) {
         const imgEl = document.getElementById(`editSlotImg${slot}`);
         if (imgEl && imgEl.style.display !== 'none' && imgEl.src && !imgEl.src.endsWith('/')) {
-            photos.push(imgEl.src);
+            let pSrc = imgEl.src;
+            if (pSrc.startsWith('data:image/') && typeof uploadToCloudinary === 'function') {
+                try {
+                    if (typeof showGlobalLoader === 'function') showGlobalLoader(`Optimizing photo ${slot}...`);
+                    const cRes = await uploadToCloudinary(pSrc, 'profiles');
+                    if (cRes && cRes.secureUrl) {
+                        pSrc = (typeof getOptimizedImageUrl === 'function')
+                            ? getOptimizedImageUrl(cRes.secureUrl, { width: 800, height: 800, crop: 'fill', gravity: 'face' })
+                            : cRes.secureUrl;
+                        imgEl.src = pSrc;
+                    }
+                } catch (uErr) {
+                    console.warn('[EditProfile] Cloudinary upload notice:', uErr);
+                }
+            }
+            photos.push(pSrc);
         }
     }
 
@@ -1121,47 +1170,59 @@ function saveEditProfile() {
         showGlobalLoader('Saving profile updates to cloud...');
     }
 
-    // Sync to Supabase PostgreSQL live
-    const promises = [];
-    if (typeof supabaseUpsertProfile === 'function' && myProfile) {
-        promises.push(supabaseUpsertProfile(myProfile).catch(err => console.warn('[Supabase] Edit sync notice:', err)));
-    }
-    // Explicit visibility sync — ensures visible field is always saved correctly
-    if (typeof supabaseUpdateProfileStatus === 'function' && myProfile && myProfile.id) {
-        promises.push(
-            supabaseUpdateProfileStatus(myProfile.id, {
-                visible: isVisible,
-                email: myProfile.email || (state.currentUser && state.currentUser.email)
-            }).catch(err => console.warn('[Supabase] Visibility sync notice:', err))
-        );
-    }
-    if (typeof supabaseUpsertUser === 'function' && state.currentUser) {
-        promises.push(supabaseUpsertUser({
-            id: String(state.currentUser.id || state.currentUser.userId || myProfile?.id),
-            email: state.currentUser.email || myProfile?.email,
-            name: fullName,
-            gender: state.currentUser.gender,
-            caste: myProfile?.community || state.currentUser.caste,
-            mobile: formatPhoneNumber(cleanOwnMobile),
-            status: state.currentUser.status || 'Active',
-            profileComplete: true,
-            paymentStatus: state.currentUser.paymentStatus || 'Unpaid'
-        }).catch(err => console.warn('[Supabase] User edit sync notice:', err)));
+    try {
+        if (typeof supabaseUpsertProfile === 'function' && myProfile) {
+            const saveRes = await supabaseUpsertProfile(myProfile);
+            if (!saveRes || saveRes.success === false) {
+                if (typeof hideGlobalLoader === 'function') hideGlobalLoader();
+                const errMsg = saveRes?.error?.message || saveRes?.error || 'Database save failed. Please check your connection.';
+                showToast('Could not save profile: ' + errMsg);
+                console.error('[EditProfile] Save failed:', saveRes?.error);
+                return;
+            }
+        }
+
+        const bgPromises = [];
+        if (typeof supabaseUpdateProfileStatus === 'function' && myProfile && myProfile.id) {
+            bgPromises.push(
+                supabaseUpdateProfileStatus(myProfile.id, {
+                    visible: isVisible,
+                    email: myProfile.email || (state.currentUser && state.currentUser.email)
+                }).catch(err => console.warn('[Supabase] Visibility sync notice:', err))
+            );
+        }
+        if (typeof supabaseUpsertUser === 'function' && state.currentUser) {
+            bgPromises.push(supabaseUpsertUser({
+                id: String(state.currentUser.id || state.currentUser.userId || myProfile?.id),
+                email: state.currentUser.email || myProfile?.email,
+                name: fullName,
+                gender: state.currentUser.gender,
+                caste: myProfile?.community || state.currentUser.caste,
+                mobile: formatPhoneNumber(cleanOwnMobile),
+                status: state.currentUser.status || 'Active',
+                profileComplete: true,
+                paymentStatus: state.currentUser.paymentStatus || 'Unpaid'
+            }).catch(err => console.warn('[Supabase] User edit sync notice:', err)));
+        }
+        await Promise.allSettled(bgPromises);
+    } catch (saveErr) {
+        if (typeof hideGlobalLoader === 'function') hideGlobalLoader();
+        showToast('Error saving profile: ' + (saveErr?.message || 'Please try again'));
+        console.error('[EditProfile] Save exception:', saveErr);
+        return;
     }
 
-    Promise.all(promises).finally(() => {
-        if (typeof hideGlobalLoader === 'function') hideGlobalLoader();
-        saveCommunityProfiles();
-        saveSessionState();
-        updateHeaderUserDisplay();
-        if (typeof supabaseBroadcastProfileUpsert === 'function' && myProfile) {
-            supabaseBroadcastProfileUpsert(myProfile);
-        }
-        if (typeof renderHome === 'function' && document.getElementById('homeGirlsList')) renderHome();
-        if (typeof renderBrowse === 'function' && document.getElementById('browseList')) renderBrowse();
-        showToast(isVisible ? 'Profile updated successfully! ✨' : 'Profile updated! Your profile is now hidden from search.');
-        go('scr-home');
-    });
+    if (typeof hideGlobalLoader === 'function') hideGlobalLoader();
+    saveCommunityProfiles();
+    saveSessionState();
+    updateHeaderUserDisplay();
+    if (typeof supabaseBroadcastProfileUpsert === 'function' && myProfile) {
+        supabaseBroadcastProfileUpsert(myProfile);
+    }
+    if (typeof renderHome === 'function' && document.getElementById('homeGirlsList')) renderHome();
+    if (typeof renderBrowse === 'function' && document.getElementById('browseList')) renderBrowse();
+    showToast(isVisible ? 'Profile updated successfully! ✨' : 'Profile updated! Your profile is now hidden from search.');
+    go('scr-home');
 }
 
 

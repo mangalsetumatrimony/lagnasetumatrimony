@@ -1723,9 +1723,24 @@ function isProfileDetailsUnlocked(p) {
     const isViewerUnpaidBoy = isViewerBoy && (typeof checkBoyPassStatus === 'function' ? !checkBoyPassStatus(state.currentUser).active : (state.currentUser.paymentStatus !== 'Active' && state.currentUser.paymentStatus !== 'paid'));
     if (isViewerUnpaidBoy) return false;
 
-    const status = (typeof interestStatusFor === 'function')
-        ? interestStatusFor(p.id)
-        : (typeof getEffectiveInterestStatus === 'function' ? getEffectiveInterestStatus(p.id) : null);
+    // Fast cache check
+    if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE && window.AUTHORIZED_CONTACT_CACHE.has(Number(p.id))) {
+        const cached = window.AUTHORIZED_CONTACT_CACHE.get(Number(p.id));
+        if (cached && cached.authorized) return true;
+    }
+
+    let status = null;
+    if (typeof interestStatusFor === 'function') {
+        status = interestStatusFor(p.id) || 
+                 (p.userId && interestStatusFor(p.userId)) || 
+                 (p.user_id && interestStatusFor(p.user_id)) || 
+                 (p.email && !p.email.includes('•') && interestStatusFor(p.email));
+    }
+    if (!status && typeof getEffectiveInterestStatus === 'function') {
+        status = getEffectiveInterestStatus(p.id) || 
+                 (p.userId && getEffectiveInterestStatus(p.userId)) || 
+                 (p.user_id && getEffectiveInterestStatus(p.user_id));
+    }
 
     return status === 'accepted';
 }
@@ -1749,13 +1764,6 @@ function renderFamilyDetailsSection(p) {
     const personTerm = isGirl ? 'દીકરીને' : 'ઉમેદવારને';
     const personSubject = isGirl ? 'દીકરી' : 'ઉમેદવાર';
 
-    const isFamilyExplicitlyDisabled = (
-        p.familyDetailsEnabled === false ||
-        p.family_details_enabled === false ||
-        p.raw_data?.familyDetailsEnabled === false ||
-        p.raw_data?.family_details_enabled === false
-    );
-
     // Resolve all possible field aliases (ensures no field is missed across all data schemas)
     const fatherName = (p.father || p.father_name || p.fatherName || p.raw_data?.father || p.raw_data?.father_name || p.raw_data?.fatherName || '').trim();
     const cleanFatherName = (fatherName && fatherName !== '—' && fatherName !== 'Father') ? fatherName : '';
@@ -1775,10 +1783,26 @@ function renderFamilyDetailsSection(p) {
     const brotherVal = (p.brother || p.raw_data?.brother || '').trim();
     const cleanBrother = (brotherVal && brotherVal !== '—' && brotherVal !== 'None') ? brotherVal : '';
 
-    // Family details exist if NOT explicitly disabled AND at least one detail is entered
-    const hasFamilyDetails = !isFamilyExplicitlyDisabled && Boolean(
+    const isFamExplicitlyOn = (
+        p.familyDetailsEnabled === true ||
+        p.family_details_enabled === true ||
+        p.raw_data?.familyDetailsEnabled === true ||
+        p.raw_data?.family_details_enabled === true
+    );
+
+    const isFamExplicitlyOff = !isFamExplicitlyOn && (
+        p.familyDetailsEnabled === false ||
+        p.family_details_enabled === false ||
+        p.raw_data?.familyDetailsEnabled === false ||
+        p.raw_data?.family_details_enabled === false
+    );
+
+    const hasAnyEnteredDetails = Boolean(
         cleanFatherName || cleanFatherOcc || cleanMotherName || cleanMotherOcc || cleanSister || cleanBrother
     );
+
+    // Family details exist only if NOT turned off AND at least one detail is entered
+    const hasFamilyDetails = !isFamExplicitlyOff && hasAnyEnteredDetails;
 
     if (unlocked || !hasFamilyDetails) {
         if (!hasFamilyDetails) {
@@ -2059,6 +2083,38 @@ function openProfile(id) {
     const fallbackImg = isProfileGirl ? 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=800&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=800&auto=format&fit=crop';
     const mainImg = photos[0] || p.img || p.photo || fallbackImg;
     const hasMultiple = photos.length > 1;
+
+    // Fast-path: Apply cached authorized contact immediately before building HTML
+    if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE && window.AUTHORIZED_CONTACT_CACHE.has(Number(p.id))) {
+        const contact = window.AUTHORIZED_CONTACT_CACHE.get(Number(p.id));
+        if (contact && contact.authorized) {
+            if (typeof contact.familyDetailsEnabled !== 'undefined') {
+                p.familyDetailsEnabled = contact.familyDetailsEnabled;
+                p.family_details_enabled = contact.familyDetailsEnabled;
+            }
+            if (contact.father !== undefined) p.father = contact.father;
+            if (contact.father_name !== undefined) p.father_name = contact.father_name;
+            if (contact.fatherOcc !== undefined) p.fatherOcc = contact.fatherOcc;
+            if (contact.father_occ !== undefined) p.father_occ = contact.father_occ;
+            if (contact.mother !== undefined) p.mother = contact.mother;
+            if (contact.mother_name !== undefined) p.mother_name = contact.mother_name;
+            if (contact.motherOcc !== undefined) p.motherOcc = contact.motherOcc;
+            if (contact.mother_occ !== undefined) p.mother_occ = contact.mother_occ;
+            if (contact.sister !== undefined) p.sister = contact.sister;
+            if (contact.brother !== undefined) p.brother = contact.brother;
+            const realPhone = (contact.fatherMobile && !contact.fatherMobile.includes('•'))
+                ? contact.fatherMobile
+                : (contact.ownMobile && !contact.ownMobile.includes('•') ? contact.ownMobile : '');
+            if (realPhone) {
+                p.fatherMobile = realPhone;
+                p.father_mobile = realPhone;
+                p.rawFatherMobile = realPhone;
+            }
+            if (contact.ownMobile && !contact.ownMobile.includes('•')) p.ownMobile = contact.ownMobile;
+            if (contact.email && !contact.email.includes('•')) p.email = contact.email;
+            if (contact.fullAddress) p.fullAddress = contact.fullAddress;
+        }
+    }
 
     const el = document.getElementById('profileContent');
     if (!el) return;

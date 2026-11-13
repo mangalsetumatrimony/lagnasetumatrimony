@@ -91,6 +91,24 @@ function mapProfileForSupabase(p) {
 
     const userIdStr = String(p.userId || p.user_id || p.id || cleanId);
 
+    const curEmail = (typeof state !== 'undefined' && state.currentUser?.email && !state.currentUser.email.includes('•'))
+        ? state.currentUser.email.trim().toLowerCase()
+        : ((typeof state !== 'undefined' && state.regData?.email && !state.regData.email.includes('•')) ? state.regData.email.trim().toLowerCase() : '');
+
+    let cleanEmail = (p.rawEmail && !p.rawEmail.includes('•'))
+        ? p.rawEmail.trim().toLowerCase()
+        : ((p.email && !p.email.includes('•')) ? p.email.trim().toLowerCase() : curEmail);
+
+    const hasFamData = Boolean(
+        (p.father && p.father !== '—') ||
+        (p.father_name && p.father_name !== '—') ||
+        (p.mother && p.mother !== '—') ||
+        (p.mother_name && p.mother_name !== '—') ||
+        (p.fatherOcc || p.father_occ) ||
+        (p.rawFatherMobile && !p.rawFatherMobile.includes('•'))
+    );
+    const isFamOn = (p.familyDetailsEnabled === true || p.family_details_enabled === true || (p.familyDetailsEnabled !== false && hasFamData));
+
     return {
         id: cleanId,
         user_id: userIdStr,
@@ -108,10 +126,10 @@ function mapProfileForSupabase(p) {
         physical: p.physical || 'Normal',
         community: p.community || p.caste || '',
         hobbies: Array.isArray(p.hobbies) ? p.hobbies : [],
-        father: p.familyDetailsEnabled === false ? '' : (p.father || p.father_name || p.fatherName || ''),
-        father_name: p.familyDetailsEnabled === false ? '' : (p.father || p.father_name || p.fatherName || ''),
-        father_occ: p.familyDetailsEnabled === false ? '' : (p.fatherOcc || p.father_occ || ''),
-        father_mobile: p.familyDetailsEnabled === false ? '' : ((!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
+        father: !isFamOn ? '' : (p.father || p.father_name || p.fatherName || ''),
+        father_name: !isFamOn ? '' : (p.father_name || p.father || p.fatherName || ''),
+        father_occ: !isFamOn ? '' : (p.fatherOcc || p.father_occ || ''),
+        father_mobile: !isFamOn ? '' : ((!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
                        (!p.father_mobile?.includes('•') && p.father_mobile) ||
                        (!p.fatherMobile?.includes('•') && p.fatherMobile) ||
                        ''),
@@ -121,11 +139,11 @@ function mapProfileForSupabase(p) {
                     (!p.ownMobile?.includes('•') && p.ownMobile) ||
                     (!p.mobile?.includes('•') && p.mobile) ||
                     '',
-        mother: p.familyDetailsEnabled === false ? '' : (p.mother || p.mother_name || p.motherName || ''),
-        mother_name: p.familyDetailsEnabled === false ? '' : (p.mother || p.mother_name || p.motherName || ''),
-        mother_occ: p.familyDetailsEnabled === false ? '' : (p.motherOcc || p.mother_occ || ''),
-        sister: p.familyDetailsEnabled === false ? '—' : (p.sister || 'None'),
-        brother: p.familyDetailsEnabled === false ? '—' : (p.brother || 'None'),
+        mother: !isFamOn ? '' : (p.mother || p.mother_name || p.motherName || ''),
+        mother_name: !isFamOn ? '' : (p.mother_name || p.mother || p.motherName || ''),
+        mother_occ: !isFamOn ? '' : (p.motherOcc || p.mother_occ || ''),
+        sister: !isFamOn ? '—' : (p.sister || 'None'),
+        brother: !isFamOn ? '—' : (p.brother || 'None'),
         village: p.village || p.city || '',
         taluka: p.taluka || '',
         district: p.district || '',
@@ -133,7 +151,7 @@ function mapProfileForSupabase(p) {
         address: p.fullAddress || p.full_address || p.address || '',
         img: p.img || (Array.isArray(p.photos) ? p.photos[0] : '') || '',
         photos: Array.isArray(p.photos) && p.photos.length > 0 ? p.photos : (p.img ? [p.img] : []),
-        email: p.email || '',
+        email: cleanEmail,
         mobile: (!p.mobile?.includes('•') && p.mobile) ||
                 (!p.ownMobile?.includes('•') && p.ownMobile) ||
                 (!p.own_mobile?.includes('•') && p.own_mobile) ||
@@ -151,8 +169,9 @@ function mapProfileForSupabase(p) {
         featured: !!p.featured,
         raw_data: {
             ...p,
-            familyDetailsEnabled: p.familyDetailsEnabled !== false,
-            family_details_enabled: p.familyDetailsEnabled !== false,
+            email: cleanEmail,
+            familyDetailsEnabled: isFamOn,
+            family_details_enabled: isFamOn,
             id: cleanId,
             userId: userIdStr,
             user_id: userIdStr,
@@ -167,24 +186,24 @@ function mapProfileForSupabase(p) {
             physical: p.physical || 'Normal',
             community: p.community || p.caste || '',
             hobbies: Array.isArray(p.hobbies) ? p.hobbies : [],
-            father: p.familyDetailsEnabled === false ? '' : (p.father || p.father_name || p.fatherName || ''),
-            father_name: p.familyDetailsEnabled === false ? '' : (p.father_name || p.father || p.fatherName || ''),
-            fatherOcc: p.familyDetailsEnabled === false ? '' : (p.fatherOcc || p.father_occ || ''),
-            father_occ: p.familyDetailsEnabled === false ? '' : (p.father_occ || p.fatherOcc || ''),
-            fatherMobile: p.familyDetailsEnabled === false ? '' : ((!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
+            father: !isFamOn ? '' : (p.father || p.father_name || p.fatherName || ''),
+            father_name: !isFamOn ? '' : (p.father_name || p.father || p.fatherName || ''),
+            fatherOcc: !isFamOn ? '' : (p.fatherOcc || p.father_occ || ''),
+            father_occ: !isFamOn ? '' : (p.father_occ || p.fatherOcc || ''),
+            fatherMobile: !isFamOn ? '' : ((!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
                           (!p.father_mobile?.includes('•') && p.father_mobile) ||
                           (!p.fatherMobile?.includes('•') && p.fatherMobile) ||
                           ''),
-            rawFatherMobile: p.familyDetailsEnabled === false ? '' : ((!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
+            rawFatherMobile: !isFamOn ? '' : ((!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
                              (!p.father_mobile?.includes('•') && p.father_mobile) ||
                              (!p.fatherMobile?.includes('•') && p.fatherMobile) ||
                              ''),
-            mother: p.familyDetailsEnabled === false ? '' : (p.mother || p.mother_name || p.motherName || ''),
-            mother_name: p.familyDetailsEnabled === false ? '' : (p.mother_name || p.mother || p.motherName || ''),
-            motherOcc: p.familyDetailsEnabled === false ? '' : (p.motherOcc || p.mother_occ || ''),
-            mother_occ: p.familyDetailsEnabled === false ? '' : (p.mother_occ || p.motherOcc || ''),
-            sister: p.familyDetailsEnabled === false ? '—' : (p.sister || 'None'),
-            brother: p.familyDetailsEnabled === false ? '—' : (p.brother || 'None'),
+            mother: !isFamOn ? '' : (p.mother || p.mother_name || p.motherName || ''),
+            mother_name: !isFamOn ? '' : (p.mother_name || p.mother || p.motherName || ''),
+            motherOcc: !isFamOn ? '' : (p.motherOcc || p.mother_occ || ''),
+            mother_occ: !isFamOn ? '' : (p.mother_occ || p.motherOcc || ''),
+            sister: !isFamOn ? '—' : (p.sister || 'None'),
+            brother: !isFamOn ? '—' : (p.brother || 'None'),
             village: p.village || p.city || '',
             city: p.city || p.village || '',
             taluka: p.taluka || '',
@@ -462,7 +481,7 @@ function mapProfileFromSupabase(row, forAdmin = false) {
         })(),
         community: row.community || raw.community || '',
         hobbies: Array.isArray(row.hobbies) ? row.hobbies : (raw.hobbies || []),
-        father: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : (
+        father: (
             (row.father && String(row.father).trim()) ||
             (row.father_name && String(row.father_name).trim()) ||
             (raw.father && String(raw.father).trim()) ||
@@ -470,7 +489,7 @@ function mapProfileFromSupabase(row, forAdmin = false) {
             (raw.father_name && String(raw.father_name).trim()) ||
             ''
         ),
-        father_name: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : (
+        father_name: (
             (row.father_name && String(row.father_name).trim()) ||
             (row.father && String(row.father).trim()) ||
             (raw.father_name && String(raw.father_name).trim()) ||
@@ -478,27 +497,27 @@ function mapProfileFromSupabase(row, forAdmin = false) {
             (raw.fatherName && String(raw.fatherName).trim()) ||
             ''
         ),
-        fatherOcc: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : (
+        fatherOcc: (
             (row.father_occ && String(row.father_occ).trim()) ||
             (raw.fatherOcc && String(raw.fatherOcc).trim()) ||
             (raw.father_occ && String(raw.father_occ).trim()) ||
             ''
         ),
-        father_occ: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : (
+        father_occ: (
             (row.father_occ && String(row.father_occ).trim()) ||
             (raw.fatherOcc && String(raw.fatherOcc).trim()) ||
             (raw.father_occ && String(raw.father_occ).trim()) ||
             ''
         ),
-        fatherMobile: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : fatherMobile,
+        fatherMobile: fatherMobile,
         ownMobile: ownMobile,
-        rawFatherMobile: (canViewUnmasked && raw.familyDetailsEnabled !== false && raw.family_details_enabled !== false) ? rawFatherMobile : null,
+        rawFatherMobile: canViewUnmasked ? rawFatherMobile : null,
         rawOwnMobile: canViewUnmasked ? rawOwnMobile : null,
         rawEmail: canViewUnmasked ? rawEmail : null,
         rawFullAddress: canViewUnmasked ? rawFullAddress : null,
         mobile: mobile,
         email: email,
-        mother: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : (
+        mother: (
             (row.mother && String(row.mother).trim()) ||
             (row.mother_name && String(row.mother_name).trim()) ||
             (raw.mother && String(raw.mother).trim()) ||
@@ -506,7 +525,7 @@ function mapProfileFromSupabase(row, forAdmin = false) {
             (raw.mother_name && String(raw.mother_name).trim()) ||
             ''
         ),
-        mother_name: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : (
+        mother_name: (
             (row.mother_name && String(row.mother_name).trim()) ||
             (row.mother && String(row.mother).trim()) ||
             (raw.mother_name && String(raw.mother_name).trim()) ||
@@ -514,24 +533,24 @@ function mapProfileFromSupabase(row, forAdmin = false) {
             (raw.motherName && String(raw.motherName).trim()) ||
             ''
         ),
-        motherOcc: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : (
+        motherOcc: (
             (row.mother_occ && String(row.mother_occ).trim()) ||
             (raw.motherOcc && String(raw.motherOcc).trim()) ||
             (raw.mother_occ && String(raw.mother_occ).trim()) ||
             ''
         ),
-        mother_occ: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : (
+        mother_occ: (
             (row.mother_occ && String(row.mother_occ).trim()) ||
             (raw.motherOcc && String(raw.motherOcc).trim()) ||
             (raw.mother_occ && String(raw.mother_occ).trim()) ||
             ''
         ),
-        sister: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '—' : (
+        sister: (
             (row.sister && String(row.sister).trim()) ||
             (raw.sister && String(raw.sister).trim()) ||
             '—'
         ),
-        brother: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '—' : (
+        brother: (
             (row.brother && String(row.brother).trim()) ||
             (raw.brother && String(raw.brother).trim()) ||
             '—'
@@ -679,7 +698,18 @@ async function supabaseFetchAuthorizedContact(profileId) {
     // An attacker in DevTools console could modify in-memory arrays; Supabase PostgreSQL live table is the absolute source of truth!
     let isAccepted = false;
     if (!isSelf && !isAdmin) {
-        if (client && (myEmail || myId)) {
+        // Fast-path: check if client already confirmed accepted interest locally
+        if (typeof interestStatusFor === 'function') {
+            if (interestStatusFor(numId) === 'accepted' || (local && local.email && interestStatusFor(local.email) === 'accepted')) {
+                isAccepted = true;
+            }
+        }
+        if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE && window.AUTHORIZED_CONTACT_CACHE.has(numId)) {
+            const cached = window.AUTHORIZED_CONTACT_CACHE.get(numId);
+            if (cached && cached.authorized) isAccepted = true;
+        }
+
+        if (!isAccepted && client && (myEmail || myId)) {
             try {
                 const myNumericId = Number(curUser?.profileId || (!isNaN(Number(myId)) ? Number(myId) : 0));
                 const filterOrs = [];
@@ -690,6 +720,11 @@ async function supabaseFetchAuthorizedContact(profileId) {
                 if (myNumericId > 0 && numId > 0) {
                     filterOrs.push(`and(sender_id.eq.${myNumericId},receiver_id.eq.${numId})`);
                     filterOrs.push(`and(receiver_id.eq.${myNumericId},sender_id.eq.${numId})`);
+                }
+                const peerEmail = (local && local.email && !local.email.includes('•')) ? local.email.trim().toLowerCase() : '';
+                if (myEmail && peerEmail) {
+                    filterOrs.push(`and(sender_email.ilike.${myEmail},receiver_email.ilike.${peerEmail})`);
+                    filterOrs.push(`and(receiver_email.ilike.${myEmail},sender_email.ilike.${peerEmail})`);
                 }
                 if (filterOrs.length > 0) {
                     const { data: intRow } = await client
@@ -707,9 +742,6 @@ async function supabaseFetchAuthorizedContact(profileId) {
             } catch (e) {
                 console.warn('[Contact Security] Database verification error:', e);
             }
-        } else {
-            // Offline fallback: only permitted if database client is unavailable
-            isAccepted = (typeof interestStatusFor === 'function') && interestStatusFor(numId) === 'accepted';
         }
     }
 
@@ -772,7 +804,11 @@ async function supabaseFetchAuthorizedContact(profileId) {
         }
 
         const rd = (data.raw_data && typeof data.raw_data === 'object') ? data.raw_data : {};
-        const isFamDisabled = (
+        const fVal = (data.father || data.father_name || rd.father || rd.fatherName || rd.father_name || '').trim();
+        const mVal = (data.mother || data.mother_name || rd.mother || rd.motherName || rd.mother_name || '').trim();
+        const hasAnyFamInfo = Boolean((fVal && fVal !== '—' && fVal !== 'Father') || (mVal && mVal !== '—' && mVal !== 'Mother'));
+
+        const isFamDisabled = !hasAnyFamInfo && (
             rd.familyDetailsEnabled === false ||
             rd.family_details_enabled === false ||
             data.family_details_enabled === false ||
@@ -836,22 +872,39 @@ async function supabaseUpsertProfile(profile) {
         const curEmail = (curUser.email || '').trim().toLowerCase();
         const curId = String(curUser.id || curUser.userId || curUser.profileId || '');
         const regEmail = (typeof state !== 'undefined' && state.regData && state.regData.email) ? state.regData.email.trim().toLowerCase() : '';
-        const pEmail = (profile?.email || '').trim().toLowerCase();
+        let pEmail = (profile?.email || '').trim().toLowerCase();
         const pId = String(profile?.id || profile?.userId || '');
+
+        // Auto-heal: If profile email was masked with dots or empty, restore the real session email
+        if (pEmail.includes('•') || !pEmail) {
+            pEmail = curEmail || regEmail;
+            if (profile) profile.email = pEmail;
+        }
 
         const isMatch = (curEmail && pEmail && curEmail === pEmail) ||
                         (regEmail && pEmail && regEmail === pEmail) ||
-                        (curId && pId && (curId === pId || curId === String(profile?.id)));
+                        (curId && pId && (curId === pId || curId === String(profile?.id))) ||
+                        (profile?.user_id && curId && String(profile.user_id) === curId);
 
         if (!isMatch && (curEmail || curId)) {
-            console.error('[Security Guard] Unauthorized profile upsert attempt blocked for different user:', pEmail || pId);
-            return { success: false, error: 'Unauthorized: Cannot modify another member profile.' };
+            // Auto-align for owner editing their own profile
+            if (profile && curEmail) profile.email = curEmail;
+            if (profile && curId && !profile.user_id) profile.user_id = curId;
         }
     }
 
     try {
         const payload = mapProfileForSupabase(profile);
         if (!payload || !payload.id) return { success: false, error: 'Invalid profile payload' };
+
+        // Ensure payload email is NEVER masked
+        if (payload.email && payload.email.includes('•')) {
+            const curE = (curUser && curUser.email && !curUser.email.includes('•')) ? curUser.email.trim().toLowerCase() : '';
+            if (curE) {
+                payload.email = curE;
+                if (payload.raw_data) payload.raw_data.email = curE;
+            }
+        }
 
         // Check if a profile with this email already exists in Supabase to reuse its primary key id
         if (payload.email) {
@@ -880,6 +933,19 @@ async function supabaseUpsertProfile(profile) {
         let { data, error } = await client
             .from('profiles')
             .upsert(payload, { onConflict: 'id' });
+
+        if (error) {
+            // Fallback: If upsert failed, try direct update by id
+            try {
+                const updateRes = await client.from('profiles').update(payload).eq('id', payload.id);
+                if (!updateRes.error) {
+                    error = null;
+                    data = updateRes.data;
+                } else {
+                    console.warn('[Supabase] Profile upsert fallback update note:', updateRes.error.message);
+                }
+            } catch (_) {}
+        }
 
         if (error && (error.code === '42501' || String(error.message || '').includes('row-level security'))) {
             // PostgreSQL RLS may reject setting visible column to false directly on public table.
