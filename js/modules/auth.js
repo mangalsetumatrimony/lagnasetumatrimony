@@ -747,7 +747,6 @@ function determineRemainingRegStep(regData, user) {
     const hasPhoto = (regData && (regData.photo || (Array.isArray(regData.photos) && regData.photos.filter(Boolean).length > 0))) || (user && (user.img || (Array.isArray(user.photos) && user.photos.length > 0)));
     const city = (regData && regData.city) || (user && user.city);
     const address = (regData && regData.address) || (user && user.address);
-    const currentStep = (regData && regData.currentStep) || null;
 
     // 1. If caste not selected yet -> Step 1: Caste
     if (!caste) {
@@ -762,11 +761,8 @@ function determineRemainingRegStep(regData, user) {
         return 'scr-reg3';
     }
 
-    if (currentStep && (currentStep === 'scr-reg2' || currentStep === 'scr-reg3' || currentStep === 'scr-reg-caste')) {
-        return currentStep;
-    }
-
-    return 'scr-reg-caste';
+    // 4. All 3 registration steps are completed -> Home
+    return 'scr-home';
 }
 window.determineRemainingRegStep = determineRemainingRegStep;
 

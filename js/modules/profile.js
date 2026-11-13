@@ -313,15 +313,41 @@ async function submitProfileCompletion() {
     renderFilterCasteOptions();
     updateHeaderUserDisplay();
 
+    // Dismiss all registration/completion modals cleanly
+    if (typeof closeModal === 'function') {
+        closeModal('modalCompleteProfile');
+        closeModal('modalBoyComplete');
+        closeModal('modalPaywall');
+    }
+
+    if (state.regData) {
+        state.regData.currentStep = 'scr-home';
+    }
+
     if (isGirl) {
         state.history = ['scr-home'];
-        renderHome();
-        openModal('modalGirlComplete');
+        localStorage.setItem('mangalSetu_activeScreen', 'scr-home');
+        if (typeof enterHome === 'function') {
+            enterHome();
+        } else if (typeof go === 'function') {
+            go('scr-home', true);
+        }
+        if (typeof openModal === 'function') {
+            openModal('modalGirlComplete');
+        }
     } else {
         // Boy explores Home cleanly without any blocking paywall modal upon profile completion
         state.history = ['scr-home'];
         localStorage.setItem('mangalSetu_activeScreen', 'scr-home');
-        renderHome();
+        if (typeof enterHome === 'function') {
+            enterHome();
+        } else if (typeof go === 'function') {
+            go('scr-home', true);
+        }
+        // Strict fallback navigation: guarantee scr-home is active
+        if (typeof go === 'function') {
+            go('scr-home', true);
+        }
         if (typeof showToast === 'function') {
             showToast('તમારી પ્રોફાઇલ સફળતાપૂર્વક પૂર્ણ થઈ ગઈ છે! 🎉 (Profile Completed)');
         }
