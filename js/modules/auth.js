@@ -572,121 +572,98 @@ window.verifyUserSecureToken = verifyUserSecureToken;
 function checkBoyPassStatus(user) {
     if (!user) return { active: false, reason: 'no_user' };
 
-    // 1. Anti-Gender-Spoofing Protection (Prevents DevTools gender: 'Girl' bypass)
-    if (user.profileComplete && !user.genderToken && typeof computeSecureToken === 'function') {
-        console.warn('[Security Guard] Missing cryptographic gender signature.');
-        return { active: false, reason: 'unverified_gender', daysLeft: 0 };
-    }
-    if (user.genderToken && typeof computeSecureToken === 'function') {
-        const isGenderValid = (typeof verifyUserSecureToken === 'function')
-            ? verifyUserSecureToken(user.genderToken, 'gender', user, user.gender)
-            : (user.genderToken === computeSecureToken('gender', user.id, user.email, user.gender));
-
-        if (!isGenderValid) {
-            // Anti-Tamper: Never trust client-modified user.gender! Cross-check against authentic profile in PROFILES
-            const uEmail = (user.email || '').trim().toLowerCase();
-            const originalProf = (typeof window !== 'undefined' && Array.isArray(window.PROFILES))
-                ? window.PROFILES.find(p => p && p.email && p.email.toLowerCase() === uEmail)
-                : null;
-            const trueGender = originalProf ? originalProf.gender : null;
-            const isReallyGirl = trueGender && ((typeof isGirlGender === 'function' && isGirlGender(trueGender)) || String(trueGender).toLowerCase().includes('girl'));
-
-            if (isReallyGirl && user.id && user.email) {
-                user.gender = 'Girl';
-                user.genderToken = computeSecureToken('gender', user.id, user.email, 'Girl');
-            } else {
-                console.warn('[Security Guard] Tampering detected: gender token signature mismatch.');
-                return { active: false, reason: 'tampered', daysLeft: 0 };
-            }
-        }
-    }
-
-    const isGirl = typeof isGirlGender === 'function' ? isGirlGender(user.gender) : (String(user.gender || '').toLowerCase().includes('girl') || String(user.gender || '').toLowerCase() === 'female');
+    // 1. Guaranteed 100% Free Lifetime for Girls
+    const isGirl = typeof isGirlGender === 'function' 
+        ? isGirlGender(user.gender) 
+        : (String(user.gender || '').toLowerCase().includes('girl') || String(user.gender || '').toLowerCase() === 'female');
     if (isGirl) {
         return { active: true, reason: 'free_lifetime', daysLeft: 9999 };
     }
-    
-    // For Boy:
+
+    // Auto-heal genderToken if missing on a boy (prevents false unverified_gender rejection)
+    if (!user.genderToken && typeof computeSecureToken === 'function' && user.id && user.email) {
+        user.genderToken = computeSecureToken('gender', user.id, user.email, 'Boy');
+    }
+
+    // 2. Identify authentic profile in memory (window.PROFILES)
     const userEmail = (user.email || '').trim().toLowerCase();
     const curId = String(user.id || user.userId || user.profileId || '');
     const authProf = (typeof window !== 'undefined' && Array.isArray(window.PROFILES))
         ? window.PROFILES.find(p => p && ((curId && (String(p.id) === curId || String(p.userId) === curId)) || (p.email && p.email.toLowerCase() === userEmail)))
         : null;
 
-    // Strict Server-Authoritative Anti-Bypass Guard:
-    // If authentic database profile exists and is NOT approved/paid by Admin, block completely!
-    if (authProf) {
-        const isServerPaid = (authProf.paymentStatus === 'paid' || authProf.payment_status === 'paid' || authProf.paymentStatus === 'Active');
-        if (isServerPaid) {
-            // Auto-heal local user state from authoritative server profile
-            user.paymentStatus = 'Active';
-            user.payment_status = 'paid';
-            if (!authProf.planExpiry && !authProf.plan_expiry) {
-                authProf.planExpiry = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
-            }
-            if (!user.planExpiry) {
-                user.planExpiry = authProf.planExpiry || authProf.plan_expiry;
-            }
-            if (typeof computeSecureToken === 'function') {
-                user.paymentToken = computeSecureToken('payment', user.id, user.email, user.planExpiry);
-                user.genderToken = computeSecureToken('gender', user.id, user.email, 'Boy');
-            }
-        } else {
-            user.paymentStatus = authProf.paymentStatus || authProf.payment_status || 'unpaid';
-            delete user.paymentToken;
-            return { active: false, reason: 'unpaid' };
+    // Check if user is active/paid in currentUser, in authProf, or in LS_ADMIN_PAYMENTS
+    const isUserActive = (user.paymentStatus === 'Active' || user.paymentStatus === 'paid' || user.payment_status === 'paid');
+    const isServerPaid = authProf && (authProf.paymentStatus === 'paid' || authProf.payment_status === 'paid' || authProf.paymentStatus === 'Active');
+
+    let isLocalAdminPaid = false;
+    try {
+        const lsPays = JSON.parse(localStorage.getItem('LS_ADMIN_PAYMENTS') || '[]');
+        if (Array.isArray(lsPays) && lsPays.some(p => p && p.status === 'success' && ((userEmail && p.userEmail && p.userEmail.toLowerCase() === userEmail) || (curId && p.userId == curId)))) {
+            isLocalAdminPaid = true;
         }
+    } catch (_) {}
+
+    // Compute or retrieve expiry date
+    let expDate = user.planExpiry || (authProf && (authProf.planExpiry || authProf.plan_expiry));
+    if (!expDate) {
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        expDate = d.toISOString().split('T')[0];
     }
 
-    const isPaid = (user.paymentStatus === 'Active' || user.paymentStatus === 'paid');
+    const isCryptoValid = user.paymentToken && ((typeof verifyUserSecureToken === 'function')
+        ? verifyUserSecureToken(user.paymentToken, 'payment', user, expDate)
+        : (user.paymentToken === computeSecureToken('payment', user.id, user.email, expDate)));
+
+    // Anti-DevTools Hacker Protection:
+    // If client claims paymentStatus === 'Active', but server profile is unpaid, no admin payment exists, AND paymentToken signature is invalid, reject tampering!
+    if (isUserActive && !isServerPaid && !isLocalAdminPaid && !isCryptoValid) {
+        console.warn('[Security Guard] Tampering detected: unverified client payment claim without server signature.');
+        user.paymentStatus = 'unpaid';
+        delete user.paymentToken;
+        return { active: false, reason: 'tampered', daysLeft: 0 };
+    }
+
+    const isPaid = isUserActive || isServerPaid || isLocalAdminPaid || isCryptoValid;
     if (!isPaid) {
+        user.paymentStatus = 'unpaid';
         return { active: false, reason: 'unpaid' };
     }
 
-    if (!user.planExpiry) {
-        user.planExpiry = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
-    }
-    if (typeof computeSecureToken === 'function' && !user.paymentToken) {
-        user.paymentToken = computeSecureToken('payment', user.id, user.email, user.planExpiry);
+    // User is legitimately PAID! Harmonize all states:
+    user.paymentStatus = 'Active';
+    user.payment_status = 'paid';
+    user.planExpiry = expDate;
+    if (!user.planStart) {
+        user.planStart = new Date().toISOString().split('T')[0];
     }
 
-    // 2. Anti-Tamper Cryptographic Payment Signature Check
-    const isPayTokenValid = user.paymentToken && ((typeof verifyUserSecureToken === 'function')
-        ? verifyUserSecureToken(user.paymentToken, 'payment', user, user.planExpiry)
-        : (user.paymentToken === computeSecureToken('payment', user.id, user.email, user.planExpiry)));
-
-    if (!isPayTokenValid) {
-        // Cross-check against authentic server profile in PROFILES
-        let genuinePayment = false;
-        if (authProf && (authProf.paymentStatus === 'paid' || authProf.payment_status === 'paid' || authProf.paymentStatus === 'Active')) {
-            const expDate = authProf.planExpiry || authProf.plan_expiry || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
-            const exp = new Date(expDate);
-            if (exp.getTime() > Date.now()) {
-                genuinePayment = true;
-                user.planExpiry = expDate;
-                authProf.planExpiry = expDate;
-            }
-        }
-
-        if (genuinePayment && typeof computeSecureToken === 'function') {
-            user.paymentToken = computeSecureToken('payment', user.id, user.email, user.planExpiry);
-            console.info('[Security Guard] Resealed authentic payment token signature.');
-        } else {
-            console.warn('[Security Guard] Tampering detected: payment token signature mismatch.');
-            return { active: false, reason: 'tampered', daysLeft: 0 };
-        }
+    // Harmonize authProf in window.PROFILES so stale cache never interferes
+    if (authProf) {
+        authProf.paymentStatus = 'paid';
+        authProf.payment_status = 'paid';
+        authProf.planExpiry = expDate;
+        authProf.planStart = user.planStart;
     }
-    
-    const expiry = new Date(user.planExpiry);
+
+    // Seal cryptographic signatures
+    if (typeof computeSecureToken === 'function' && user.id && user.email) {
+        user.paymentToken = computeSecureToken('payment', user.id, user.email, expDate);
+        user.genderToken = computeSecureToken('gender', user.id, user.email, 'Boy');
+    }
+
+    // Expiry Check
+    const expiry = new Date(expDate);
     expiry.setHours(23, 59, 59, 999);
     const now = new Date();
-    
+
     if (now.getTime() > expiry.getTime()) {
-        return { active: false, reason: 'expired', expiryDate: user.planExpiry };
+        user.paymentStatus = 'Expired';
+        return { active: false, reason: 'expired', expiryDate: expDate };
     }
-    
+
     const diffMs = expiry.getTime() - now.getTime();
-    // Cap at 30 days max for standard 30-day pass so Day 1 displays exactly 30 days remaining
     const daysLeft = Math.min(30, Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24))));
     return { active: true, reason: 'active', daysLeft: daysLeft };
 }
@@ -761,6 +738,7 @@ function handleRemotePassApproved(data) {
         closeFn('modalMembership');
         closeFn('modalBoyComplete');
         closeFn('modalCompleteProfile');
+        closeFn('modalPaywall');
     }
 
     // 6. Update UI screens
@@ -768,6 +746,10 @@ function handleRemotePassApproved(data) {
     if (typeof updateHomeStats === 'function') updateHomeStats();
     if (typeof renderProfileScreen === 'function' && document.getElementById('scr-profile')?.classList.contains('active')) {
         renderProfileScreen();
+    }
+    if (typeof updateProfileActions === 'function' && state.activeProfileId) {
+        const activeP = (typeof findProfile === 'function') ? findProfile(state.activeProfileId) : null;
+        if (activeP) updateProfileActions(activeP);
     }
     if (typeof renderBrowseScreen === 'function' && document.getElementById('scr-browse')?.classList.contains('active')) {
         renderBrowseScreen();

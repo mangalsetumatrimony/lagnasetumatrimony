@@ -70,6 +70,17 @@ async function syncProfilesFromSupabase(force = false, silent = false) {
                         state.currentUser.photo = myProf.img;
                     }
                     state.currentUser.profileId = myProf.id;
+                    if (myProf.paymentStatus === 'paid' || myProf.payment_status === 'paid' || myProf.paymentStatus === 'Active') {
+                        state.currentUser.paymentStatus = 'Active';
+                        state.currentUser.payment_status = 'paid';
+                        if (myProf.planExpiry) state.currentUser.planExpiry = myProf.planExpiry;
+                        if (myProf.planStart) state.currentUser.planStart = myProf.planStart;
+                        if (typeof computeSecureToken === 'function') {
+                            state.currentUser.paymentToken = computeSecureToken('payment', state.currentUser.id || myProf.id, state.currentUser.email || myProf.email, state.currentUser.planExpiry);
+                            state.currentUser.genderToken = computeSecureToken('gender', state.currentUser.id || myProf.id, state.currentUser.email || myProf.email, 'Boy');
+                        }
+                        state.membershipPaid = true;
+                    }
                     if (myProf.dob !== undefined) state.currentUser.dob = myProf.dob || '';
                     if (myProf.age !== undefined && myProf.age !== null) state.currentUser.age = myProf.age;
                     if (myProf.height !== undefined) state.currentUser.height = myProf.height || '';

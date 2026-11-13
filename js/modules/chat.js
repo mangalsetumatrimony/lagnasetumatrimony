@@ -774,6 +774,7 @@ async function confirmSendInterest() {
             timestamp: nowTs
         });
     }
+    if (typeof window !== 'undefined') window.OUTGOING_REQUESTS = OUTGOING_REQUESTS;
 
     // Clean up any old incoming disconnected reference for this peer to avoid stale status
     if (Array.isArray(INCOMING_REQUESTS)) {
