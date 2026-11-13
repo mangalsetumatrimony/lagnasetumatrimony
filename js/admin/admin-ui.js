@@ -1228,6 +1228,30 @@
                         suspensionReason: willSuspend ? 'Suspended by admin review.' : null
                     });
                     console.info('[Admin] Member status successfully updated in Supabase:', u.id, newStatus);
+
+                    // 🔴 Realtime Broadcast: Immediately notify user's active session so suspend takes effect without waiting for next navigation
+                    try {
+                        if (typeof getSupabaseClient === 'function') {
+                            const sb = getSupabaseClient();
+                            if (sb && typeof sb.channel === 'function') {
+                                const bChan = sb.channel('realtime:presence:community');
+                                await bChan.send({
+                                    type: 'broadcast',
+                                    event: willSuspend ? 'user_suspended' : 'user_reactivated',
+                                    payload: {
+                                        userId: u.id,
+                                        profileId: u.id,
+                                        email: cleanEmail || u.email,
+                                        accountStatus: newStatus,
+                                        suspensionReason: willSuspend ? 'Suspended by admin review.' : null
+                                    }
+                                });
+                                console.info('[Admin] Suspension broadcast sent for:', u.id, newStatus);
+                            }
+                        }
+                    } catch (bErr) {
+                        console.warn('[Admin] Suspension broadcast notice:', bErr);
+                    }
                 } catch(err) {
                     console.warn('[Supabase] Suspend sync note:', err);
                 } finally {

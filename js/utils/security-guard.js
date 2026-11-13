@@ -1,16 +1,14 @@
 /* ============================================================
-   MANGAL SETU MATRIMONY — CLIENT SECURITY GUARD (TESTING MODE)
-   Note: Right-click, F12, and Developer Tools are KEPT ENABLED
-   for active development & testing so console errors can be inspected and fixed.
-   Production Lockdown will be activated when the app is completely finalized.
+   MANGAL SETU MATRIMONY — CLIENT SECURITY GUARD
+   PRODUCTION MODE: Right-click & DevTools are DISABLED for real users.
+   To re-enable for debugging, set IS_DEV_TESTING_MODE = true temporarily.
    ============================================================ */
 
 (function () {
     'use strict';
 
-    // Development & Testing Mode is ACTIVE:
-    // Right-Click, F12, and Developer Tools are fully allowed for testing.
-    var IS_DEV_TESTING_MODE = true;
+    // Set to true ONLY during local development/testing. Must be false for live/production.
+    var IS_DEV_TESTING_MODE = false;
 
     if (IS_DEV_TESTING_MODE) {
         // Clean notification in console

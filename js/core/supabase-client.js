@@ -4250,6 +4250,52 @@ function supabaseInitPresence(currentUser, onChangeCallback) {
                         window.handleRemotePassApproved(payload.payload);
                     }
                 })
+                .on('broadcast', { event: 'user_suspended' }, payload => {
+                    // Realtime suspension: immediately block current user if they are the suspended one
+                    if (payload && payload.payload) {
+                        const d = payload.payload;
+                        const cur = (typeof window.state !== 'undefined' && window.state.currentUser) ? window.state.currentUser : null;
+                        if (!cur) return;
+                        const curEmail = (cur.email || '').toLowerCase().trim();
+                        const curId = String(cur.id || cur.userId || '');
+                        const dEmail = String(d.email || d.userEmail || '').toLowerCase().trim();
+                        const dId = String(d.userId || d.profileId || d.id || '');
+                        const isMe = (curEmail && dEmail && curEmail === dEmail) || (curId && dId && curId === dId);
+                        if (isMe) {
+                            cur.accountStatus = 'suspended';
+                            cur.account_status = 'suspended';
+                            cur.status = 'Suspended';
+                            cur.suspensionReason = d.suspensionReason || 'Suspended by admin.';
+                            console.warn('[Realtime] Account suspended by admin. Enforcing modal.');
+                            if (typeof window.enforceUserSuspendedModal === 'function') {
+                                window.enforceUserSuspendedModal(cur.suspensionReason);
+                            } else if (typeof window.openModal === 'function') {
+                                window.openModal('modalSuspended');
+                            }
+                        }
+                    }
+                })
+                .on('broadcast', { event: 'user_reactivated' }, payload => {
+                    // Realtime reactivation: unblock current user if they are the reactivated one
+                    if (payload && payload.payload) {
+                        const d = payload.payload;
+                        const cur = (typeof window.state !== 'undefined' && window.state.currentUser) ? window.state.currentUser : null;
+                        if (!cur) return;
+                        const curEmail = (cur.email || '').toLowerCase().trim();
+                        const curId = String(cur.id || cur.userId || '');
+                        const dEmail = String(d.email || d.userEmail || '').toLowerCase().trim();
+                        const dId = String(d.userId || d.profileId || d.id || '');
+                        const isMe = (curEmail && dEmail && curEmail === dEmail) || (curId && dId && curId === dId);
+                        if (isMe) {
+                            cur.accountStatus = 'active';
+                            cur.account_status = 'active';
+                            cur.status = 'Active';
+                            delete cur.suspensionReason;
+                            console.info('[Realtime] Account reactivated by admin.');
+                            if (typeof window.showToast === 'function') window.showToast('Your account has been reactivated! Welcome back.');
+                        }
+                    }
+                })
                 .on('broadcast', { event: 'peer_disconnect' }, payload => {
                     if (payload && payload.payload && typeof window.handleRealtimePeerDisconnect === 'function') {
                         window.handleRealtimePeerDisconnect(payload.payload);

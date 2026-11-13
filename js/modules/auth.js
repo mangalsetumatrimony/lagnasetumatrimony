@@ -617,15 +617,18 @@ function checkBoyPassStatus(user) {
         : (user.paymentToken === computeSecureToken('payment', user.id, user.email, expDate)));
 
     // Anti-DevTools Hacker Protection:
-    // If client claims paymentStatus === 'Active', but server profile is unpaid, no admin payment exists, AND paymentToken signature is invalid, reject tampering!
-    if (isUserActive && !isServerPaid && !isLocalAdminPaid && !isCryptoValid) {
-        console.warn('[Security Guard] Tampering detected: unverified client payment claim without server signature.');
+    // If client claims paymentStatus === 'Active', but server profile is unpaid AND paymentToken signature is invalid, reject tampering!
+    // NOTE: isLocalAdminPaid alone is NOT sufficient proof — LS_ADMIN_PAYMENTS is writable by users.
+    // A claim is only valid if: server confirms (isServerPaid) OR crypto token is valid (isCryptoValid).
+    if (isUserActive && !isServerPaid && !isCryptoValid) {
+        console.warn('[Security Guard] Tampering detected: unverified client payment claim without server signature or valid crypto token.');
         user.paymentStatus = 'unpaid';
         delete user.paymentToken;
         return { active: false, reason: 'tampered', daysLeft: 0 };
     }
 
-    const isPaid = isUserActive || isServerPaid || isLocalAdminPaid || isCryptoValid;
+    // isPaid: must have server or crypto proof (LS_ADMIN_PAYMENTS only used as supplemental, not sole proof)
+    const isPaid = isServerPaid || isCryptoValid || (isLocalAdminPaid && isCryptoValid);
     if (!isPaid) {
         user.paymentStatus = 'unpaid';
         return { active: false, reason: 'unpaid' };
