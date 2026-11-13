@@ -1388,7 +1388,52 @@ window.escapeHtml = escapeHtmlAdmin;
                 try {
                     await supabaseUpdateProfileStatus(u.id, {
                         accountStatus: 'active',
+                        paymentStatus: 'paid',
+                        payment_status: 'paid',
+                        planStart: planStart,
+                        planExpiry: planExpiry,
                         email: u.email
+                    });
+                } catch (_) {}
+            }
+
+            // 5b. Broadcast Realtime 'pass_approved' & 'profile_upserted' events so client immediately activates without reload
+            try {
+                if (typeof getSupabaseClient === 'function') {
+                    const sb = getSupabaseClient();
+                    if (sb && typeof sb.channel === 'function') {
+                        const bChan = sb.channel('realtime:presence:community');
+                        await bChan.send({
+                            type: 'broadcast',
+                            event: 'pass_approved',
+                            payload: {
+                                userId: u.id,
+                                profileId: u.id,
+                                user_id: u.userId || u.id,
+                                email: u.email,
+                                name: u.name,
+                                paymentStatus: 'Active',
+                                payment_status: 'paid',
+                                planStart: planStart,
+                                planExpiry: planExpiry,
+                                amount: 199
+                            }
+                        });
+                    }
+                }
+            } catch (bErr) {
+                console.warn('[Admin] pass_approved broadcast notice:', bErr);
+            }
+
+            if (typeof supabaseBroadcastProfileUpsert === 'function') {
+                try {
+                    supabaseBroadcastProfileUpsert({
+                        ...u,
+                        paymentStatus: 'paid',
+                        payment_status: 'paid',
+                        planStart: planStart,
+                        planExpiry: planExpiry,
+                        accountStatus: 'active'
                     });
                 } catch (_) {}
             }

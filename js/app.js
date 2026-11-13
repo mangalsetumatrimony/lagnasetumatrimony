@@ -400,6 +400,29 @@ async function bootstrapApp() {
                 }
             });
         }
+        // Auto-Activation Watcher for Unpaid Boys:
+        // When tab regains focus or every 15s, check if Admin approved their ₹199 pass
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                const u = (typeof state !== 'undefined' && state.currentUser) ? state.currentUser : null;
+                const isBoy = u && (typeof isBoyGender === 'function' ? isBoyGender(u.gender) : (u.gender === 'Boy' || u.gender === 'boy' || u.gender === 'boys'));
+                if (isBoy && u.paymentStatus !== 'Active') {
+                    if (typeof checkAndUpdatePaymentStatus === 'function') {
+                        checkAndUpdatePaymentStatus(true);
+                    }
+                }
+            }
+        });
+
+        setInterval(() => {
+            const u = (typeof state !== 'undefined' && state.currentUser) ? state.currentUser : null;
+            const isBoy = u && (typeof isBoyGender === 'function' ? isBoyGender(u.gender) : (u.gender === 'Boy' || u.gender === 'boy' || u.gender === 'boys'));
+            if (isBoy && u.paymentStatus !== 'Active') {
+                if (typeof checkAndUpdatePaymentStatus === 'function') {
+                    checkAndUpdatePaymentStatus(true);
+                }
+            }
+        }, 15000);
     } finally {
         if (typeof hideGlobalLoader === 'function') hideGlobalLoader(true);
     }

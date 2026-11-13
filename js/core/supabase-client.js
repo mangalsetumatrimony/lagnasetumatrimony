@@ -482,9 +482,26 @@ function mapProfileFromSupabase(row, forAdmin = false) {
         email: email,
         mobile: mobile,
         verifyStatus: row.verify_status || raw.verifyStatus || 'approved',
-        paymentStatus: row.payment_status || raw.paymentStatus || 'unpaid',
-        planStart: row.plan_start || raw.planStart || raw.plan_start || null,
-        planExpiry: row.plan_expiry || raw.planExpiry || raw.plan_expiry || null,
+        paymentStatus: (function() {
+            const ps = row.payment_status || raw.paymentStatus || raw.payment_status || 'unpaid';
+            return (ps === 'Active' || ps === 'paid') ? 'paid' : ps;
+        })(),
+        planStart: (function() {
+            const ps = row.payment_status || raw.paymentStatus || raw.payment_status || 'unpaid';
+            const isPaid = (ps === 'Active' || ps === 'paid');
+            return row.plan_start || raw.planStart || raw.plan_start || (isPaid ? new Date().toISOString().split('T')[0] : null);
+        })(),
+        planExpiry: (function() {
+            const ps = row.payment_status || raw.paymentStatus || raw.payment_status || 'unpaid';
+            const isPaid = (ps === 'Active' || ps === 'paid');
+            const exp = row.plan_expiry || raw.planExpiry || raw.plan_expiry || null;
+            if (exp) return exp;
+            if (isPaid) {
+                // Auto-heal: Ensure paid members always have a valid 30-day active window
+                return new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+            }
+            return null;
+        })(),
         accountStatus: row.account_status || raw.accountStatus || 'active',
         suspensionReason: row.suspension_reason || raw.suspensionReason || null,
         rejectReason: row.reject_reason || raw.rejectReason || null,
@@ -874,6 +891,25 @@ async function supabaseRecordPayment(paymentData) {
             updated_at: new Date().toISOString()
         };
 
+        // Also sync raw_data JSONB on profiles table
+        try {
+            let q = client.from('profiles').select('raw_data');
+            if (numProfId > 0) q = q.eq('id', numProfId);
+            else if (uid) q = q.eq('user_id', uid);
+            else if (eml) q = q.ilike('email', eml);
+            const { data: curRow } = await q.maybeSingle();
+            const existingRaw = (curRow && curRow.raw_data && typeof curRow.raw_data === 'object') ? curRow.raw_data : {};
+            profUpdates.raw_data = {
+                ...existingRaw,
+                paymentStatus: isReject ? 'unpaid' : 'paid',
+                payment_status: isReject ? 'unpaid' : 'paid',
+                planStart: isReject ? null : planStart,
+                planExpiry: isReject ? null : planExpiry,
+                accountStatus: isReject ? existingRaw.accountStatus : 'active',
+                visible: true
+            };
+        } catch (_) {}
+
         const userUpdates = isReject ? {
             payment_status: 'Rejected',
             suspension_reason: paymentData.notes || 'Payment proof rejected',
@@ -1155,6 +1191,10 @@ async function supabaseUpdateProfileStatus(profileId, updates) {
         // Ensure payload never overwrites primary key column
         if (updates.verifyStatus || updates.verify_status) payload.verify_status = updates.verifyStatus || updates.verify_status;
         if (updates.accountStatus || updates.account_status) payload.account_status = (updates.accountStatus || updates.account_status).toLowerCase();
+        if (updates.paymentStatus || updates.payment_status) {
+            const ps = updates.paymentStatus || updates.payment_status;
+            payload.payment_status = (ps === 'Active' || ps === 'paid') ? 'paid' : ps;
+        }
         
         // CRITICAL: NEVER set payload.visible on PostgreSQL profiles table directly!
         // PostgreSQL RLS has a strict check policy that fails with 42501 error when setting visible: false.
@@ -1186,13 +1226,23 @@ async function supabaseUpdateProfileStatus(profileId, updates) {
                     updatedRaw.accountStatus = payload.account_status;
                     updatedRaw.visible = (payload.account_status !== 'suspended');
                 }
+                if (payload.payment_status !== undefined) {
+                    updatedRaw.paymentStatus = payload.payment_status;
+                    updatedRaw.payment_status = payload.payment_status;
+                }
+                if (updates.planStart) updatedRaw.planStart = updates.planStart;
+                if (updates.planExpiry) updatedRaw.planExpiry = updates.planExpiry;
                 if (updates.featured !== undefined) updatedRaw.featured = updates.featured;
                 if (payload.suspension_reason !== undefined) updatedRaw.suspensionReason = payload.suspension_reason;
                 payload.raw_data = updatedRaw;
-            } else if (payload.account_status !== undefined) {
+            } else if (payload.account_status !== undefined || payload.payment_status !== undefined) {
                 payload.raw_data = { 
                     visible: (payload.account_status !== 'suspended'), 
-                    accountStatus: payload.account_status,
+                    accountStatus: payload.account_status || 'active',
+                    paymentStatus: payload.payment_status || 'unpaid',
+                    payment_status: payload.payment_status || 'unpaid',
+                    planStart: updates.planStart || null,
+                    planExpiry: updates.planExpiry || null,
                     suspensionReason: payload.suspension_reason 
                 };
             }
@@ -1225,7 +1275,27 @@ async function supabaseUpdateProfileStatus(profileId, updates) {
             } catch (_) {}
         }
 
-        // Synchronize account status directly to users table as well
+        // Synchronize payment status directly to users table as well
+        if (payload.payment_status !== undefined || updates.paymentStatus || updates.payment_status) {
+            const ps = payload.payment_status || updates.paymentStatus || updates.payment_status;
+            const uPayStatus = (ps === 'paid' || ps === 'Active') ? 'Active' : 'Unpaid';
+            const uPayPayload = {
+                payment_status: uPayStatus,
+                updated_at: new Date().toISOString()
+            };
+            if (updates.planStart) uPayPayload.plan_start = updates.planStart;
+            if (updates.planExpiry) uPayPayload.plan_expiry = updates.planExpiry;
+
+            if (targetUserId) {
+                try { await client.from('users').update(uPayPayload).eq('id', targetUserId); } catch (_) {}
+            }
+            if (targetEmail) {
+                try { await client.from('users').update(uPayPayload).ilike('email', targetEmail); } catch (_) {}
+            }
+            if (hasValidNumId) {
+                try { await client.from('users').update(uPayPayload).eq('id', String(numId)); } catch (_) {}
+            }
+        }
         if (payload.account_status !== undefined) {
             const userStatus = payload.account_status === 'suspended' ? 'Suspended' : 'Active';
             const userSuspReason = (payload.account_status === 'suspended') ? (payload.suspension_reason || 'Suspended by admin review.') : null;
@@ -3741,6 +3811,42 @@ function supabaseSubscribeToUserChat(userId, userEmail, handlers = {}) {
                     }
                 }
             })
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'payments' }, payload => {
+                const row = payload.new;
+                if (!row) return;
+                const uid = String(row.user_id || '');
+                const numU = Number(row.user_id);
+                const isMe = (uid && allMyIds.has(uid)) || (!isNaN(numU) && allMyIds.has(numU));
+                if (isMe && row.status === 'success') {
+                    if (typeof window.handleRemotePassApproved === 'function') {
+                        window.handleRemotePassApproved({
+                            userId: uid,
+                            planStart: row.plan_start,
+                            planExpiry: row.plan_expiry,
+                            amount: row.amount
+                        });
+                    }
+                }
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, payload => {
+                const row = payload.new;
+                if (!row) return;
+                const rId = Number(row.id || 0);
+                const rUid = String(row.user_id || '');
+                const rEmail = (row.email || '').trim().toLowerCase();
+                const isMe = (rId && allMyIds.has(rId)) || (rUid && allMyIds.has(rUid)) || (rEmail && allMyEmails.has(rEmail));
+                if (isMe && (row.payment_status === 'paid' || row.payment_status === 'Active')) {
+                    if (typeof window.handleRemotePassApproved === 'function') {
+                        const raw = (row.raw_data && typeof row.raw_data === 'object') ? row.raw_data : {};
+                        window.handleRemotePassApproved({
+                            userId: row.id,
+                            email: row.email,
+                            planStart: row.plan_start || raw.planStart,
+                            planExpiry: row.plan_expiry || raw.planExpiry
+                        });
+                    }
+                }
+            })
             .on('broadcast', { event: 'peer_disconnect' }, payload => {
                 if (payload && payload.payload && typeof window.handleRealtimePeerDisconnect === 'function') {
                     window.handleRealtimePeerDisconnect(payload.payload);
@@ -4138,6 +4244,11 @@ function supabaseInitPresence(currentUser, onChangeCallback) {
                 })
                 .on('presence', { event: 'leave' }, () => {
                     syncPresenceStateFromChannel();
+                })
+                .on('broadcast', { event: 'pass_approved' }, payload => {
+                    if (payload && payload.payload && typeof window.handleRemotePassApproved === 'function') {
+                        window.handleRemotePassApproved(payload.payload);
+                    }
                 })
                 .on('broadcast', { event: 'peer_disconnect' }, payload => {
                     if (payload && payload.payload && typeof window.handleRealtimePeerDisconnect === 'function') {

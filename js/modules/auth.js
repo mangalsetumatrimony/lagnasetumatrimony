@@ -617,7 +617,21 @@ function checkBoyPassStatus(user) {
     // If authentic database profile exists and is NOT approved/paid by Admin, block completely!
     if (authProf) {
         const isServerPaid = (authProf.paymentStatus === 'paid' || authProf.payment_status === 'paid' || authProf.paymentStatus === 'Active');
-        if (!isServerPaid) {
+        if (isServerPaid) {
+            // Auto-heal local user state from authoritative server profile
+            user.paymentStatus = 'Active';
+            user.payment_status = 'paid';
+            if (!authProf.planExpiry && !authProf.plan_expiry) {
+                authProf.planExpiry = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+            }
+            if (!user.planExpiry) {
+                user.planExpiry = authProf.planExpiry || authProf.plan_expiry;
+            }
+            if (typeof computeSecureToken === 'function') {
+                user.paymentToken = computeSecureToken('payment', user.id, user.email, user.planExpiry);
+                user.genderToken = computeSecureToken('gender', user.id, user.email, 'Boy');
+            }
+        } else {
             user.paymentStatus = authProf.paymentStatus || authProf.payment_status || 'unpaid';
             delete user.paymentToken;
             return { active: false, reason: 'unpaid' };
@@ -625,8 +639,15 @@ function checkBoyPassStatus(user) {
     }
 
     const isPaid = (user.paymentStatus === 'Active' || user.paymentStatus === 'paid');
-    if (!isPaid || !user.planExpiry) {
+    if (!isPaid) {
         return { active: false, reason: 'unpaid' };
+    }
+
+    if (!user.planExpiry) {
+        user.planExpiry = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+    }
+    if (typeof computeSecureToken === 'function' && !user.paymentToken) {
+        user.paymentToken = computeSecureToken('payment', user.id, user.email, user.planExpiry);
     }
 
     // 2. Anti-Tamper Cryptographic Payment Signature Check
@@ -637,12 +658,13 @@ function checkBoyPassStatus(user) {
     if (!isPayTokenValid) {
         // Cross-check against authentic server profile in PROFILES
         let genuinePayment = false;
-        if (authProf && (authProf.paymentStatus === 'paid' || authProf.payment_status === 'paid' || authProf.paymentStatus === 'Active') && (authProf.planExpiry || authProf.plan_expiry)) {
-            const expDate = authProf.planExpiry || authProf.plan_expiry;
+        if (authProf && (authProf.paymentStatus === 'paid' || authProf.payment_status === 'paid' || authProf.paymentStatus === 'Active')) {
+            const expDate = authProf.planExpiry || authProf.plan_expiry || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
             const exp = new Date(expDate);
             if (exp.getTime() > Date.now()) {
                 genuinePayment = true;
                 user.planExpiry = expDate;
+                authProf.planExpiry = expDate;
             }
         }
 
@@ -677,6 +699,119 @@ try {
 } catch (_) {
     window.checkBoyPassStatus = checkBoyPassStatus;
 }
+
+/**
+ * Realtime Live Pass Activation Listener:
+ * When Admin approves pass in admin.html, this handler activates client session immediately without page reload!
+ */
+function handleRemotePassApproved(data) {
+    if (!data) return;
+    const cur = (typeof state !== 'undefined' && state.currentUser) ? state.currentUser : null;
+    if (!cur) return;
+
+    const curEmail = (cur.email || '').toLowerCase().trim();
+    const curId = String(cur.id || cur.userId || cur.profileId || '');
+    const dataEmail = String(data.email || data.userEmail || '').toLowerCase().trim();
+    const dataId = String(data.userId || data.profileId || data.id || data.user_id || '');
+
+    const isMatch = (curEmail && dataEmail && curEmail === dataEmail) || (curId && dataId && curId === dataId);
+    if (!isMatch) return;
+
+    console.info('[Pass Activation] 🚀 Received live pass approval for current user:', curEmail || curId);
+
+    const planStart = data.planStart || new Date().toISOString().split('T')[0];
+    const planExpiry = data.planExpiry || (function() {
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        return d.toISOString().split('T')[0];
+    })();
+
+    // 1. Update state.currentUser
+    cur.paymentStatus = 'Active';
+    cur.payment_status = 'paid';
+    cur.planStart = planStart;
+    cur.planExpiry = planExpiry;
+    cur.accountStatus = 'active';
+    if (typeof state !== 'undefined') state.membershipPaid = true;
+
+    // 2. Cryptographic Security Tokens
+    if (typeof computeSecureToken === 'function') {
+        cur.paymentToken = computeSecureToken('payment', cur.id, cur.email, planExpiry);
+        cur.genderToken = computeSecureToken('gender', cur.id, cur.email, 'Boy');
+    }
+
+    // 3. Update PROFILES in memory
+    if (typeof window !== 'undefined' && Array.isArray(window.PROFILES)) {
+        const pIdx = window.PROFILES.findIndex(p => p && ((curId && (String(p.id) === curId || String(p.userId) === curId)) || (p.email && curEmail && p.email.toLowerCase() === curEmail)));
+        if (pIdx !== -1) {
+            window.PROFILES[pIdx].paymentStatus = 'paid';
+            window.PROFILES[pIdx].payment_status = 'paid';
+            window.PROFILES[pIdx].planStart = planStart;
+            window.PROFILES[pIdx].planExpiry = planExpiry;
+            window.PROFILES[pIdx].accountStatus = 'active';
+        }
+    }
+
+    // 4. Save to persistent session
+    if (typeof saveSessionState === 'function') saveSessionState();
+
+    // 5. Close any open paywall modals
+    const closeFn = (typeof closeModal === 'function') ? closeModal : ((typeof window !== 'undefined' && typeof window.closeModal === 'function') ? window.closeModal : null);
+    if (closeFn) {
+        closeFn('modalMembership');
+        closeFn('modalBoyComplete');
+        closeFn('modalCompleteProfile');
+    }
+
+    // 6. Update UI screens
+    if (typeof updateMembershipScreen === 'function') updateMembershipScreen();
+    if (typeof updateHomeStats === 'function') updateHomeStats();
+    if (typeof renderProfileScreen === 'function' && document.getElementById('scr-profile')?.classList.contains('active')) {
+        renderProfileScreen();
+    }
+    if (typeof renderBrowseScreen === 'function' && document.getElementById('scr-browse')?.classList.contains('active')) {
+        renderBrowseScreen();
+    }
+    if (typeof renderInboxScreen === 'function' && document.getElementById('scr-inbox')?.classList.contains('active')) {
+        renderInboxScreen();
+    }
+
+    // 7. Show live congratulation alert to user!
+    const toastFn = (typeof showToast === 'function') ? showToast : ((typeof window !== 'undefined' && typeof window.showToast === 'function') ? window.showToast : null);
+    if (toastFn) {
+        toastFn('🎉 અભિનંદન! એડમિન દ્વારા તમારો ₹૧૯૯ પાસ મંજૂર થઈ ગયો છે! (Pass Approved & Active)');
+    }
+}
+window.handleRemotePassApproved = handleRemotePassApproved;
+
+function handleRemoteProfileUpsert(data) {
+    if (!data) return;
+    const cur = (typeof state !== 'undefined' && state.currentUser) ? state.currentUser : null;
+    const curEmail = (cur?.email || '').toLowerCase().trim();
+    const curId = String(cur?.id || cur?.userId || cur?.profileId || '');
+    const dataEmail = String(data.email || data.userEmail || '').toLowerCase().trim();
+    const dataId = String(data.userId || data.profileId || data.id || data.user_id || '');
+
+    const isCurrent = (curEmail && dataEmail && curEmail === dataEmail) || (curId && dataId && curId === dataId);
+    if (isCurrent && cur) {
+        const isPaid = (data.paymentStatus === 'paid' || data.paymentStatus === 'Active' || data.payment_status === 'paid');
+        if (isPaid && (cur.paymentStatus !== 'Active' || !cur.paymentToken)) {
+            handleRemotePassApproved(data);
+            return;
+        }
+    }
+
+    // Update in window.PROFILES
+    if (typeof window !== 'undefined' && Array.isArray(window.PROFILES)) {
+        const pIdx = window.PROFILES.findIndex(p => p && ((dataId && (String(p.id) === dataId || String(p.userId) === dataId)) || (dataEmail && p.email && p.email.toLowerCase() === dataEmail)));
+        if (pIdx !== -1) {
+            window.PROFILES[pIdx] = { ...window.PROFILES[pIdx], ...data };
+        } else {
+            window.PROFILES.unshift(data);
+        }
+    }
+}
+window.handleRemoteProfileUpsert = handleRemoteProfileUpsert;
 
 /* ============================================================ REGISTRATION PROGRESS & DRAFT RECOVERY ============================================================ */
 function saveRegDraft(step = null) {

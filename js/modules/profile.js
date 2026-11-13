@@ -460,39 +460,103 @@ function sendPaymentScreenshotWhatsApp() {
 }
 window.sendPaymentScreenshotWhatsApp = sendPaymentScreenshotWhatsApp;
 
-async function checkAndUpdatePaymentStatus() {
-    if (!state.currentUser) return;
-    if (typeof showToast === 'function') showToast('⏳ Checking status with server...');
+async function checkAndUpdatePaymentStatus(silent = false) {
+    if (!state.currentUser) return false;
+    if (!silent && typeof showToast === 'function') showToast('⏳ Checking status with server...');
     const userId = state.currentUser.id;
     const userEmail = (state.currentUser.email || '').toLowerCase().trim();
 
-    let found = null;
+    let isPaid = false;
+    let planExpiry = null;
+    let planStart = null;
+
+    // 1. Check window.PROFILES
     if (Array.isArray(window.PROFILES)) {
-        found = window.PROFILES.find(p => p && ((p.id && String(p.id) === String(userId)) || (p.email && p.email.toLowerCase() === userEmail)));
+        const found = window.PROFILES.find(p => p && ((p.id && String(p.id) === String(userId)) || (p.email && p.email.toLowerCase() === userEmail)));
+        if (found && (found.paymentStatus === 'Active' || found.payment_status === 'paid' || found.paymentStatus === 'paid')) {
+            isPaid = true;
+            planExpiry = found.planExpiry || found.plan_expiry;
+            planStart = found.planStart || found.plan_start;
+        }
     }
 
-    if (typeof supabaseFetchUserById === 'function' && userId) {
+    // 2. Query Supabase payments table
+    if (!isPaid && typeof supabaseFetchActiveUserPayment === 'function') {
         try {
-            const dbProf = await supabaseFetchUserById(userId);
-            if (dbProf) found = dbProf;
+            const payRow = await supabaseFetchActiveUserPayment(userId, userEmail);
+            if (payRow && payRow.active) {
+                isPaid = true;
+                planExpiry = payRow.planExpiry;
+                planStart = payRow.planStart;
+            }
         } catch (_) {}
     }
 
-    if (found && (found.paymentStatus === 'Active' || found.payment_status === 'paid' || found.paymentStatus === 'paid')) {
+    // 3. Query Supabase profiles table directly
+    if (!isPaid && typeof getSupabaseClient === 'function') {
+        try {
+            const client = getSupabaseClient();
+            if (client) {
+                let q = client.from('profiles').select('id, payment_status, raw_data');
+                const numId = Number(userId);
+                if (!isNaN(numId) && numId > 0) q = q.eq('id', numId);
+                else if (userEmail) q = q.ilike('email', userEmail);
+                else q = q.eq('user_id', String(userId));
+                const { data: profRow } = await q.maybeSingle();
+                if (profRow && (profRow.payment_status === 'paid' || profRow.raw_data?.paymentStatus === 'paid')) {
+                    isPaid = true;
+                    planExpiry = profRow.raw_data?.planExpiry || null;
+                    planStart = profRow.raw_data?.planStart || null;
+                }
+            }
+        } catch (_) {}
+    }
+
+    if (isPaid) {
+        if (!planExpiry) {
+            const d = new Date();
+            d.setDate(d.getDate() + 30);
+            planExpiry = d.toISOString().split('T')[0];
+        }
+        if (!planStart) {
+            planStart = new Date().toISOString().split('T')[0];
+        }
+
         state.currentUser.paymentStatus = 'Active';
         state.currentUser.payment_status = 'paid';
-        if (found.planExpiry || found.plan_expiry) {
-            state.currentUser.planExpiry = found.planExpiry || found.plan_expiry;
-        }
+        state.currentUser.planStart = planStart;
+        state.currentUser.planExpiry = planExpiry;
+        state.currentUser.accountStatus = 'active';
+        state.membershipPaid = true;
+
         if (typeof computeSecureToken === 'function') {
-            state.currentUser.paymentToken = computeSecureToken('payment', state.currentUser.id, state.currentUser.email, state.currentUser.planExpiry);
+            state.currentUser.paymentToken = computeSecureToken('payment', state.currentUser.id, state.currentUser.email, planExpiry);
+            state.currentUser.genderToken = computeSecureToken('gender', state.currentUser.id, state.currentUser.email, 'Boy');
         }
+
+        if (Array.isArray(window.PROFILES)) {
+            const pIdx = window.PROFILES.findIndex(p => p && ((p.id && String(p.id) === String(userId)) || (p.email && p.email.toLowerCase() === userEmail)));
+            if (pIdx !== -1) {
+                window.PROFILES[pIdx].paymentStatus = 'paid';
+                window.PROFILES[pIdx].payment_status = 'paid';
+                window.PROFILES[pIdx].planStart = planStart;
+                window.PROFILES[pIdx].planExpiry = planExpiry;
+            }
+        }
+
         if (typeof saveSessionState === 'function') saveSessionState();
+        if (typeof closeModal === 'function') {
+            closeModal('modalMembership');
+            closeModal('modalBoyComplete');
+            closeModal('modalCompleteProfile');
+        }
         if (typeof updateMembershipScreen === 'function') updateMembershipScreen();
         if (typeof updateHomeStats === 'function') updateHomeStats();
         if (typeof showToast === 'function') showToast('🎉 અભિનંદન! તમારો ₹૧૯૯ પાસ એપ્રુવ થઈ ગયો છે!');
+        return true;
     } else {
-        if (typeof showToast === 'function') showToast('⏳ પેમેન્ટ હજુ ચકાસણી હેઠળ છે. એડમિન ટીમ ટૂંક સમયમાં એપ્રુવ કરશે.');
+        if (!silent && typeof showToast === 'function') showToast('⏳ પેમેન્ટ હજુ ચકાસણી હેઠળ છે. એડમિન ટીમ ટૂંક સમયમાં એપ્રુવ કરશે.');
+        return false;
     }
 }
 window.checkAndUpdatePaymentStatus = checkAndUpdatePaymentStatus;
