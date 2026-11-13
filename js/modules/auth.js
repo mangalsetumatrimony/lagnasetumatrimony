@@ -795,6 +795,21 @@ function handleRemoteProfileUpsert(data) {
             window.PROFILES.unshift(data);
         }
     }
+
+    // Invalidate stale contact cache if family details were disabled
+    if (data.familyDetailsEnabled === false || data.family_details_enabled === false) {
+        if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE) {
+            if (data.id) window.AUTHORIZED_CONTACT_CACHE.delete(Number(data.id));
+            if (data.userId) window.AUTHORIZED_CONTACT_CACHE.delete(Number(data.userId));
+        }
+    }
+
+    // Live refresh if currently viewing this profile on scr-profile
+    if (typeof state !== 'undefined' && state.activeProfileId && (Number(state.activeProfileId) === Number(data.id) || String(state.activeProfileId) === String(data.userId))) {
+        if (typeof refreshProfileContactState === 'function') {
+            refreshProfileContactState(state.activeProfileId);
+        }
+    }
 }
 window.handleRemoteProfileUpsert = handleRemoteProfileUpsert;
 

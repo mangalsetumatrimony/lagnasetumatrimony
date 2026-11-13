@@ -78,6 +78,15 @@ async function submitProfileCompletion() {
         : (state.regData.photo ? [state.regData.photo] : (state.currentUser?.photos || (state.currentUser?.img ? [state.currentUser.img] : [])));
     const mainImg = photosList[0] || (isGirl ? 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=800&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=800&auto=format&fit=crop');
 
+    // Determine explicit family details enabled flag
+    const isFamilyToggledOn = (state.regData.familyDetailsEnabled === true) ||
+                              (state.regData.profileCreatedBy === 'Parents') ||
+                              Boolean(
+                                  (state.regData.fatherName && state.regData.fatherName.trim() && state.regData.fatherName !== '—') ||
+                                  (state.regData.motherName && state.regData.motherName.trim() && state.regData.motherName !== '—')
+                              );
+    const finalFamilyEnabled = (state.regData.familyDetailsEnabled !== false) && isFamilyToggledOn;
+
     // Create newly registered profile in PROFILES with complete field set
     const newProfile = {
         id: cleanProfileId,
@@ -98,21 +107,23 @@ async function submitProfileCompletion() {
         hobbies: (Array.isArray(state.regData.hobbies) && state.regData.hobbies.length > 0) ? state.regData.hobbies : (state.currentUser?.hobbies || []),
         profileCreatedBy: state.regData.profileCreatedBy || state.currentUser?.profileCreatedBy || 'Self',
         created_by: state.regData.profileCreatedBy || state.currentUser?.profileCreatedBy || 'Self',
-        father: state.regData.fatherName || state.currentUser?.father || '',
-        father_name: state.regData.fatherName || state.currentUser?.father || '',
-        fatherOcc: state.regData.fatherOcc || state.currentUser?.fatherOcc || '',
-        father_occ: state.regData.fatherOcc || state.currentUser?.fatherOcc || '',
-        fatherMobile: state.regData.fatherMobile || state.currentUser?.fatherMobile || '',
-        father_mobile: state.regData.fatherMobile || state.currentUser?.fatherMobile || '',
-        fatherWhatsapp: state.regData.fatherWhatsapp !== false,
+        familyDetailsEnabled: finalFamilyEnabled,
+        family_details_enabled: finalFamilyEnabled,
+        father: finalFamilyEnabled ? (state.regData.fatherName || state.currentUser?.father || '') : '',
+        father_name: finalFamilyEnabled ? (state.regData.fatherName || state.currentUser?.father || '') : '',
+        fatherOcc: finalFamilyEnabled ? (state.regData.fatherOcc || state.currentUser?.fatherOcc || '') : '',
+        father_occ: finalFamilyEnabled ? (state.regData.fatherOcc || state.currentUser?.fatherOcc || '') : '',
+        fatherMobile: finalFamilyEnabled ? (state.regData.fatherMobile || state.currentUser?.fatherMobile || '') : '',
+        father_mobile: finalFamilyEnabled ? (state.regData.fatherMobile || state.currentUser?.fatherMobile || '') : '',
+        fatherWhatsapp: finalFamilyEnabled ? (state.regData.fatherWhatsapp !== false) : false,
         ownMobile: state.regData.ownMobile || state.currentUser?.mobile || '',
         own_mobile: state.regData.ownMobile || state.currentUser?.mobile || '',
-        mother: state.regData.motherName || state.currentUser?.mother || '',
-        mother_name: state.regData.motherName || state.currentUser?.mother || '',
-        motherOcc: state.regData.motherOcc || state.currentUser?.motherOcc || '',
-        mother_occ: state.regData.motherOcc || state.currentUser?.motherOcc || '',
-        sister: state.regData.sister || state.currentUser?.sister || 'None',
-        brother: state.regData.brother || state.currentUser?.brother || 'None',
+        mother: finalFamilyEnabled ? (state.regData.motherName || state.currentUser?.mother || '') : '',
+        mother_name: finalFamilyEnabled ? (state.regData.motherName || state.currentUser?.mother || '') : '',
+        motherOcc: finalFamilyEnabled ? (state.regData.motherOcc || state.currentUser?.motherOcc || '') : '',
+        mother_occ: finalFamilyEnabled ? (state.regData.motherOcc || state.currentUser?.motherOcc || '') : '',
+        sister: finalFamilyEnabled ? (state.regData.sister || state.currentUser?.sister || 'None') : '—',
+        brother: finalFamilyEnabled ? (state.regData.brother || state.currentUser?.brother || 'None') : '—',
         city: state.regData.city || state.currentUser?.city || '',
         village: state.regData.city || state.currentUser?.village || state.currentUser?.city || '',
         taluka: state.regData.taluka || state.currentUser?.taluka || state.regData.city || '',
@@ -123,6 +134,11 @@ async function submitProfileCompletion() {
         img: mainImg,
         photos: photosList.length > 0 ? photosList : [mainImg]
     };
+
+    if (state.currentUser) {
+        state.currentUser.familyDetailsEnabled = finalFamilyEnabled;
+        state.currentUser.family_details_enabled = finalFamilyEnabled;
+    }
 
     // All completed profiles are instantly active, approved and published live
     newProfile.accountStatus = 'active';
@@ -1735,18 +1751,50 @@ function renderFamilyDetailsSection(p) {
 
     const isFamilyExplicitlyDisabled = (
         p.familyDetailsEnabled === false ||
+        p.family_details_enabled === false ||
         p.raw_data?.familyDetailsEnabled === false ||
         p.raw_data?.family_details_enabled === false
     );
 
-    const hasFather = !isFamilyExplicitlyDisabled && Boolean(p.father && p.father !== '—' && p.father !== 'Father' && String(p.father).trim() !== '');
-    const hasMother = !isFamilyExplicitlyDisabled && Boolean(p.mother && p.mother !== '—' && p.mother !== 'Mother' && String(p.mother).trim() !== '');
-    const hasFamilyDetails = !isFamilyExplicitlyDisabled && (hasFather || hasMother);
+    // Resolve all possible field aliases (ensures no field is missed across all data schemas)
+    const fatherName = (p.father || p.father_name || p.fatherName || p.raw_data?.father || p.raw_data?.father_name || p.raw_data?.fatherName || '').trim();
+    const cleanFatherName = (fatherName && fatherName !== '—' && fatherName !== 'Father') ? fatherName : '';
 
-    if (unlocked) {
+    const fatherOcc = (p.fatherOcc || p.father_occ || p.raw_data?.fatherOcc || p.raw_data?.father_occ || '').trim();
+    const cleanFatherOcc = (fatherOcc && fatherOcc !== '—') ? fatherOcc : '';
+
+    const motherName = (p.mother || p.mother_name || p.motherName || p.raw_data?.mother || p.raw_data?.mother_name || p.raw_data?.motherName || '').trim();
+    const cleanMotherName = (motherName && motherName !== '—' && motherName !== 'Mother') ? motherName : '';
+
+    const motherOcc = (p.motherOcc || p.mother_occ || p.raw_data?.motherOcc || p.raw_data?.mother_occ || '').trim();
+    const cleanMotherOcc = (motherOcc && motherOcc !== '—') ? motherOcc : '';
+
+    const sisterVal = (p.sister || p.raw_data?.sister || '').trim();
+    const cleanSister = (sisterVal && sisterVal !== '—' && sisterVal !== 'None') ? sisterVal : '';
+
+    const brotherVal = (p.brother || p.raw_data?.brother || '').trim();
+    const cleanBrother = (brotherVal && brotherVal !== '—' && brotherVal !== 'None') ? brotherVal : '';
+
+    // Family details exist if NOT explicitly disabled AND at least one detail is entered
+    const hasFamilyDetails = !isFamilyExplicitlyDisabled && Boolean(
+        cleanFatherName || cleanFatherOcc || cleanMotherName || cleanMotherOcc || cleanSister || cleanBrother
+    );
+
+    if (unlocked || !hasFamilyDetails) {
         if (!hasFamilyDetails) {
-            // Unlocked, but profile hasn't filled family details yet
-            const noticeContent = isParentCreated ? `
+            // Unlocked or no details: Profile has turned toggle OFF or hasn't filled family details yet
+            const noticeContent = isSelf ? `
+                <div style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:800;color:#166534;margin-bottom:6px;">
+                    <i class="fa-solid fa-user-shield" style="color:#16A34A;"></i>
+                    <span>Your Profile - Family details are OFF (પરિવારની વિગતો બંધ છે)</span>
+                </div>
+                <div style="font-size:12.5px;color:#15803D;line-height:1.55;">
+                    <b>તમે પરિવારની વિગતો બંધ રાખી છે અથવા ઉમેરેલ નથી. જો તમે પરિવારની વિગતો બતાવવા માંગતા હોવ, તો 'Edit Profile' માં જઈને "Add Family details" Toggle ON કરીને વિગતો સેવ કરી શકો છો.</b>
+                </div>
+                <div style="font-size:11.5px;color:#166534;margin-top:4px;line-height:1.45;">
+                    Family details are currently hidden on your profile. You can enable them anytime from Edit Profile.
+                </div>
+            ` : isParentCreated ? `
                 <div style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:800;color:#166534;margin-bottom:6px;">
                     <i class="fa-solid fa-people-roof" style="color:#16A34A;"></i>
                     <span>Managed by Parents (વાલી દ્વારા સંચાલિત)</span>
@@ -1766,7 +1814,7 @@ function renderFamilyDetailsSection(p) {
                     <b>ચેટિંગમાં પરસ્પર અનુકૂળતા લાગ્યા બાદ તમે ${personTerm} પરિવાર વિશે પૂછી શકો છો અથવા ${personSubject} તમને જણાવી શકે છે.</b>
                 </div>
                 <div style="font-size:11.5px;color:#166534;margin-top:4px;line-height:1.45;">
-                    In chat, after mutual comfort, you can ask the candidate about family or candidate can share details with you.
+                    Family details were not added in this profile. In chat, after mutual comfort, you can ask the candidate about family or candidate can share details with you.
                 </div>
             `;
 
@@ -1825,12 +1873,12 @@ function renderFamilyDetailsSection(p) {
                     }
                 </div>
             </div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-user-tie"></i> Father (પિતા)</div><div class="dval">${escapeHtml(p.father || p.father_name || '—')}</div></div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-briefcase"></i> Occupation (વ્યવસાય)</div><div class="dval">${escapeHtml(p.fatherOcc || p.father_occ || '—')}</div></div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person-dress"></i> Mother (માતા)</div><div class="dval">${escapeHtml(p.mother || p.mother_name || '—')}</div></div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-briefcase"></i> Occupation (વ્યવસાય)</div><div class="dval">${escapeHtml(p.motherOcc || p.mother_occ || '—')}</div></div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person"></i> Sister (બહેન)</div><div class="dval">${escapeHtml(p.sister || '—')}</div></div>
-            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person"></i> Brother (ભાઈ)</div><div class="dval">${escapeHtml(p.brother || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-user-tie"></i> Father (પિતા)</div><div class="dval">${escapeHtml(cleanFatherName || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-briefcase"></i> Occupation (વ્યવસાય)</div><div class="dval">${escapeHtml(cleanFatherOcc || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person-dress"></i> Mother (માતા)</div><div class="dval">${escapeHtml(cleanMotherName || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-briefcase"></i> Occupation (વ્યવસાય)</div><div class="dval">${escapeHtml(cleanMotherOcc || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person"></i> Sister (બહેન)</div><div class="dval">${escapeHtml(cleanSister || '—')}</div></div>
+            <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person"></i> Brother (ભાઈ)</div><div class="dval">${escapeHtml(cleanBrother || '—')}</div></div>
             ${contactButtonsHtml}
         </div>`;
     }
@@ -2120,6 +2168,21 @@ function openProfile(id) {
                 if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE) {
                     window.AUTHORIZED_CONTACT_CACHE.set(Number(p.id), contact);
                 }
+                if (typeof contact.familyDetailsEnabled !== 'undefined') {
+                    p.familyDetailsEnabled = contact.familyDetailsEnabled;
+                    p.family_details_enabled = contact.familyDetailsEnabled;
+                }
+                if (contact.father !== undefined) p.father = contact.father;
+                if (contact.father_name !== undefined) p.father_name = contact.father_name;
+                if (contact.fatherOcc !== undefined) p.fatherOcc = contact.fatherOcc;
+                if (contact.father_occ !== undefined) p.father_occ = contact.father_occ;
+                if (contact.mother !== undefined) p.mother = contact.mother;
+                if (contact.mother_name !== undefined) p.mother_name = contact.mother_name;
+                if (contact.motherOcc !== undefined) p.motherOcc = contact.motherOcc;
+                if (contact.mother_occ !== undefined) p.mother_occ = contact.mother_occ;
+                if (contact.sister !== undefined) p.sister = contact.sister;
+                if (contact.brother !== undefined) p.brother = contact.brother;
+
                 const realPhone = (contact.fatherMobile && !contact.fatherMobile.includes('•'))
                     ? contact.fatherMobile
                     : (contact.ownMobile && !contact.ownMobile.includes('•') ? contact.ownMobile : '');
@@ -2127,6 +2190,10 @@ function openProfile(id) {
                     p.fatherMobile = realPhone;
                     p.father_mobile = realPhone;
                     p.rawFatherMobile = realPhone;
+                } else if (contact.familyDetailsEnabled === false) {
+                    p.fatherMobile = '';
+                    p.father_mobile = '';
+                    p.rawFatherMobile = '';
                 }
                 if (contact.ownMobile && !contact.ownMobile.includes('•')) p.ownMobile = contact.ownMobile;
                 if (contact.email && !contact.email.includes('•')) p.email = contact.email;
@@ -2498,6 +2565,21 @@ function refreshProfileContactState(profileId) {
                         if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE) {
                             window.AUTHORIZED_CONTACT_CACHE.set(Number(p.id), contact);
                         }
+                        if (typeof contact.familyDetailsEnabled !== 'undefined') {
+                            p.familyDetailsEnabled = contact.familyDetailsEnabled;
+                            p.family_details_enabled = contact.familyDetailsEnabled;
+                        }
+                        if (contact.father !== undefined) p.father = contact.father;
+                        if (contact.father_name !== undefined) p.father_name = contact.father_name;
+                        if (contact.fatherOcc !== undefined) p.fatherOcc = contact.fatherOcc;
+                        if (contact.father_occ !== undefined) p.father_occ = contact.father_occ;
+                        if (contact.mother !== undefined) p.mother = contact.mother;
+                        if (contact.mother_name !== undefined) p.mother_name = contact.mother_name;
+                        if (contact.motherOcc !== undefined) p.motherOcc = contact.motherOcc;
+                        if (contact.mother_occ !== undefined) p.mother_occ = contact.mother_occ;
+                        if (contact.sister !== undefined) p.sister = contact.sister;
+                        if (contact.brother !== undefined) p.brother = contact.brother;
+
                         const realPhone = (contact.fatherMobile && !contact.fatherMobile.includes('•'))
                             ? contact.fatherMobile
                             : (contact.ownMobile && !contact.ownMobile.includes('•') ? contact.ownMobile : '');
@@ -2505,6 +2587,10 @@ function refreshProfileContactState(profileId) {
                             p.fatherMobile = realPhone;
                             p.father_mobile = realPhone;
                             p.rawFatherMobile = realPhone;
+                        } else if (contact.familyDetailsEnabled === false) {
+                            p.fatherMobile = '';
+                            p.father_mobile = '';
+                            p.rawFatherMobile = '';
                         }
                         if (contact.fullAddress) {
                             p.fullAddress = contact.fullAddress;

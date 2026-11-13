@@ -167,20 +167,24 @@ function mapProfileForSupabase(p) {
             physical: p.physical || 'Normal',
             community: p.community || p.caste || '',
             hobbies: Array.isArray(p.hobbies) ? p.hobbies : [],
-            father: p.father || p.father_name || p.fatherName || '',
-            fatherOcc: p.fatherOcc || p.father_occ || '',
-            fatherMobile: (!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
+            father: p.familyDetailsEnabled === false ? '' : (p.father || p.father_name || p.fatherName || ''),
+            father_name: p.familyDetailsEnabled === false ? '' : (p.father_name || p.father || p.fatherName || ''),
+            fatherOcc: p.familyDetailsEnabled === false ? '' : (p.fatherOcc || p.father_occ || ''),
+            father_occ: p.familyDetailsEnabled === false ? '' : (p.father_occ || p.fatherOcc || ''),
+            fatherMobile: p.familyDetailsEnabled === false ? '' : ((!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
                           (!p.father_mobile?.includes('•') && p.father_mobile) ||
                           (!p.fatherMobile?.includes('•') && p.fatherMobile) ||
-                          '',
-            rawFatherMobile: (!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
+                          ''),
+            rawFatherMobile: p.familyDetailsEnabled === false ? '' : ((!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
                              (!p.father_mobile?.includes('•') && p.father_mobile) ||
                              (!p.fatherMobile?.includes('•') && p.fatherMobile) ||
-                             '',
-            mother: p.mother || p.mother_name || p.motherName || '',
-            motherOcc: p.motherOcc || p.mother_occ || '',
-            sister: p.sister || 'None',
-            brother: p.brother || 'None',
+                             ''),
+            mother: p.familyDetailsEnabled === false ? '' : (p.mother || p.mother_name || p.motherName || ''),
+            mother_name: p.familyDetailsEnabled === false ? '' : (p.mother_name || p.mother || p.motherName || ''),
+            motherOcc: p.familyDetailsEnabled === false ? '' : (p.motherOcc || p.mother_occ || ''),
+            mother_occ: p.familyDetailsEnabled === false ? '' : (p.mother_occ || p.motherOcc || ''),
+            sister: p.familyDetailsEnabled === false ? '—' : (p.sister || 'None'),
+            brother: p.familyDetailsEnabled === false ? '—' : (p.brother || 'None'),
             village: p.village || p.city || '',
             city: p.city || p.village || '',
             taluka: p.taluka || '',
@@ -447,11 +451,45 @@ function mapProfileFromSupabase(row, forAdmin = false) {
         physical: row.physical || raw.physical || 'Normal',
         profileCreatedBy: (raw.profileCreatedBy || raw.created_by || 'Self'),
         created_by: (raw.profileCreatedBy || raw.created_by || 'Self'),
-        familyDetailsEnabled: raw.familyDetailsEnabled !== false && raw.family_details_enabled !== false,
+        familyDetailsEnabled: (function() {
+            if (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) return false;
+            if (row.familyDetailsEnabled === false || row.family_details_enabled === false) return false;
+            if (raw.familyDetailsEnabled === true || raw.family_details_enabled === true) return true;
+            if (row.familyDetailsEnabled === true || row.family_details_enabled === true) return true;
+            const f = (row.father || row.father_name || raw.father || raw.fatherName || raw.father_name || '').trim();
+            const m = (row.mother || row.mother_name || raw.mother || raw.motherName || raw.mother_name || '').trim();
+            return Boolean((f && f !== '—' && f !== 'Father') || (m && m !== '—' && m !== 'Mother'));
+        })(),
         community: row.community || raw.community || '',
         hobbies: Array.isArray(row.hobbies) ? row.hobbies : (raw.hobbies || []),
-        father: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : ((row.father && String(row.father).trim()) || (raw.father && String(raw.father).trim()) || (raw.fatherName && String(raw.fatherName).trim()) || ''),
-        fatherOcc: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : ((row.father_occ && String(row.father_occ).trim()) || (raw.fatherOcc && String(raw.fatherOcc).trim()) || (raw.father_occ && String(raw.father_occ).trim()) || ''),
+        father: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : (
+            (row.father && String(row.father).trim()) ||
+            (row.father_name && String(row.father_name).trim()) ||
+            (raw.father && String(raw.father).trim()) ||
+            (raw.fatherName && String(raw.fatherName).trim()) ||
+            (raw.father_name && String(raw.father_name).trim()) ||
+            ''
+        ),
+        father_name: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : (
+            (row.father_name && String(row.father_name).trim()) ||
+            (row.father && String(row.father).trim()) ||
+            (raw.father_name && String(raw.father_name).trim()) ||
+            (raw.father && String(raw.father).trim()) ||
+            (raw.fatherName && String(raw.fatherName).trim()) ||
+            ''
+        ),
+        fatherOcc: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : (
+            (row.father_occ && String(row.father_occ).trim()) ||
+            (raw.fatherOcc && String(raw.fatherOcc).trim()) ||
+            (raw.father_occ && String(raw.father_occ).trim()) ||
+            ''
+        ),
+        father_occ: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : (
+            (row.father_occ && String(row.father_occ).trim()) ||
+            (raw.fatherOcc && String(raw.fatherOcc).trim()) ||
+            (raw.father_occ && String(raw.father_occ).trim()) ||
+            ''
+        ),
         fatherMobile: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : fatherMobile,
         ownMobile: ownMobile,
         rawFatherMobile: (canViewUnmasked && raw.familyDetailsEnabled !== false && raw.family_details_enabled !== false) ? rawFatherMobile : null,
@@ -460,10 +498,44 @@ function mapProfileFromSupabase(row, forAdmin = false) {
         rawFullAddress: canViewUnmasked ? rawFullAddress : null,
         mobile: mobile,
         email: email,
-        mother: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : ((row.mother && String(row.mother).trim()) || (raw.mother && String(raw.mother).trim()) || (raw.motherName && String(raw.motherName).trim()) || ''),
-        motherOcc: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : ((row.mother_occ && String(row.mother_occ).trim()) || (raw.motherOcc && String(raw.motherOcc).trim()) || (raw.mother_occ && String(raw.mother_occ).trim()) || ''),
-        sister: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '—' : ((row.sister && String(row.sister).trim()) || (raw.sister && String(raw.sister).trim()) || '—'),
-        brother: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '—' : ((row.brother && String(row.brother).trim()) || (raw.brother && String(raw.brother).trim()) || '—'),
+        mother: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : (
+            (row.mother && String(row.mother).trim()) ||
+            (row.mother_name && String(row.mother_name).trim()) ||
+            (raw.mother && String(raw.mother).trim()) ||
+            (raw.motherName && String(raw.motherName).trim()) ||
+            (raw.mother_name && String(raw.mother_name).trim()) ||
+            ''
+        ),
+        mother_name: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : (
+            (row.mother_name && String(row.mother_name).trim()) ||
+            (row.mother && String(row.mother).trim()) ||
+            (raw.mother_name && String(raw.mother_name).trim()) ||
+            (raw.mother && String(raw.mother).trim()) ||
+            (raw.motherName && String(raw.motherName).trim()) ||
+            ''
+        ),
+        motherOcc: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : (
+            (row.mother_occ && String(row.mother_occ).trim()) ||
+            (raw.motherOcc && String(raw.motherOcc).trim()) ||
+            (raw.mother_occ && String(raw.mother_occ).trim()) ||
+            ''
+        ),
+        mother_occ: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '' : (
+            (row.mother_occ && String(row.mother_occ).trim()) ||
+            (raw.motherOcc && String(raw.motherOcc).trim()) ||
+            (raw.mother_occ && String(raw.mother_occ).trim()) ||
+            ''
+        ),
+        sister: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '—' : (
+            (row.sister && String(row.sister).trim()) ||
+            (raw.sister && String(raw.sister).trim()) ||
+            '—'
+        ),
+        brother: (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) ? '—' : (
+            (row.brother && String(row.brother).trim()) ||
+            (raw.brother && String(raw.brother).trim()) ||
+            '—'
+        ),
         img: (function() {
             const isG = (row.gender === 'girls' || row.gender === 'girls' || row.gender === 'Girl' || (typeof isGirlGender === 'function' && isGirlGender(row.gender || raw.gender)));
             const def = isG ? 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=800&auto=format&fit=crop' : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=800&auto=format&fit=crop';
@@ -655,9 +727,27 @@ async function supabaseFetchAuthorizedContact(profileId) {
 
     if (!client) {
         if (local) {
+            const isLocalFamDisabled = (
+                local.familyDetailsEnabled === false ||
+                local.family_details_enabled === false ||
+                local.raw_data?.familyDetailsEnabled === false ||
+                local.raw_data?.family_details_enabled === false
+            );
             return {
                 authorized: true,
-                fatherMobile: local.rawFatherMobile || local.fatherMobile || local.father_mobile || '',
+                familyDetailsEnabled: !isLocalFamDisabled,
+                family_details_enabled: !isLocalFamDisabled,
+                father: isLocalFamDisabled ? '' : (local.father || local.father_name || local.fatherName || ''),
+                father_name: isLocalFamDisabled ? '' : (local.father_name || local.father || local.fatherName || ''),
+                fatherOcc: isLocalFamDisabled ? '' : (local.fatherOcc || local.father_occ || ''),
+                father_occ: isLocalFamDisabled ? '' : (local.father_occ || local.fatherOcc || ''),
+                fatherMobile: isLocalFamDisabled ? '' : (local.rawFatherMobile || local.fatherMobile || local.father_mobile || ''),
+                mother: isLocalFamDisabled ? '' : (local.mother || local.mother_name || local.motherName || ''),
+                mother_name: isLocalFamDisabled ? '' : (local.mother_name || local.mother || local.motherName || ''),
+                motherOcc: isLocalFamDisabled ? '' : (local.motherOcc || local.mother_occ || ''),
+                mother_occ: isLocalFamDisabled ? '' : (local.mother_occ || local.motherOcc || ''),
+                sister: isLocalFamDisabled ? '—' : (local.sister || '—'),
+                brother: isLocalFamDisabled ? '—' : (local.brother || '—'),
                 ownMobile: local.rawOwnMobile || local.ownMobile || local.mobile || '',
                 email: local.rawEmail || local.email || '',
                 fullAddress: local.rawFullAddress || local.fullAddress || local.address || ''
@@ -667,39 +757,8 @@ async function supabaseFetchAuthorizedContact(profileId) {
     }
 
     try {
-        // 1. Primary Enterprise Level: Execute PostgreSQL RPC on Supabase server
-        try {
-            const { data: rpcData, error: rpcErr } = await client.rpc('get_authorized_contact', {
-                target_profile_id: numId,
-                viewer_email: myEmail
-            });
-            if (!rpcErr && rpcData && typeof rpcData.authorized !== 'undefined') {
-                if (!rpcData.authorized) {
-                    return {
-                        authorized: false,
-                        fatherMobile: null,
-                        ownMobile: null,
-                        email: local ? maskEmailAddress(local.email || '') : '',
-                        fullAddress: local ? (local.village || local.city ? `${local.village || local.city}, Dist. ${local.district || ''}` : 'Gujarat, India') : '',
-                        message: rpcData.message || 'Direct contact details unlock only after Interest is accepted by member.'
-                    };
-                }
-                const res = {
-                    authorized: true,
-                    fatherMobile: rpcData.father_mobile || '',
-                    ownMobile: rpcData.own_mobile || '',
-                    email: rpcData.email || '',
-                    fullAddress: rpcData.full_address || ''
-                };
-                if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE) {
-                    window.AUTHORIZED_CONTACT_CACHE.set(numId, res);
-                }
-                return res;
-            }
-        } catch (_) {}
-
-        // 2. Direct Authorized Query (Only reached if already validated through interest check)
-        let query = client.from('profiles').select('id, email, mobile, own_mobile, father_mobile, full_address, address, raw_data');
+        // Direct Authorized Query from profiles table (fetches full unmasked contacts and family details)
+        let query = client.from('profiles').select('id, email, mobile, own_mobile, father, father_name, father_occ, father_mobile, father_whatsapp, mother, mother_name, mother_occ, sister, brother, full_address, address, raw_data');
         if (!isNaN(numId) && numId > 0) {
             query = query.eq('id', numId);
         } else {
@@ -713,6 +772,13 @@ async function supabaseFetchAuthorizedContact(profileId) {
         }
 
         const rd = (data.raw_data && typeof data.raw_data === 'object') ? data.raw_data : {};
+        const isFamDisabled = (
+            rd.familyDetailsEnabled === false ||
+            rd.family_details_enabled === false ||
+            data.family_details_enabled === false ||
+            data.familyDetailsEnabled === false
+        );
+
         const realFM = (!data.father_mobile?.includes('•') && data.father_mobile) ||
                        (!rd.fatherMobile?.includes('•') && rd.fatherMobile) ||
                        (!rd.rawFatherMobile?.includes('•') && rd.rawFatherMobile) ||
@@ -724,7 +790,19 @@ async function supabaseFetchAuthorizedContact(profileId) {
 
         const res = {
             authorized: true,
-            fatherMobile: realFM,
+            familyDetailsEnabled: !isFamDisabled,
+            family_details_enabled: !isFamDisabled,
+            father: isFamDisabled ? '' : (data.father || data.father_name || rd.father || rd.fatherName || rd.father_name || ''),
+            father_name: isFamDisabled ? '' : (data.father_name || data.father || rd.father_name || rd.father || rd.fatherName || ''),
+            fatherOcc: isFamDisabled ? '' : (data.father_occ || rd.fatherOcc || rd.father_occ || ''),
+            father_occ: isFamDisabled ? '' : (data.father_occ || rd.fatherOcc || rd.father_occ || ''),
+            fatherMobile: isFamDisabled ? '' : realFM,
+            mother: isFamDisabled ? '' : (data.mother || data.mother_name || rd.mother || rd.motherName || rd.mother_name || ''),
+            mother_name: isFamDisabled ? '' : (data.mother_name || data.mother || rd.mother_name || rd.mother || rd.motherName || ''),
+            motherOcc: isFamDisabled ? '' : (data.mother_occ || rd.motherOcc || rd.mother_occ || ''),
+            mother_occ: isFamDisabled ? '' : (data.mother_occ || rd.motherOcc || rd.mother_occ || ''),
+            sister: isFamDisabled ? '—' : (data.sister || rd.sister || '—'),
+            brother: isFamDisabled ? '—' : (data.brother || rd.brother || '—'),
             ownMobile: realOM,
             email: data.email || rd.email || '',
             fullAddress: data.full_address || data.address || rd.fullAddress || ''

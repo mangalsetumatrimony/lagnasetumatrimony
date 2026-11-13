@@ -458,6 +458,7 @@ function pickProfileCreatedBy(type) {
             famToggleWrap.style.pointerEvents = 'auto';
             famToggleWrap.style.opacity = '1';
         }
+        if (state.regData) state.regData.familyDetailsEnabled = false;
 
         stars.forEach(s => s.style.display = 'none');
     } else {
@@ -477,7 +478,7 @@ function pickProfileCreatedBy(type) {
         if (optBadge) {
             optBadge.style.display = 'inline-block';
             optBadge.innerText = 'Mandatory for Parents / ફરજિયાત';
-            optBadge.style.background = 'rgba(239,68,68,0.1)';
+            optBadge.background = 'rgba(239,68,68,0.1)';
             optBadge.style.color = '#DC2626';
         }
         if (selfNotice) selfNotice.style.display = 'none';
@@ -489,6 +490,7 @@ function pickProfileCreatedBy(type) {
             famToggleWrap.style.pointerEvents = 'none';
             famToggleWrap.style.opacity = '0.9';
         }
+        if (state.regData) state.regData.familyDetailsEnabled = true;
 
         stars.forEach(s => s.style.display = 'inline');
     }
@@ -505,12 +507,16 @@ function toggleRegFamily(e) {
     if (isParentManaged) {
         tgl.classList.add('on');
         container.style.display = 'block';
+        if (state.regData) state.regData.familyDetailsEnabled = true;
         return;
     }
 
     tgl.classList.toggle('on');
     const isOn = tgl.classList.contains('on');
     container.style.display = isOn ? 'block' : 'none';
+    if (state.regData) {
+        state.regData.familyDetailsEnabled = isOn;
+    }
     if (!isOn) {
         container.querySelectorAll('input').forEach(inp => {
             inp.classList.remove('input-error');
@@ -526,6 +532,7 @@ window.toggleRegFamily = toggleRegFamily;
 function skipRegFamilyDetails() {
     if (!state.regData) state.regData = {};
     state.regData.profileCreatedBy = 'Self';
+    state.regData.familyDetailsEnabled = false;
     state.regData.fatherName = '';
     state.regData.fatherOcc = '';
     state.regData.fatherMobile = '';
@@ -702,9 +709,11 @@ function goToRegStep3() {
     // 14. Family Details Validation (Conditional: Strict for Parents, Flexible for Candidate Self)
     const isParentManaged = state.regData.profileCreatedBy === 'Parents';
     const famToggle = document.getElementById('tglRegFamily');
-    const isFamilyToggledOn = famToggle ? famToggle.classList.contains('on') : false;
+    const isFamilyToggledOn = isParentManaged || (famToggle ? famToggle.classList.contains('on') : false);
 
-    if (!isParentManaged && !isFamilyToggledOn) {
+    state.regData.familyDetailsEnabled = isFamilyToggledOn;
+
+    if (!isFamilyToggledOn) {
         // Candidate Self with Family Details Toggle OFF:
         // Automatically skip family details cleanly and smoothly!
         state.regData.fatherName = '';

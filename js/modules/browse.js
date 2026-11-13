@@ -218,6 +218,22 @@ function getUnmaskedContactFromAnywhere(type = 'father', fallbackProf = null) {
     }
 
     if (type === 'father') {
+        const isFamExplicitlyOn = (
+            myProf?.familyDetailsEnabled === true ||
+            myProf?.family_details_enabled === true ||
+            curU?.familyDetailsEnabled === true ||
+            curU?.family_details_enabled === true
+        );
+        const isFamDisabled = !isFamExplicitlyOn && (
+            myProf?.familyDetailsEnabled === false ||
+            myProf?.family_details_enabled === false ||
+            myProf?.raw_data?.familyDetailsEnabled === false ||
+            myProf?.raw_data?.family_details_enabled === false ||
+            curU?.familyDetailsEnabled === false ||
+            curU?.family_details_enabled === false
+        );
+        if (isFamDisabled) return '';
+
         const candidates = [
             myProf?.rawFatherMobile,
             myProf?.father_mobile,
@@ -310,7 +326,16 @@ function getCurrentUserProfile() {
         if (!myProfile.physical && src.physical) myProfile.physical = src.physical;
         if ((!myProfile.hobbies || !myProfile.hobbies.length) && Array.isArray(src.hobbies)) myProfile.hobbies = src.hobbies;
 
-        const isFamDisabled = (
+        const isFamExplicitlyOn = (
+            myProfile.familyDetailsEnabled === true ||
+            myProfile.family_details_enabled === true ||
+            myProfile.raw_data?.familyDetailsEnabled === true ||
+            myProfile.raw_data?.family_details_enabled === true ||
+            state.currentUser?.familyDetailsEnabled === true ||
+            state.currentUser?.family_details_enabled === true
+        );
+
+        const isFamDisabled = !isFamExplicitlyOn && (
             myProfile.familyDetailsEnabled === false ||
             myProfile.family_details_enabled === false ||
             myProfile.raw_data?.familyDetailsEnabled === false ||
@@ -597,14 +622,25 @@ function populateEditProfile() {
     if (brotherEl) brotherEl.value = brotherVal;
 
     // Toggle Family Details based on explicit flag and whether user has existing family details
-    const isFamilyExplicitlyDisabled = (
+    const isFamExplicitlyOn = (
+        myProfile.familyDetailsEnabled === true ||
+        myProfile.family_details_enabled === true ||
+        state.currentUser?.familyDetailsEnabled === true ||
+        state.currentUser?.family_details_enabled === true ||
+        myProfile.raw_data?.familyDetailsEnabled === true ||
+        myProfile.raw_data?.family_details_enabled === true
+    );
+
+    const isFamilyExplicitlyDisabled = !isFamExplicitlyOn && (
         myProfile.familyDetailsEnabled === false ||
+        myProfile.family_details_enabled === false ||
         state.currentUser?.familyDetailsEnabled === false ||
+        state.currentUser?.family_details_enabled === false ||
         myProfile.raw_data?.familyDetailsEnabled === false ||
         myProfile.raw_data?.family_details_enabled === false
     );
 
-    const hasFamilyDetails = !isFamilyExplicitlyDisabled && Boolean(
+    const hasFamilyDetails = Boolean(
         (fNameVal && fNameVal.trim() !== '' && fNameVal !== '—') ||
         (fOccVal && fOccVal.trim() !== '' && fOccVal !== '—') ||
         (cleanFM && cleanFM.trim() !== '') ||
@@ -618,7 +654,7 @@ function populateEditProfile() {
     const editFamContainer = document.getElementById('editFamilyInputsContainer');
     const editFamSubtext = document.getElementById('editFamilyToggleSubtext');
     if (tglEditFam && editFamContainer) {
-        if (!isFamilyExplicitlyDisabled && hasFamilyDetails) {
+        if (!isFamilyExplicitlyDisabled && (isFamExplicitlyOn || hasFamilyDetails)) {
             tglEditFam.classList.add('on');
             editFamContainer.style.display = 'block';
             if (editFamSubtext) editFamSubtext.textContent = 'Family details enabled • Turn OFF if you wish to skip (પરિવારની વિગત ચાલુ છે • છુપાવવા માટે બંધ કરો)';
@@ -884,6 +920,7 @@ function saveEditProfile() {
         myProfile.education = eduVal;
 
         myProfile.familyDetailsEnabled = Boolean(isFamilyOn);
+        myProfile.family_details_enabled = Boolean(isFamilyOn);
         myProfile.father = fatherNameVal;
         myProfile.fatherName = fatherNameVal;
         myProfile.father_name = fatherNameVal;
@@ -961,6 +998,7 @@ function saveEditProfile() {
         state.currentUser.marital = maritalVal;
         state.currentUser.physical = physicalVal;
         state.currentUser.familyDetailsEnabled = Boolean(isFamilyOn);
+        state.currentUser.family_details_enabled = Boolean(isFamilyOn);
         state.currentUser.father = fatherNameVal;
         state.currentUser.fatherName = fatherNameVal;
         state.currentUser.father_name = fatherNameVal;
@@ -1026,6 +1064,7 @@ function saveEditProfile() {
                 accounts[uIdx].marital = maritalVal;
                 accounts[uIdx].physical = physicalVal;
                 accounts[uIdx].familyDetailsEnabled = Boolean(isFamilyOn);
+                accounts[uIdx].family_details_enabled = Boolean(isFamilyOn);
                 accounts[uIdx].father = fatherNameVal;
                 accounts[uIdx].fatherName = fatherNameVal;
                 accounts[uIdx].father_name = fatherNameVal;
