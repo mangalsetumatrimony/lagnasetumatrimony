@@ -951,6 +951,15 @@
             u.sister = sister || '—';
             u.brother = brother || '—';
 
+            const hasFamData = Boolean(
+                (father && father !== '—' && father !== 'Father') ||
+                (mother && mother !== '—' && mother !== 'Mother') ||
+                fatherOcc ||
+                fatherMobile
+            );
+            u.familyDetailsEnabled = hasFamData;
+            u.family_details_enabled = hasFamData;
+
             u.village = village;
             u.city = village;
             u.taluka = taluka;
@@ -960,7 +969,12 @@
             u.full_address = address;
 
             // Update raw_data object as well
-            u.raw_data = { ...(u.raw_data || {}), ...u };
+            u.raw_data = {
+                ...(u.raw_data || {}),
+                ...u,
+                familyDetailsEnabled: hasFamData,
+                family_details_enabled: hasFamData
+            };
 
             // Also synchronize in window.PROFILES and localStorage
             if (Array.isArray(window.PROFILES)) {
@@ -1692,3 +1706,9 @@ if (typeof openInterestDetail !== 'undefined') {
 }
 if (typeof initAdminApp !== 'undefined') window.initAdminApp = initAdminApp;
 if (typeof findUser !== 'undefined') window.findUser = findUser;
+if (typeof openAdminEditUserModal !== 'undefined') window.openAdminEditUserModal = openAdminEditUserModal;
+if (typeof saveAdminUserEdit !== 'undefined') window.saveAdminUserEdit = saveAdminUserEdit;
+if (typeof pickAdminEditDropdown !== 'undefined') window.pickAdminEditDropdown = pickAdminEditDropdown;
+if (typeof filterAdminEditCaste !== 'undefined') window.filterAdminEditCaste = filterAdminEditCaste;
+if (typeof selectAdminEditCaste !== 'undefined') window.selectAdminEditCaste = selectAdminEditCaste;
+if (typeof removeAdminEditCaste !== 'undefined') window.removeAdminEditCaste = removeAdminEditCaste;
