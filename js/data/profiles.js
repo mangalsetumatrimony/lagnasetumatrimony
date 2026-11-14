@@ -97,53 +97,56 @@ async function syncProfilesFromSupabase(force = false, silent = false) {
 
                     const isFamDisabled = (
                         myProf.familyDetailsEnabled === false ||
+                        myProf.family_details_enabled === false ||
                         myProf.raw_data?.familyDetailsEnabled === false ||
                         myProf.raw_data?.family_details_enabled === false
                     );
                     state.currentUser.familyDetailsEnabled = !isFamDisabled;
+                    state.currentUser.family_details_enabled = !isFamDisabled;
 
                     if (myProf.profileCreatedBy !== undefined || myProf.created_by !== undefined) {
                         state.currentUser.profileCreatedBy = myProf.profileCreatedBy || myProf.created_by || 'Self';
                         state.currentUser.created_by = myProf.profileCreatedBy || myProf.created_by || 'Self';
                     }
 
-                    if (isFamDisabled) {
-                        state.currentUser.father = '';
-                        state.currentUser.fatherName = '';
-                        state.currentUser.fatherOcc = '';
-                        state.currentUser.fatherMobile = '';
-                        state.currentUser.rawFatherMobile = '';
-                        state.currentUser.father_mobile = '';
-                        state.currentUser.mother = '';
-                        state.currentUser.motherName = '';
-                        state.currentUser.motherOcc = '';
-                        state.currentUser.sister = '—';
-                        state.currentUser.brother = '—';
-                    } else {
-                        if (myProf.father !== undefined || myProf.fatherName !== undefined) {
-                            state.currentUser.father = myProf.father || myProf.fatherName || '';
-                            state.currentUser.fatherName = myProf.father || myProf.fatherName || '';
-                        }
-                        if (myProf.fatherOcc !== undefined) state.currentUser.fatherOcc = myProf.fatherOcc || '';
-                        const cleanIncomingFM = (!String(myProf.rawFatherMobile || '').includes('•') && myProf.rawFatherMobile) ||
-                                                (!String(myProf.father_mobile || '').includes('•') && myProf.father_mobile) ||
-                                                (!String(myProf.fatherMobile || '').includes('•') && myProf.fatherMobile) ||
-                                                (!String(myProf.raw_data?.rawFatherMobile || '').includes('•') && myProf.raw_data?.rawFatherMobile) ||
-                                                (!String(myProf.raw_data?.father_mobile || '').includes('•') && myProf.raw_data?.father_mobile) ||
-                                                (!String(myProf.raw_data?.fatherMobile || '').includes('•') && myProf.raw_data?.fatherMobile);
-                        if (cleanIncomingFM) {
-                            state.currentUser.fatherMobile = cleanIncomingFM;
-                            state.currentUser.rawFatherMobile = cleanIncomingFM;
-                            state.currentUser.father_mobile = cleanIncomingFM;
-                        }
-                        if (myProf.mother !== undefined || myProf.motherName !== undefined) {
-                            state.currentUser.mother = myProf.mother || myProf.motherName || '';
-                            state.currentUser.motherName = myProf.mother || myProf.motherName || '';
-                        }
-                        if (myProf.motherOcc !== undefined) state.currentUser.motherOcc = myProf.motherOcc || '';
-                        if (myProf.sister !== undefined) state.currentUser.sister = myProf.sister || 'None';
-                        if (myProf.brother !== undefined) state.currentUser.brother = myProf.brother || 'None';
+                    // Preserve family details on state.currentUser for owner's edit profile
+                    const fVal = myProf.father || myProf.fatherName || myProf.father_name || myProf.raw_data?.father || myProf.raw_data?.fatherName || myProf.raw_data?.father_name;
+                    if (fVal) {
+                        state.currentUser.father = fVal;
+                        state.currentUser.fatherName = fVal;
+                        state.currentUser.father_name = fVal;
                     }
+                    const fOccVal = myProf.fatherOcc || myProf.father_occ || myProf.raw_data?.fatherOcc || myProf.raw_data?.father_occ;
+                    if (fOccVal) {
+                        state.currentUser.fatherOcc = fOccVal;
+                        state.currentUser.father_occ = fOccVal;
+                    }
+                    const cleanIncomingFM = (!String(myProf.rawFatherMobile || '').includes('•') && myProf.rawFatherMobile) ||
+                                            (!String(myProf.father_mobile || '').includes('•') && myProf.father_mobile) ||
+                                            (!String(myProf.fatherMobile || '').includes('•') && myProf.fatherMobile) ||
+                                            (!String(myProf.raw_data?.rawFatherMobile || '').includes('•') && myProf.raw_data?.rawFatherMobile) ||
+                                            (!String(myProf.raw_data?.father_mobile || '').includes('•') && myProf.raw_data?.father_mobile) ||
+                                            (!String(myProf.raw_data?.fatherMobile || '').includes('•') && myProf.raw_data?.fatherMobile);
+                    if (cleanIncomingFM) {
+                        state.currentUser.fatherMobile = cleanIncomingFM;
+                        state.currentUser.rawFatherMobile = cleanIncomingFM;
+                        state.currentUser.father_mobile = cleanIncomingFM;
+                    }
+                    const mVal = myProf.mother || myProf.motherName || myProf.mother_name || myProf.raw_data?.mother || myProf.raw_data?.motherName || myProf.raw_data?.mother_name;
+                    if (mVal) {
+                        state.currentUser.mother = mVal;
+                        state.currentUser.motherName = mVal;
+                        state.currentUser.mother_name = mVal;
+                    }
+                    const mOccVal = myProf.motherOcc || myProf.mother_occ || myProf.raw_data?.motherOcc || myProf.raw_data?.mother_occ;
+                    if (mOccVal) {
+                        state.currentUser.motherOcc = mOccVal;
+                        state.currentUser.mother_occ = mOccVal;
+                    }
+                    const sVal = myProf.sister || myProf.raw_data?.sister;
+                    if (sVal && sVal !== 'None') state.currentUser.sister = sVal;
+                    const bVal = myProf.brother || myProf.raw_data?.brother;
+                    if (bVal && bVal !== 'None') state.currentUser.brother = bVal;
                     if (myProf.village !== undefined || myProf.city !== undefined) {
                         state.currentUser.village = myProf.village || myProf.city || '';
                         state.currentUser.city = myProf.village || myProf.city || '';

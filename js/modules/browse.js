@@ -326,16 +326,7 @@ function getCurrentUserProfile() {
         if (!myProfile.physical && src.physical) myProfile.physical = src.physical;
         if ((!myProfile.hobbies || !myProfile.hobbies.length) && Array.isArray(src.hobbies)) myProfile.hobbies = src.hobbies;
 
-        const isFamExplicitlyOn = (
-            myProfile.familyDetailsEnabled === true ||
-            myProfile.family_details_enabled === true ||
-            myProfile.raw_data?.familyDetailsEnabled === true ||
-            myProfile.raw_data?.family_details_enabled === true ||
-            state.currentUser?.familyDetailsEnabled === true ||
-            state.currentUser?.family_details_enabled === true
-        );
-
-        const isFamDisabled = !isFamExplicitlyOn && (
+        const isFamExplicitlyOff = (
             myProfile.familyDetailsEnabled === false ||
             myProfile.family_details_enabled === false ||
             myProfile.raw_data?.familyDetailsEnabled === false ||
@@ -344,40 +335,36 @@ function getCurrentUserProfile() {
             src.family_details_enabled === false
         );
 
-        if (isFamDisabled) {
-            myProfile.familyDetailsEnabled = false;
-            myProfile.father = '';
-            myProfile.fatherName = '';
-            myProfile.fatherOcc = '';
-            myProfile.father_occ = '';
-            myProfile.fatherMobile = '';
-            myProfile.rawFatherMobile = '';
-            myProfile.father_mobile = '';
-            myProfile.mother = '';
-            myProfile.motherName = '';
-            myProfile.motherOcc = '';
-            myProfile.mother_occ = '';
-            myProfile.sister = '—';
-            myProfile.brother = '—';
-        } else {
-            if (!myProfile.father && (src.father || src.fatherName || src.father_name)) myProfile.father = src.father || src.fatherName || src.father_name;
-            if (!myProfile.fatherName && (src.father || src.fatherName || src.father_name)) myProfile.fatherName = src.father || src.fatherName || src.father_name;
-            if (!myProfile.fatherOcc && (src.fatherOcc || src.father_occ)) myProfile.fatherOcc = src.fatherOcc || src.father_occ;
-            if (!myProfile.father_occ && (src.fatherOcc || src.father_occ)) myProfile.father_occ = src.fatherOcc || src.father_occ;
+        const isFamExplicitlyOn = !isFamExplicitlyOff && (
+            myProfile.familyDetailsEnabled === true ||
+            myProfile.family_details_enabled === true ||
+            myProfile.raw_data?.familyDetailsEnabled === true ||
+            myProfile.raw_data?.family_details_enabled === true ||
+            src.familyDetailsEnabled === true ||
+            src.family_details_enabled === true
+        );
 
-            if (cleanFM) {
-                myProfile.rawFatherMobile = cleanFM;
-                myProfile.father_mobile = cleanFM;
-                myProfile.fatherMobile = (typeof formatPhoneNumber === 'function') ? formatPhoneNumber(cleanFM) : cleanFM;
-            }
+        myProfile.familyDetailsEnabled = isFamExplicitlyOff ? false : (isFamExplicitlyOn || (myProfile.familyDetailsEnabled !== false));
+        myProfile.family_details_enabled = myProfile.familyDetailsEnabled;
 
-            if (!myProfile.mother && (src.mother || src.motherName || src.mother_name)) myProfile.mother = src.mother || src.motherName || src.mother_name;
-            if (!myProfile.motherName && (src.mother || src.motherName || src.mother_name)) myProfile.motherName = src.mother || src.motherName || src.mother_name;
-            if (!myProfile.motherOcc && (src.motherOcc || src.mother_occ)) myProfile.motherOcc = src.motherOcc || src.mother_occ;
-            if (!myProfile.mother_occ && (src.motherOcc || src.mother_occ)) myProfile.mother_occ = src.motherOcc || src.mother_occ;
-            if ((!myProfile.sister || myProfile.sister === '—') && src.sister) myProfile.sister = src.sister;
-            if ((!myProfile.brother || myProfile.brother === '—') && src.brother) myProfile.brother = src.brother;
+        // Populate family fields from src if not already on myProfile (ALWAYS PRESERVE for self-editing)
+        if (!myProfile.father && (src.father || src.fatherName || src.father_name)) myProfile.father = src.father || src.fatherName || src.father_name;
+        if (!myProfile.fatherName && (src.father || src.fatherName || src.father_name)) myProfile.fatherName = src.father || src.fatherName || src.father_name;
+        if (!myProfile.fatherOcc && (src.fatherOcc || src.father_occ)) myProfile.fatherOcc = src.fatherOcc || src.father_occ;
+        if (!myProfile.father_occ && (src.fatherOcc || src.father_occ)) myProfile.father_occ = src.fatherOcc || src.father_occ;
+
+        if (cleanFM) {
+            myProfile.rawFatherMobile = cleanFM;
+            myProfile.father_mobile = cleanFM;
+            myProfile.fatherMobile = (typeof formatPhoneNumber === 'function') ? formatPhoneNumber(cleanFM) : cleanFM;
         }
+
+        if (!myProfile.mother && (src.mother || src.motherName || src.mother_name)) myProfile.mother = src.mother || src.motherName || src.mother_name;
+        if (!myProfile.motherName && (src.mother || src.motherName || src.mother_name)) myProfile.motherName = src.mother || src.motherName || src.mother_name;
+        if (!myProfile.motherOcc && (src.motherOcc || src.mother_occ)) myProfile.motherOcc = src.motherOcc || src.mother_occ;
+        if (!myProfile.mother_occ && (src.motherOcc || src.mother_occ)) myProfile.mother_occ = src.motherOcc || src.mother_occ;
+        if ((!myProfile.sister || myProfile.sister === '—' || myProfile.sister === 'None') && src.sister && src.sister !== 'None') myProfile.sister = src.sister;
+        if ((!myProfile.brother || myProfile.brother === '—' || myProfile.brother === 'None') && src.brother && src.brother !== 'None') myProfile.brother = src.brother;
 
         if (cleanOM) {
             myProfile.rawOwnMobile = cleanOM;
@@ -532,6 +519,11 @@ async function populateEditProfile() {
     }
     if (!myProfile) return;
 
+    if (state.currentUser) {
+        state.currentUser.familyDetailsEnabled = myProfile.familyDetailsEnabled;
+        state.currentUser.family_details_enabled = myProfile.family_details_enabled;
+    }
+
     // Profile Managed By Selection (Myself vs Parents)
     const rawCreator = String(
         myProfile.profileCreatedBy ||
@@ -633,9 +625,16 @@ async function populateEditProfile() {
     const fMobileEl = document.getElementById('editFatherMobile');
     let cleanFM = '';
     if (fMobileEl) {
-        cleanFM = (typeof getUnmaskedContactFromAnywhere === 'function')
-            ? getUnmaskedContactFromAnywhere('father', myProfile)
-            : (myProfile.rawFatherMobile || myProfile.father_mobile || '');
+        cleanFM = (!String(myProfile.rawFatherMobile || '').includes('•') && myProfile.rawFatherMobile) ||
+                  (!String(myProfile.father_mobile || '').includes('•') && myProfile.father_mobile) ||
+                  (!String(myProfile.fatherMobile || '').includes('•') && myProfile.fatherMobile) ||
+                  (!String(myProfile.raw_data?.rawFatherMobile || '').includes('•') && myProfile.raw_data?.rawFatherMobile) ||
+                  (!String(myProfile.raw_data?.father_mobile || '').includes('•') && myProfile.raw_data?.father_mobile) ||
+                  (!String(myProfile.raw_data?.fatherMobile || '').includes('•') && myProfile.raw_data?.fatherMobile) ||
+                  (!String(state.currentUser?.rawFatherMobile || '').includes('•') && state.currentUser?.rawFatherMobile) ||
+                  (!String(state.currentUser?.father_mobile || '').includes('•') && state.currentUser?.father_mobile) ||
+                  (!String(state.currentUser?.fatherMobile || '').includes('•') && state.currentUser?.fatherMobile) ||
+                  '';
         fMobileEl.value = cleanFM ? ((typeof formatPhoneNumber === 'function') ? formatPhoneNumber(cleanFM) : cleanFM) : '';
     }
 
@@ -656,11 +655,16 @@ async function populateEditProfile() {
     if (brotherEl) brotherEl.value = brotherVal;
 
     // Toggle Family Details based on explicit flag and whether user has existing family details
-    const isFamExplicitlyOn = (
+    const isFamExplicitlyOff = (
+        myProfile.familyDetailsEnabled === false ||
+        myProfile.family_details_enabled === false ||
+        myProfile.raw_data?.familyDetailsEnabled === false ||
+        myProfile.raw_data?.family_details_enabled === false
+    );
+
+    const isFamExplicitlyOn = !isFamExplicitlyOff && (
         myProfile.familyDetailsEnabled === true ||
         myProfile.family_details_enabled === true ||
-        state.currentUser?.familyDetailsEnabled === true ||
-        state.currentUser?.family_details_enabled === true ||
         myProfile.raw_data?.familyDetailsEnabled === true ||
         myProfile.raw_data?.family_details_enabled === true
     );
@@ -675,20 +679,18 @@ async function populateEditProfile() {
         (brotherVal && brotherVal.trim() !== '' && brotherVal !== '—' && brotherVal !== 'None')
     );
 
-    const isFamExplicitlyOff = !isFamExplicitlyOn && (
-        myProfile.familyDetailsEnabled === false ||
-        myProfile.family_details_enabled === false ||
-        state.currentUser?.familyDetailsEnabled === false ||
-        state.currentUser?.family_details_enabled === false ||
-        myProfile.raw_data?.familyDetailsEnabled === false ||
-        myProfile.raw_data?.family_details_enabled === false
-    );
+    // If user explicitly turned toggle OFF, it MUST stay OFF!
+    // If explicitly ON, it stays ON.
+    // Fallback to ON only if neither was set (e.g. legacy profile with existing details)
+    const isFamilyToggleActive = isFamExplicitlyOff
+        ? false
+        : (isFamExplicitlyOn || (myProfile.familyDetailsEnabled === undefined && hasFamilyDetails));
 
     const tglEditFam = document.getElementById('tglEditFamily');
     const editFamContainer = document.getElementById('editFamilyInputsContainer');
     const editFamSubtext = document.getElementById('editFamilyToggleSubtext');
     if (tglEditFam && editFamContainer) {
-        if (!isFamExplicitlyOff && (isFamExplicitlyOn || hasFamilyDetails)) {
+        if (isFamilyToggleActive) {
             tglEditFam.classList.add('on');
             editFamContainer.style.display = 'block';
             if (editFamSubtext) editFamSubtext.textContent = 'Family details enabled • Turn OFF if you wish to skip (પરિવારની વિગત ચાલુ છે • છુપાવવા માટે બંધ કરો)';

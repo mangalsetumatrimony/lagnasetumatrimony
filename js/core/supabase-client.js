@@ -471,6 +471,16 @@ function mapProfileFromSupabase(row, forAdmin = false) {
             const m = (row.mother || row.mother_name || raw.mother || raw.motherName || raw.mother_name || '').trim();
             return Boolean((f && f !== '—' && f !== 'Father') || (m && m !== '—' && m !== 'Mother'));
         })(),
+        family_details_enabled: (function() {
+            if (raw.familyDetailsEnabled === false || raw.family_details_enabled === false) return false;
+            if (row.familyDetailsEnabled === false || row.family_details_enabled === false) return false;
+            if (raw.familyDetailsEnabled === true || raw.family_details_enabled === true) return true;
+            if (row.familyDetailsEnabled === true || row.family_details_enabled === true) return true;
+            const f = (row.father || row.father_name || raw.father || raw.fatherName || raw.father_name || '').trim();
+            const m = (row.mother || row.mother_name || raw.mother || raw.motherName || raw.mother_name || '').trim();
+            return Boolean((f && f !== '—' && f !== 'Father') || (m && m !== '—' && m !== 'Mother'));
+        })(),
+        raw_data: raw,
         community: row.community || raw.community || '',
         hobbies: Array.isArray(row.hobbies) ? row.hobbies : (raw.hobbies || []),
         father: (
@@ -899,6 +909,16 @@ async function supabaseUpsertProfile(profile) {
         const payload = mapProfileForSupabase(profile);
         if (!payload || !payload.id) return { success: false, error: 'Invalid profile payload' };
 
+        // For regular members editing their own profile, protect sensitive columns
+        // so PostgreSQL security trigger (trg_protect_profile_columns) never throws P0001
+        if (!isAdmin) {
+            delete payload.payment_status;
+            delete payload.verify_status;
+            delete payload.account_status;
+            delete payload.suspension_reason;
+            delete payload.reject_reason;
+        }
+
         // Ensure payload email is NEVER masked
         if (payload.email && payload.email.includes('•')) {
             const curE = (curUser && curUser.email && !curUser.email.includes('•')) ? curUser.email.trim().toLowerCase() : '';
@@ -932,21 +952,31 @@ async function supabaseUpsertProfile(profile) {
             } catch (_) {}
         }
 
-        let { data, error } = await client
-            .from('profiles')
-            .upsert(payload, { onConflict: 'id' });
+        let data = null;
+        let error = null;
 
-        if (error) {
-            // Fallback: If upsert failed, try direct update by id
+        // For existing profiles, attempt direct update first to cleanly update with 200 OK
+        if (payload.id) {
             try {
-                const updateRes = await client.from('profiles').update(payload).eq('id', payload.id);
-                if (!updateRes.error) {
-                    error = null;
+                const updateRes = await client.from('profiles').update(payload).eq('id', payload.id).select('id');
+                if (!updateRes.error && Array.isArray(updateRes.data) && updateRes.data.length > 0) {
                     data = updateRes.data;
-                } else {
-                    console.warn('[Supabase] Profile upsert fallback update note:', updateRes.error.message);
+                    error = null;
+                } else if (updateRes.error) {
+                    error = updateRes.error;
                 }
-            } catch (_) {}
+            } catch (uErr) {
+                error = uErr;
+            }
+        }
+
+        // If direct update was not performed or didn't find matching row, try upsert
+        if (!data) {
+            const upsertRes = await client
+                .from('profiles')
+                .upsert(payload, { onConflict: 'id' });
+            data = upsertRes.data;
+            error = upsertRes.error;
         }
 
         if (error && (error.code === '42501' || String(error.message || '').includes('row-level security'))) {
