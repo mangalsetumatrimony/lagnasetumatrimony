@@ -24,10 +24,48 @@
     }
 
     // --- Production Lockdown (disabled during testing) ---
+    // 1. Block Right-Click (except inside input/textarea for copy-paste)
     document.addEventListener('contextmenu', function (e) {
         var tag = e.target ? e.target.tagName : '';
         if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
             e.preventDefault();
+            return false;
         }
-    });
+    }, true);
+
+    // 2. Block DevTools Shortcuts (F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U, Ctrl+S)
+    window.addEventListener('keydown', function (e) {
+        var keyCode = e.keyCode || e.which;
+        var key = (e.key || '').toLowerCase();
+
+        // F12 key
+        if (key === 'f12' || keyCode === 123) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+
+        // Ctrl + Shift + I / J / C (or Cmd + Option + I / J / C on Mac)
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+            if (key === 'i' || key === 'j' || key === 'c' || keyCode === 73 || keyCode === 74 || keyCode === 67) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        }
+
+        // Ctrl + U (View Source)
+        if ((e.ctrlKey || e.metaKey) && (key === 'u' || keyCode === 85)) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+
+        // Ctrl + S (Save Page)
+        if ((e.ctrlKey || e.metaKey) && (key === 's' || keyCode === 83)) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+    }, true);
 })();
