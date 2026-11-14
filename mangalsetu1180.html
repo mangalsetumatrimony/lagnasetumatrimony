@@ -1525,6 +1525,16 @@
 
                 <!-- Family Details -->
                 <div class="section-label">Family Details</div>
+                <div class="toggle-row" style="margin-top:8px;margin-bottom:14px;">
+                    <div>
+                        <div class="tlabel" style="display:flex;align-items:center;gap:6px;">
+                            <i class="fa-solid fa-users" style="color:var(--primary);"></i>
+                            Show Family Details to Accepted Matches?
+                        </div>
+                        <div class="tsub">Turn OFF to hide family members &amp; father contact from matches</div>
+                    </div>
+                    <button type="button" class="toggle on" id="adminEditToggleFamily" onclick="this.classList.toggle('on')"></button>
+                </div>
                 <div class="row-2">
                     <div class="field">
                         <label>Father's Name</label>
@@ -1719,7 +1729,7 @@
         <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
         <!-- Email Notification Service -->
         <script src="js/services/email-service.js?v=8.6"></script>
-        <script src="js/admin/admin-ui.js?v=8.6"></script>
+        <script src="js/admin/admin-ui.js?v=9.5"></script>
 
 </body>
 

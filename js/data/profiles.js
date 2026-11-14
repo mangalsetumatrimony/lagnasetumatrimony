@@ -56,8 +56,13 @@ async function syncProfilesFromSupabase(force = false, silent = false) {
             // Reconcile current user's details live as soon as Supabase profiles arrive
             if (typeof state !== 'undefined' && state.currentUser && state.currentUser.email) {
                 const myEmail = state.currentUser.email.trim().toLowerCase();
-                const curId = state.currentUser.id || state.currentUser.profileId;
-                const myProf = PROFILES.find(p => p && ((p.email && p.email.trim().toLowerCase() === myEmail) || (curId && (p.id == curId || p.userId == curId || p.user_id == curId))));
+                const curId = state.currentUser.id || state.currentUser.userId || state.currentUser.profileId;
+                const myProf = PROFILES.find(p => p && (
+                    (curId && (String(p.id) === String(curId) || String(p.userId) === String(curId) || String(p.user_id) === String(curId))) ||
+                    (p.email && !p.email.includes('•') && p.email.trim().toLowerCase() === myEmail) ||
+                    (p.rawEmail && p.rawEmail.trim().toLowerCase() === myEmail) ||
+                    (p.raw_data && p.raw_data.email && p.raw_data.email.trim().toLowerCase() === myEmail)
+                ));
                 if (myProf) {
                     if (myProf.name) state.currentUser.name = myProf.name;
                     if (myProf.gender) state.currentUser.gender = (myProf.gender === 'girls' || myProf.gender === 'Girl') ? 'Girl' : 'Boy';
@@ -304,16 +309,115 @@ function handleRemoteProfileUpsert(incoming) {
 
     // Live update currentUser model if own profile was updated remotely
     if (typeof state !== 'undefined' && state.currentUser && prof) {
-        const myId = String(state.currentUser.id || state.currentUser.profileId || '');
+        const myId = String(state.currentUser.id || state.currentUser.userId || state.currentUser.profileId || '');
         const myEmail = (state.currentUser.email || '').trim().toLowerCase();
-        if ((profIdStr && profIdStr === myId) || (profEmail && profEmail === myEmail)) {
+        const incomingId = String(prof.id || prof.user_id || prof.userId || '');
+        const incomingEmail = (prof.email || prof.rawEmail || prof.raw_data?.email || '').trim().toLowerCase();
+
+        const isMe = (myId && (myId === incomingId || myId === String(prof.id) || myId === String(prof.user_id) || myId === String(prof.userId))) ||
+                     (myEmail && !incomingEmail.includes('•') && myEmail === incomingEmail);
+
+        if (isMe) {
             if (prof.name) state.currentUser.name = prof.name;
             if (prof.gender) state.currentUser.gender = (prof.gender === 'girls' || prof.gender === 'Girl') ? 'Girl' : 'Boy';
-            if (prof.community) { state.currentUser.caste = prof.community; state.currentUser.community = prof.community; }
-            if (prof.img) { state.currentUser.img = prof.img; state.currentUser.photo = prof.img; }
+            if (prof.community || prof.caste) {
+                state.currentUser.caste = prof.community || prof.caste;
+                state.currentUser.community = prof.community || prof.caste;
+            }
+            if (prof.img || prof.photo) {
+                state.currentUser.img = prof.img || prof.photo;
+                state.currentUser.photo = prof.img || prof.photo;
+            }
+            if (Array.isArray(prof.photos) && prof.photos.length > 0) {
+                state.currentUser.photos = prof.photos;
+            }
+            if (prof.dob) state.currentUser.dob = prof.dob;
+            if (prof.age) state.currentUser.age = prof.age;
+            if (prof.height) state.currentUser.height = prof.height;
+            if (prof.weight) state.currentUser.weight = prof.weight;
+            if (prof.education) state.currentUser.education = prof.education;
+            if (prof.occupation || prof.occ) {
+                state.currentUser.occupation = prof.occupation || prof.occ;
+                state.currentUser.occ = prof.occupation || prof.occ;
+            }
+            if (prof.income) state.currentUser.income = prof.income;
+            if (prof.marital) state.currentUser.marital = prof.marital;
+            if (prof.physical) state.currentUser.physical = prof.physical;
+            if (Array.isArray(prof.hobbies)) state.currentUser.hobbies = prof.hobbies;
+            if (prof.village || prof.city) {
+                state.currentUser.village = prof.village || prof.city;
+                state.currentUser.city = prof.village || prof.city;
+            }
+            if (prof.taluka) state.currentUser.taluka = prof.taluka;
+            if (prof.district) state.currentUser.district = prof.district;
+            if (prof.fullAddress || prof.address) {
+                state.currentUser.address = prof.fullAddress || prof.address;
+                state.currentUser.fullAddress = prof.fullAddress || prof.address;
+            }
+            const om = (!prof.rawOwnMobile?.includes('•') && prof.rawOwnMobile) ||
+                       (!prof.ownMobile?.includes('•') && prof.ownMobile) ||
+                       (!prof.mobile?.includes('•') && prof.mobile);
+            if (om) {
+                state.currentUser.ownMobile = om;
+                state.currentUser.mobile = om;
+                state.currentUser.rawOwnMobile = om;
+            }
+
+            // Family details & toggle
+            const isFamExplicitlyOff = (
+                prof.familyDetailsEnabled === false ||
+                prof.family_details_enabled === false ||
+                prof.raw_data?.familyDetailsEnabled === false ||
+                prof.raw_data?.family_details_enabled === false
+            );
+            state.currentUser.familyDetailsEnabled = !isFamExplicitlyOff;
+            state.currentUser.family_details_enabled = !isFamExplicitlyOff;
+
+            const fn = prof.father || prof.fatherName || prof.father_name || prof.raw_data?.father || prof.raw_data?.fatherName;
+            if (fn) { state.currentUser.father = fn; state.currentUser.fatherName = fn; state.currentUser.father_name = fn; }
+            const fo = prof.fatherOcc || prof.father_occ || prof.raw_data?.fatherOcc;
+            if (fo) { state.currentUser.fatherOcc = fo; state.currentUser.father_occ = fo; }
+            const fm = (!String(prof.rawFatherMobile || '').includes('•') && prof.rawFatherMobile) ||
+                       (!String(prof.father_mobile || '').includes('•') && prof.father_mobile) ||
+                       (!String(prof.fatherMobile || '').includes('•') && prof.fatherMobile) ||
+                       (!String(prof.raw_data?.rawFatherMobile || '').includes('•') && prof.raw_data?.rawFatherMobile);
+            if (fm) { state.currentUser.fatherMobile = fm; state.currentUser.rawFatherMobile = fm; state.currentUser.father_mobile = fm; }
+            const mn = prof.mother || prof.motherName || prof.mother_name || prof.raw_data?.mother;
+            if (mn) { state.currentUser.mother = mn; state.currentUser.motherName = mn; state.currentUser.mother_name = mn; }
+            const mo = prof.motherOcc || prof.mother_occ || prof.raw_data?.motherOcc;
+            if (mo) { state.currentUser.motherOcc = mo; state.currentUser.mother_occ = mo; }
+            if (prof.sister && prof.sister !== 'None') state.currentUser.sister = prof.sister;
+            if (prof.brother && prof.brother !== 'None') state.currentUser.brother = prof.brother;
+
             if (prof.paymentStatus) state.currentUser.paymentStatus = prof.paymentStatus;
             if (typeof saveSessionState === 'function') saveSessionState();
             if (typeof updateHeaderUserDisplay === 'function') updateHeaderUserDisplay();
+
+            // Also keep stored accounts in localStorage updated
+            if (typeof getStoredAccounts === 'function' && typeof saveStoredAccounts === 'function') {
+                try {
+                    const accounts = getStoredAccounts();
+                    const accIdx = accounts.findIndex(a => a && (
+                        (a.email && myEmail && a.email.toLowerCase() === myEmail) ||
+                        (myId && (String(a.id) === String(myId) || String(a.profileId) === String(myId) || String(a.userId) === String(myId)))
+                    ));
+                    if (accIdx !== -1) {
+                        accounts[accIdx] = { ...accounts[accIdx], ...state.currentUser };
+                        saveStoredAccounts(accounts);
+                    }
+                } catch (_) {}
+            }
+
+            // Live refresh if user is currently on edit screen or viewing own profile
+            const editScreen = document.getElementById('scr-editprofile');
+            if (editScreen && editScreen.classList.contains('active') && typeof populateEditProfile === 'function') {
+                populateEditProfile();
+            }
+            const profileScreen = document.getElementById('scr-profile');
+            if (profileScreen && profileScreen.classList.contains('active')) {
+                if (typeof renderMyProfileScreen === 'function') renderMyProfileScreen();
+                else if (typeof openProfile === 'function') openProfile(myId || prof.id);
+            }
         }
     }
 

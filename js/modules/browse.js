@@ -519,9 +519,72 @@ async function populateEditProfile() {
     }
     if (!myProfile) return;
 
-    if (state.currentUser) {
+    if (state.currentUser && myProfile) {
+        if (myProfile.name) state.currentUser.name = myProfile.name;
+        if (myProfile.gender) state.currentUser.gender = (myProfile.gender === 'girls' || myProfile.gender === 'Girl') ? 'Girl' : 'Boy';
+        if (myProfile.community || myProfile.caste) {
+            state.currentUser.caste = myProfile.community || myProfile.caste;
+            state.currentUser.community = myProfile.community || myProfile.caste;
+        }
+        if (myProfile.img || myProfile.photo) {
+            state.currentUser.img = myProfile.img || myProfile.photo;
+            state.currentUser.photo = myProfile.img || myProfile.photo;
+        }
+        if (Array.isArray(myProfile.photos) && myProfile.photos.length > 0) {
+            state.currentUser.photos = myProfile.photos;
+        }
+        if (myProfile.dob) state.currentUser.dob = myProfile.dob;
+        if (myProfile.age) state.currentUser.age = myProfile.age;
+        if (myProfile.height) state.currentUser.height = myProfile.height;
+        if (myProfile.weight) state.currentUser.weight = myProfile.weight;
+        if (myProfile.education) state.currentUser.education = myProfile.education;
+        if (myProfile.occupation || myProfile.occ) {
+            state.currentUser.occupation = myProfile.occupation || myProfile.occ;
+            state.currentUser.occ = myProfile.occupation || myProfile.occ;
+        }
+        if (myProfile.income) state.currentUser.income = myProfile.income;
+        if (myProfile.marital) state.currentUser.marital = myProfile.marital;
+        if (myProfile.physical) state.currentUser.physical = myProfile.physical;
+        if (Array.isArray(myProfile.hobbies)) state.currentUser.hobbies = myProfile.hobbies;
+        if (myProfile.village || myProfile.city) {
+            state.currentUser.village = myProfile.village || myProfile.city;
+            state.currentUser.city = myProfile.village || myProfile.city;
+        }
+        if (myProfile.taluka) state.currentUser.taluka = myProfile.taluka;
+        if (myProfile.district) state.currentUser.district = myProfile.district;
+        if (myProfile.fullAddress || myProfile.address) {
+            state.currentUser.address = myProfile.fullAddress || myProfile.address;
+            state.currentUser.fullAddress = myProfile.fullAddress || myProfile.address;
+        }
+        const om = (!myProfile.rawOwnMobile?.includes('•') && myProfile.rawOwnMobile) ||
+                   (!myProfile.ownMobile?.includes('•') && myProfile.ownMobile) ||
+                   (!myProfile.mobile?.includes('•') && myProfile.mobile);
+        if (om) {
+            state.currentUser.ownMobile = om;
+            state.currentUser.mobile = om;
+            state.currentUser.rawOwnMobile = om;
+        }
+
         state.currentUser.familyDetailsEnabled = myProfile.familyDetailsEnabled;
         state.currentUser.family_details_enabled = myProfile.family_details_enabled;
+
+        const fn = myProfile.father || myProfile.fatherName || myProfile.father_name;
+        if (fn) { state.currentUser.father = fn; state.currentUser.fatherName = fn; state.currentUser.father_name = fn; }
+        const fo = myProfile.fatherOcc || myProfile.father_occ;
+        if (fo) { state.currentUser.fatherOcc = fo; state.currentUser.father_occ = fo; }
+        const fm = (!String(myProfile.rawFatherMobile || '').includes('•') && myProfile.rawFatherMobile) ||
+                   (!String(myProfile.father_mobile || '').includes('•') && myProfile.father_mobile) ||
+                   (!String(myProfile.fatherMobile || '').includes('•') && myProfile.fatherMobile);
+        if (fm) { state.currentUser.fatherMobile = fm; state.currentUser.rawFatherMobile = fm; state.currentUser.father_mobile = fm; }
+        const mn = myProfile.mother || myProfile.motherName || myProfile.mother_name;
+        if (mn) { state.currentUser.mother = mn; state.currentUser.motherName = mn; state.currentUser.mother_name = mn; }
+        const mo = myProfile.motherOcc || myProfile.mother_occ;
+        if (mo) { state.currentUser.motherOcc = mo; state.currentUser.mother_occ = mo; }
+        if (myProfile.sister && myProfile.sister !== 'None') state.currentUser.sister = myProfile.sister;
+        if (myProfile.brother && myProfile.brother !== 'None') state.currentUser.brother = myProfile.brother;
+
+        if (typeof saveSessionState === 'function') saveSessionState();
+        if (typeof updateHeaderUserDisplay === 'function') updateHeaderUserDisplay();
     }
 
     // Profile Managed By Selection (Myself vs Parents)

@@ -324,26 +324,63 @@ function loadSessionState() {
         }
         if (savedUser) {
             state.currentUser = JSON.parse(savedUser);
-            // Reconcile profileId, name, and photo from PROFILES if available
+            // Reconcile profile details from PROFILES if available
             if (typeof PROFILES !== 'undefined' && Array.isArray(PROFILES)) {
                 const myEmail = (state.currentUser.email || '').trim().toLowerCase();
-                const curId = state.currentUser.id || state.currentUser.profileId;
-                const matchedProf = PROFILES.find(p => p && ((myEmail && p.email && p.email.trim().toLowerCase() === myEmail) || (curId && (p.id == curId || p.userId == curId))));
+                const curId = state.currentUser.id || state.currentUser.userId || state.currentUser.profileId;
+                const matchedProf = PROFILES.find(p => p && (
+                    (curId && (String(p.id) === String(curId) || String(p.userId) === String(curId) || String(p.user_id) === String(curId))) ||
+                    (myEmail && p.email && !p.email.includes('•') && p.email.trim().toLowerCase() === myEmail) ||
+                    (myEmail && p.rawEmail && p.rawEmail.trim().toLowerCase() === myEmail) ||
+                    (myEmail && p.raw_data && p.raw_data.email && p.raw_data.email.trim().toLowerCase() === myEmail)
+                ));
                 if (matchedProf) {
                     state.currentUser.profileId = matchedProf.id;
-                    if (!state.currentUser.name || state.currentUser.name === 'Member') {
+                    if (matchedProf.name) {
                         state.currentUser.name = matchedProf.name;
                     }
-                    if (!state.currentUser.gender) {
+                    if (matchedProf.gender) {
                         state.currentUser.gender = (matchedProf.gender === 'girls' || matchedProf.gender === 'Girl') ? 'Girl' : 'Boy';
                     }
-                    if (!state.currentUser.caste) {
-                        state.currentUser.caste = matchedProf.community;
+                    if (matchedProf.community || matchedProf.caste) {
+                        state.currentUser.caste = matchedProf.community || matchedProf.caste;
+                        state.currentUser.community = matchedProf.community || matchedProf.caste;
                     }
-                    if (!state.currentUser.img || !state.currentUser.photo) {
-                        state.currentUser.img = matchedProf.img || (matchedProf.photos && matchedProf.photos[0]);
+                    if (matchedProf.img || matchedProf.photo) {
+                        state.currentUser.img = matchedProf.img || matchedProf.photo || (matchedProf.photos && matchedProf.photos[0]);
                         state.currentUser.photo = state.currentUser.img;
                     }
+                    if (matchedProf.education) state.currentUser.education = matchedProf.education;
+                    if (matchedProf.occ || matchedProf.occupation) {
+                        state.currentUser.occupation = matchedProf.occ || matchedProf.occupation;
+                        state.currentUser.occ = matchedProf.occ || matchedProf.occupation;
+                    }
+                    if (matchedProf.income) state.currentUser.income = matchedProf.income;
+                    if (matchedProf.height) state.currentUser.height = matchedProf.height;
+                    if (matchedProf.weight) state.currentUser.weight = matchedProf.weight;
+                    if (matchedProf.dob) state.currentUser.dob = matchedProf.dob;
+                    if (matchedProf.age) state.currentUser.age = matchedProf.age;
+                    if (matchedProf.marital) state.currentUser.marital = matchedProf.marital;
+                    if (matchedProf.physical) state.currentUser.physical = matchedProf.physical;
+                    if (matchedProf.village || matchedProf.city) {
+                        state.currentUser.village = matchedProf.village || matchedProf.city;
+                        state.currentUser.city = matchedProf.village || matchedProf.city;
+                    }
+                    if (matchedProf.taluka) state.currentUser.taluka = matchedProf.taluka;
+                    if (matchedProf.district) state.currentUser.district = matchedProf.district;
+                    if (matchedProf.fullAddress || matchedProf.address) {
+                        state.currentUser.address = matchedProf.fullAddress || matchedProf.address;
+                        state.currentUser.fullAddress = matchedProf.fullAddress || matchedProf.address;
+                    }
+                    const isFamDisabled = (
+                        matchedProf.familyDetailsEnabled === false ||
+                        matchedProf.family_details_enabled === false ||
+                        matchedProf.raw_data?.familyDetailsEnabled === false ||
+                        matchedProf.raw_data?.family_details_enabled === false
+                    );
+                    state.currentUser.familyDetailsEnabled = !isFamDisabled;
+                    state.currentUser.family_details_enabled = !isFamDisabled;
+
                     // Reconcile approved pass status from database/profiles
                     if (matchedProf.paymentStatus === 'paid' || matchedProf.payment_status === 'paid' || matchedProf.paymentStatus === 'Active') {
                         state.currentUser.paymentStatus = 'Active';
@@ -470,25 +507,28 @@ function loadSessionState() {
 }
 
 function updateHeaderUserDisplay() {
-    const curId = state.currentUser ? (state.currentUser.id || state.currentUser.profileId) : null;
+    const curId = state.currentUser ? (state.currentUser.id || state.currentUser.userId || state.currentUser.profileId) : null;
     const curEmail = (state.currentUser?.email || '').trim().toLowerCase();
 
     // 1. Locate matrimonial profile from window.PROFILES (by id or email)
     const myProfile = (typeof window.PROFILES !== 'undefined' && Array.isArray(window.PROFILES))
         ? window.PROFILES.find(p => {
             if (!p) return false;
-            if (curId && (p.id == curId || p.userId == curId || p.user_id == curId)) return true;
-            if (curEmail && p.email && p.email.trim().toLowerCase() === curEmail) return true;
+            if (curId && (String(p.id) === String(curId) || String(p.userId) === String(curId) || String(p.user_id) === String(curId))) return true;
+            if (curEmail && p.email && !p.email.includes('•') && p.email.trim().toLowerCase() === curEmail) return true;
+            if (curEmail && p.rawEmail && p.rawEmail.trim().toLowerCase() === curEmail) return true;
+            if (curEmail && p.raw_data && p.raw_data.email && p.raw_data.email.trim().toLowerCase() === curEmail) return true;
             return false;
         })
         : null;
 
     // 2. Resolve User's Real Name
     let rawName = (state.currentUser?.name || '').trim();
-    if (!rawName || rawName === 'Member' || rawName === 'User') {
-        if (myProfile && myProfile.name && myProfile.name.trim()) {
-            rawName = myProfile.name.trim();
-        } else if (state.regData && state.regData.name && state.regData.name.trim()) {
+    if (myProfile && myProfile.name && myProfile.name.trim()) {
+        rawName = myProfile.name.trim();
+        if (state.currentUser) state.currentUser.name = rawName;
+    } else if (!rawName || rawName === 'Member' || rawName === 'User') {
+        if (state.regData && state.regData.name && state.regData.name.trim()) {
             rawName = state.regData.name.trim();
         } else if (typeof getStoredAccounts === 'function') {
             try {
@@ -500,7 +540,7 @@ function updateHeaderUserDisplay() {
     }
 
     // Sync back to state.currentUser so it persists across views
-    if (rawName && state.currentUser && (!state.currentUser.name || state.currentUser.name === 'Member')) {
+    if (rawName && state.currentUser) {
         state.currentUser.name = rawName;
     }
 

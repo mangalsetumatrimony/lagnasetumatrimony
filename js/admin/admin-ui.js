@@ -868,6 +868,22 @@
             document.getElementById('adminEditDistrict').value = u.district || '';
             document.getElementById('adminEditAddress').value = u.fullAddress || u.full_address || u.address || '';
 
+            // Family details toggle state
+            const isFamDisabled = (
+                u.familyDetailsEnabled === false ||
+                u.family_details_enabled === false ||
+                u.raw_data?.familyDetailsEnabled === false ||
+                u.raw_data?.family_details_enabled === false
+            );
+            const famToggleBtn = document.getElementById('adminEditToggleFamily');
+            if (famToggleBtn) {
+                if (isFamDisabled) {
+                    famToggleBtn.classList.remove('on');
+                } else {
+                    famToggleBtn.classList.add('on');
+                }
+            }
+
             openModal('modalAdminEditUser');
         }
 
@@ -951,14 +967,11 @@
             u.sister = sister || '—';
             u.brother = brother || '—';
 
-            const hasFamData = Boolean(
-                (father && father !== '—' && father !== 'Father') ||
-                (mother && mother !== '—' && mother !== 'Mother') ||
-                fatherOcc ||
-                fatherMobile
-            );
-            u.familyDetailsEnabled = hasFamData;
-            u.family_details_enabled = hasFamData;
+            const famToggleBtn = document.getElementById('adminEditToggleFamily');
+            const isFamilyEnabled = famToggleBtn ? famToggleBtn.classList.contains('on') : true;
+
+            u.familyDetailsEnabled = isFamilyEnabled;
+            u.family_details_enabled = isFamilyEnabled;
 
             u.village = village;
             u.city = village;
@@ -972,8 +985,8 @@
             u.raw_data = {
                 ...(u.raw_data || {}),
                 ...u,
-                familyDetailsEnabled: hasFamData,
-                family_details_enabled: hasFamData
+                familyDetailsEnabled: isFamilyEnabled,
+                family_details_enabled: isFamilyEnabled
             };
 
             // Also synchronize in window.PROFILES and localStorage
