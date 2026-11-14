@@ -10,7 +10,6 @@ Allow: /css/
 Allow: /js/
 
 # Disallow sensitive internal admin and config paths
-Disallow: /admin.html
 Disallow: /database/
 Disallow: /email-templates/
 Disallow: /.git/
