@@ -500,8 +500,20 @@ window.escapeHtml = escapeHtmlAdmin;
     </div>
 
     <div class="section-label">Family Details</div>
+    <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-users-viewfinder"></i> Visibility to Matches</div><div class="dval">${(function(){
+        const isFamOff = (
+            u.familyDetailsEnabled === false ||
+            u.family_details_enabled === false ||
+            u.raw_data?.familyDetailsEnabled === false ||
+            u.raw_data?.family_details_enabled === false
+        );
+        return isFamOff
+            ? '<span class="status-badge" style="background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5;font-size:11px;padding:3px 9px;font-weight:700;"><i class="fa-solid fa-eye-slash"></i> Hidden from Matches (બંધ છે)</span>'
+            : '<span class="status-badge" style="background:#D1FAE5;color:#065F46;border:1px solid #6EE7B7;font-size:11px;padding:3px 9px;font-weight:700;"><i class="fa-solid fa-eye"></i> Visible to Accepted Matches (ચાલુ છે)</span>';
+    })()}</div></div>
     <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-user-tie"></i> Father's Name</div><div class="dval">${escapeHtmlAdmin(u.father || u.fatherName || '—')}</div></div>
     <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-briefcase"></i> Father's Occupation</div><div class="dval">${escapeHtmlAdmin(u.fatherOcc || '—')}</div></div>
+    <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-phone"></i> Father's Mobile</div><div class="dval">${escapeHtmlAdmin(u.rawFatherMobile || u.fatherMobile || u.father_mobile || '—')}</div></div>
     <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person-dress"></i> Mother's Name</div><div class="dval">${escapeHtmlAdmin(u.mother || u.motherName || '—')}</div></div>
     <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-briefcase"></i> Mother's Occupation</div><div class="dval">${escapeHtmlAdmin(u.motherOcc || '—')}</div></div>
     <div class="detail-row"><div class="dlabel"><i class="fa-solid fa-person"></i> Sister</div><div class="dval">${escapeHtmlAdmin(u.sister || 'None')}</div></div>

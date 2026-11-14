@@ -1579,9 +1579,11 @@ async function supabaseAdminUpdateMember(profileId, u) {
         const payload = mapProfileForSupabase(u);
         if (!payload) return { success: false, error: 'Empty payload' };
 
-        // Ensure non-existent schema columns are strictly stripped
+        // Ensure non-existent schema columns & payment triggers are strictly stripped
         delete payload.plan_start;
         delete payload.plan_expiry;
+        delete payload.payment_status;
+        delete payload.paymentStatus;
 
         const normEmail = (u.email || '').trim().toLowerCase();
         const numId = Number(profileId || u.id);
@@ -1592,6 +1594,10 @@ async function supabaseAdminUpdateMember(profileId, u) {
         // Prepare update payload without primary key 'id' to prevent Postgres key errors
         const updatePayload = { ...payload };
         delete updatePayload.id;
+        delete updatePayload.payment_status;
+        delete updatePayload.paymentStatus;
+        delete updatePayload.plan_start;
+        delete updatePayload.plan_expiry;
 
         // 1. Try update by primary key id (if numeric)
         if (hasValidNumId) {
@@ -1632,9 +1638,14 @@ async function supabaseAdminUpdateMember(profileId, u) {
 
         // 4. If record doesn't exist yet, UPSERT it!
         if (!updated) {
+            const upsertPayload = { ...payload };
+            delete upsertPayload.payment_status;
+            delete upsertPayload.paymentStatus;
+            delete upsertPayload.plan_start;
+            delete upsertPayload.plan_expiry;
             const { error: errUpsert } = await client
                 .from('profiles')
-                .upsert(payload, { onConflict: 'id' });
+                .upsert(upsertPayload, { onConflict: 'id' });
             if (!errUpsert) {
                 updated = true;
             } else {
@@ -2171,6 +2182,8 @@ function supabaseBroadcastProfileUpsert(prof) {
             father_name: prof.father_name || prof.father || '',
             fatherOcc: prof.fatherOcc || prof.father_occ || '',
             father_occ: prof.father_occ || prof.fatherOcc || '',
+            fatherMobile: (!String(prof.rawFatherMobile || '').includes('•') && prof.rawFatherMobile) || (!String(prof.father_mobile || '').includes('•') && prof.father_mobile) || (!String(prof.fatherMobile || '').includes('•') && prof.fatherMobile) || '',
+            father_mobile: (!String(prof.rawFatherMobile || '').includes('•') && prof.rawFatherMobile) || (!String(prof.father_mobile || '').includes('•') && prof.father_mobile) || (!String(prof.fatherMobile || '').includes('•') && prof.fatherMobile) || '',
             mother: prof.mother || prof.mother_name || '',
             mother_name: prof.mother_name || prof.mother || '',
             motherOcc: prof.motherOcc || prof.mother_occ || '',

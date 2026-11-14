@@ -1002,6 +1002,21 @@
                     window.PROFILES.push({ ...u });
                 }
             }
+
+            // Also synchronize in USERS and window.USERS
+            if (typeof USERS !== 'undefined' && Array.isArray(USERS)) {
+                const uIdx = USERS.findIndex(usr => usr && (
+                    String(usr.id) === String(u.id) ||
+                    (u.userId && (String(usr.userId) === String(u.userId) || String(usr.user_id) === String(u.userId))) ||
+                    (u.email && usr.email && usr.email.toLowerCase().trim() === u.email.toLowerCase().trim())
+                ));
+                if (uIdx !== -1) {
+                    USERS[uIdx] = { ...USERS[uIdx], ...u };
+                } else {
+                    USERS.push({ ...u });
+                }
+                window.USERS = USERS;
+            }
             if (typeof saveCommunityProfiles === 'function') saveCommunityProfiles();
             if (typeof saveAdminData === 'function') saveAdminData();
 
