@@ -99,15 +99,7 @@ function mapProfileForSupabase(p) {
         ? p.rawEmail.trim().toLowerCase()
         : ((p.email && !p.email.includes('•')) ? p.email.trim().toLowerCase() : curEmail);
 
-    const hasFamData = Boolean(
-        (p.father && p.father !== '—') ||
-        (p.father_name && p.father_name !== '—') ||
-        (p.mother && p.mother !== '—') ||
-        (p.mother_name && p.mother_name !== '—') ||
-        (p.fatherOcc || p.father_occ) ||
-        (p.rawFatherMobile && !p.rawFatherMobile.includes('•'))
-    );
-    const isFamOn = (p.familyDetailsEnabled === true || p.family_details_enabled === true || (p.familyDetailsEnabled !== false && hasFamData));
+    const isFamOn = (p.familyDetailsEnabled === true || p.family_details_enabled === true);
 
     return {
         id: cleanId,
@@ -126,10 +118,10 @@ function mapProfileForSupabase(p) {
         physical: p.physical || 'Normal',
         community: p.community || p.caste || '',
         hobbies: Array.isArray(p.hobbies) ? p.hobbies : [],
-        father: !isFamOn ? '' : (p.father || p.father_name || p.fatherName || ''),
-        father_name: !isFamOn ? '' : (p.father_name || p.father || p.fatherName || ''),
-        father_occ: !isFamOn ? '' : (p.fatherOcc || p.father_occ || ''),
-        father_mobile: !isFamOn ? '' : ((!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
+        father: (p.father || p.father_name || p.fatherName || ''),
+        father_name: (p.father_name || p.father || p.fatherName || ''),
+        father_occ: (p.fatherOcc || p.father_occ || ''),
+        father_mobile: ((!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
                        (!p.father_mobile?.includes('•') && p.father_mobile) ||
                        (!p.fatherMobile?.includes('•') && p.fatherMobile) ||
                        ''),
@@ -139,11 +131,11 @@ function mapProfileForSupabase(p) {
                     (!p.ownMobile?.includes('•') && p.ownMobile) ||
                     (!p.mobile?.includes('•') && p.mobile) ||
                     '',
-        mother: !isFamOn ? '' : (p.mother || p.mother_name || p.motherName || ''),
-        mother_name: !isFamOn ? '' : (p.mother_name || p.mother || p.motherName || ''),
-        mother_occ: !isFamOn ? '' : (p.motherOcc || p.mother_occ || ''),
-        sister: !isFamOn ? '—' : (p.sister || 'None'),
-        brother: !isFamOn ? '—' : (p.brother || 'None'),
+        mother: (p.mother || p.mother_name || p.motherName || ''),
+        mother_name: (p.mother_name || p.mother || p.motherName || ''),
+        mother_occ: (p.motherOcc || p.mother_occ || ''),
+        sister: (p.sister || 'None'),
+        brother: (p.brother || 'None'),
         village: p.village || p.city || '',
         taluka: p.taluka || '',
         district: p.district || '',
@@ -808,12 +800,22 @@ async function supabaseFetchAuthorizedContact(profileId) {
         const mVal = (data.mother || data.mother_name || rd.mother || rd.motherName || rd.mother_name || '').trim();
         const hasAnyFamInfo = Boolean((fVal && fVal !== '—' && fVal !== 'Father') || (mVal && mVal !== '—' && mVal !== 'Mother'));
 
-        const isFamDisabled = !hasAnyFamInfo && (
+        const isFamExplicitlyOff = (
             rd.familyDetailsEnabled === false ||
             rd.family_details_enabled === false ||
             data.family_details_enabled === false ||
             data.familyDetailsEnabled === false
         );
+
+        const isFamExplicitlyOn = !isFamExplicitlyOff && (
+            rd.familyDetailsEnabled === true ||
+            rd.family_details_enabled === true ||
+            data.family_details_enabled === true ||
+            data.familyDetailsEnabled === true
+        );
+
+        const isFamDisabled = isFamExplicitlyOff || (!isFamExplicitlyOn && !hasAnyFamInfo);
+        const hideForPeer = !isSelf && !isAdmin && isFamDisabled;
 
         const realFM = (!data.father_mobile?.includes('•') && data.father_mobile) ||
                        (!rd.fatherMobile?.includes('•') && rd.fatherMobile) ||
@@ -828,17 +830,17 @@ async function supabaseFetchAuthorizedContact(profileId) {
             authorized: true,
             familyDetailsEnabled: !isFamDisabled,
             family_details_enabled: !isFamDisabled,
-            father: isFamDisabled ? '' : (data.father || data.father_name || rd.father || rd.fatherName || rd.father_name || ''),
-            father_name: isFamDisabled ? '' : (data.father_name || data.father || rd.father_name || rd.father || rd.fatherName || ''),
-            fatherOcc: isFamDisabled ? '' : (data.father_occ || rd.fatherOcc || rd.father_occ || ''),
-            father_occ: isFamDisabled ? '' : (data.father_occ || rd.fatherOcc || rd.father_occ || ''),
-            fatherMobile: isFamDisabled ? '' : realFM,
-            mother: isFamDisabled ? '' : (data.mother || data.mother_name || rd.mother || rd.motherName || rd.mother_name || ''),
-            mother_name: isFamDisabled ? '' : (data.mother_name || data.mother || rd.mother_name || rd.mother || rd.motherName || ''),
-            motherOcc: isFamDisabled ? '' : (data.mother_occ || rd.motherOcc || rd.mother_occ || ''),
-            mother_occ: isFamDisabled ? '' : (data.mother_occ || rd.motherOcc || rd.mother_occ || ''),
-            sister: isFamDisabled ? '—' : (data.sister || rd.sister || '—'),
-            brother: isFamDisabled ? '—' : (data.brother || rd.brother || '—'),
+            father: hideForPeer ? '' : (data.father || data.father_name || rd.father || rd.fatherName || rd.father_name || ''),
+            father_name: hideForPeer ? '' : (data.father_name || data.father || rd.father_name || rd.father || rd.fatherName || ''),
+            fatherOcc: hideForPeer ? '' : (data.father_occ || rd.fatherOcc || rd.father_occ || ''),
+            father_occ: hideForPeer ? '' : (data.father_occ || rd.fatherOcc || rd.father_occ || ''),
+            fatherMobile: hideForPeer ? '' : realFM,
+            mother: hideForPeer ? '' : (data.mother || data.mother_name || rd.mother || rd.motherName || rd.mother_name || ''),
+            mother_name: hideForPeer ? '' : (data.mother_name || data.mother || rd.mother_name || rd.mother || rd.motherName || ''),
+            motherOcc: hideForPeer ? '' : (data.mother_occ || rd.motherOcc || rd.mother_occ || ''),
+            mother_occ: hideForPeer ? '' : (data.mother_occ || rd.motherOcc || rd.mother_occ || ''),
+            sister: hideForPeer ? '—' : (data.sister || rd.sister || '—'),
+            brother: hideForPeer ? '—' : (data.brother || rd.brother || '—'),
             ownMobile: realOM,
             email: data.email || rd.email || '',
             fullAddress: data.full_address || data.address || rd.fullAddress || ''
@@ -2131,6 +2133,24 @@ function supabaseBroadcastProfileUpsert(prof) {
             registered: prof.registered || new Date().toLocaleDateString('en-GB'),
             planStart: prof.planStart || prof.plan_start,
             planExpiry: prof.planExpiry || prof.plan_expiry,
+            profileCreatedBy: prof.profileCreatedBy || prof.created_by || 'Self',
+            created_by: prof.profileCreatedBy || prof.created_by || 'Self',
+            familyDetailsEnabled: prof.familyDetailsEnabled === true || prof.family_details_enabled === true,
+            family_details_enabled: prof.familyDetailsEnabled === true || prof.family_details_enabled === true,
+            father: prof.father || prof.father_name || '',
+            father_name: prof.father_name || prof.father || '',
+            fatherOcc: prof.fatherOcc || prof.father_occ || '',
+            father_occ: prof.father_occ || prof.fatherOcc || '',
+            mother: prof.mother || prof.mother_name || '',
+            mother_name: prof.mother_name || prof.mother || '',
+            motherOcc: prof.motherOcc || prof.mother_occ || '',
+            mother_occ: prof.mother_occ || prof.motherOcc || '',
+            sister: prof.sister || '—',
+            brother: prof.brother || '—',
+            raw_data: prof.raw_data || {
+                familyDetailsEnabled: prof.familyDetailsEnabled === true || prof.family_details_enabled === true,
+                family_details_enabled: prof.familyDetailsEnabled === true || prof.family_details_enabled === true
+            },
             timestamp: Date.now()
         };
 

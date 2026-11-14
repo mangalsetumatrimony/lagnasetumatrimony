@@ -1783,26 +1783,26 @@ function renderFamilyDetailsSection(p) {
     const brotherVal = (p.brother || p.raw_data?.brother || '').trim();
     const cleanBrother = (brotherVal && brotherVal !== '—' && brotherVal !== 'None') ? brotherVal : '';
 
-    const isFamExplicitlyOn = (
-        p.familyDetailsEnabled === true ||
-        p.family_details_enabled === true ||
-        p.raw_data?.familyDetailsEnabled === true ||
-        p.raw_data?.family_details_enabled === true
-    );
-
-    const isFamExplicitlyOff = !isFamExplicitlyOn && (
+    const isFamExplicitlyOff = (
         p.familyDetailsEnabled === false ||
         p.family_details_enabled === false ||
         p.raw_data?.familyDetailsEnabled === false ||
         p.raw_data?.family_details_enabled === false
     );
 
+    const isFamExplicitlyOn = !isFamExplicitlyOff && (
+        p.familyDetailsEnabled === true ||
+        p.family_details_enabled === true ||
+        p.raw_data?.familyDetailsEnabled === true ||
+        p.raw_data?.family_details_enabled === true
+    );
+
     const hasAnyEnteredDetails = Boolean(
         cleanFatherName || cleanFatherOcc || cleanMotherName || cleanMotherOcc || cleanSister || cleanBrother
     );
 
-    // Family details exist only if NOT turned off AND at least one detail is entered
-    const hasFamilyDetails = !isFamExplicitlyOff && hasAnyEnteredDetails;
+    // Family details exist only if NOT turned off AND (explicitly ON or entered details)
+    const hasFamilyDetails = !isFamExplicitlyOff && (isFamExplicitlyOn || hasAnyEnteredDetails);
 
     if (unlocked || !hasFamilyDetails) {
         if (!hasFamilyDetails) {

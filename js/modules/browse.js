@@ -696,15 +696,7 @@ async function populateEditProfile() {
             tglEditFam.classList.remove('on');
             editFamContainer.style.display = 'none';
             if (editFamSubtext) editFamSubtext.textContent = 'Optional • Turn ON to add or update family details (મરજીયાત • પરિવાર વિગત ઉમેરવા ચાલુ કરો)';
-            if (isFamExplicitlyOff) {
-                if (fNameEl) fNameEl.value = '';
-                if (fOccEl) fOccEl.value = '';
-                if (fMobileEl) fMobileEl.value = '';
-                if (mNameEl) mNameEl.value = '';
-                if (mOccEl) mOccEl.value = '';
-                if (sisterEl) sisterEl.value = '';
-                if (brotherEl) brotherEl.value = '';
-            }
+            // Preserve user-entered family details in input fields so if they turn toggle ON, nothing is lost
         }
     }
 
@@ -809,7 +801,7 @@ async function saveEditProfile() {
         return;
     }
 
-    // Family Details Toggle Evaluation
+    // Family Details Toggle Evaluation & Strict Validation when ON
     const isFamilyOn = document.getElementById('tglEditFamily')?.classList.contains('on');
     let fatherNameVal = '';
     let fatherOccVal = '';
@@ -819,41 +811,84 @@ async function saveEditProfile() {
     let sisterVal = '—';
     let brotherVal = '—';
 
+    const fOccEl = document.getElementById('editFatherOcc');
+    const mNameEl = document.getElementById('editMotherName');
+    const mOccEl = document.getElementById('editMotherOcc');
+    const sisterEl = document.getElementById('editSister');
+    const brotherEl = document.getElementById('editBrother');
+
     if (isFamilyOn) {
         fatherNameVal = fNameEl ? fNameEl.value.trim() : '';
-        fatherOccVal = document.getElementById('editFatherOcc')?.value.trim() || '';
-        motherNameVal = document.getElementById('editMotherName')?.value.trim() || '';
-        motherOccVal = document.getElementById('editMotherOcc')?.value.trim() || '';
-        sisterVal = document.getElementById('editSister')?.value.trim() || '—';
-        brotherVal = document.getElementById('editBrother')?.value.trim() || '—';
+        if (!fatherNameVal || fatherNameVal === '—') {
+            highlightFieldError(fNameEl, "Father's name is required (પિતાનું નામ દાખલ કરો)");
+            showToast("Please enter Father's full name (પિતાનું પૂરું નામ લખો)");
+            fNameEl?.focus();
+            return;
+        }
+
+        fatherOccVal = fOccEl ? fOccEl.value.trim() : '';
+        if (!fatherOccVal || fatherOccVal === '—') {
+            highlightFieldError(fOccEl, "Father's occupation is required (પિતાનો વ્યવસાય દાખલ કરો)");
+            showToast("Please enter Father's occupation (પિતાનો વ્યવસાય લખો)");
+            fOccEl?.focus();
+            return;
+        }
 
         const rawFatherMobile = fMobileEl ? fMobileEl.value.trim() : '';
-        const fatherDigits = rawFatherMobile.replace(/\D/g, '');
-        const hasTypedFatherDigits = fatherDigits.length > 2 && (fatherDigits.startsWith('91') ? fatherDigits.length > 2 : fatherDigits.length > 0);
+        cleanFatherMobile = extract10DigitMobile(rawFatherMobile);
+        if (!cleanFatherMobile || cleanFatherMobile.length !== 10 || !/^[6-9]\d{9}$/.test(cleanFatherMobile)) {
+            highlightFieldError(fMobileEl, "Please enter a valid 10-digit mobile number for father (પિતાનો ૧૦ આંકડાનો મોબાઈલ નંબર દાખલ કરો)");
+            showToast("Please enter a valid 10-digit mobile number for father");
+            fMobileEl?.focus();
+            return;
+        }
+        if (fMobileEl) fMobileEl.value = formatPhoneNumber(cleanFatherMobile);
 
-        if (hasTypedFatherDigits) {
-            cleanFatherMobile = extract10DigitMobile(rawFatherMobile);
-            if (!cleanFatherMobile || cleanFatherMobile.length !== 10 || !/^[6-9]\d{9}$/.test(cleanFatherMobile)) {
-                highlightFieldError(fMobileEl, "Please enter a valid 10-digit mobile number for father starting with 6, 7, 8, or 9 (e.g. 98765 43210) or leave blank");
-                showToast("Please enter a valid 10-digit mobile number for father or leave blank");
-                return;
-            }
-            if (fMobileEl) fMobileEl.value = formatPhoneNumber(cleanFatherMobile);
-        } else {
-            cleanFatherMobile = (typeof getUnmaskedContactFromAnywhere === 'function')
-                ? getUnmaskedContactFromAnywhere('father', myProfile)
-                : '';
-            if (!cleanFatherMobile && fMobileEl) fMobileEl.value = '';
+        motherNameVal = mNameEl ? mNameEl.value.trim() : '';
+        if (!motherNameVal || motherNameVal === '—') {
+            highlightFieldError(mNameEl, "Mother's name is required (માતાનું નામ દાખલ કરો)");
+            showToast("Please enter Mother's name (માતાનું નામ લખો)");
+            mNameEl?.focus();
+            return;
+        }
+
+        motherOccVal = mOccEl ? mOccEl.value.trim() : '';
+        if (!motherOccVal || motherOccVal === '—') {
+            highlightFieldError(mOccEl, "Mother's occupation is required (માતાનો વ્યવસાય દાખલ કરો)");
+            showToast("Please enter Mother's occupation (માતાનો વ્યવસાય લખો)");
+            mOccEl?.focus();
+            return;
+        }
+
+        sisterVal = sisterEl ? sisterEl.value.trim() : '';
+        if (!sisterVal || sisterVal === '—') {
+            highlightFieldError(sisterEl, "Sister details required (e.g. 1 married, or None) (બહેનની વિગત દાખલ કરો)");
+            showToast("Please specify Sister details (or 'None')");
+            sisterEl?.focus();
+            return;
+        }
+
+        brotherVal = brotherEl ? brotherEl.value.trim() : '';
+        if (!brotherVal || brotherVal === '—') {
+            highlightFieldError(brotherEl, "Brother details required (e.g. 1 younger, or None) (ભાઈની વિગત દાખલ કરો)");
+            showToast("Please specify Brother details (or 'None')");
+            brotherEl?.focus();
+            return;
         }
     } else {
-        // Toggle is OFF: clean skip, zero validation on father mobile
-        fatherNameVal = '';
-        fatherOccVal = '';
-        cleanFatherMobile = '';
-        motherNameVal = '';
-        motherOccVal = '';
-        sisterVal = '—';
-        brotherVal = '—';
+        // Toggle is OFF:
+        // PRESERVE user's entered family details so they are NEVER erased or lost!
+        fatherNameVal = (fNameEl && fNameEl.value.trim()) || myProfile?.father || myProfile?.fatherName || myProfile?.father_name || state.currentUser?.father || '';
+        fatherOccVal = (fOccEl && fOccEl.value.trim()) || myProfile?.fatherOcc || myProfile?.father_occ || state.currentUser?.fatherOcc || '';
+
+        const rawFatherMobile = fMobileEl ? fMobileEl.value.trim() : '';
+        const extractedFM = extract10DigitMobile(rawFatherMobile);
+        cleanFatherMobile = extractedFM || (typeof getUnmaskedContactFromAnywhere === 'function' ? getUnmaskedContactFromAnywhere('father', myProfile) : '') || myProfile?.rawFatherMobile || myProfile?.father_mobile || '';
+
+        motherNameVal = (mNameEl && mNameEl.value.trim()) || myProfile?.mother || myProfile?.motherName || myProfile?.mother_name || state.currentUser?.mother || '';
+        motherOccVal = (mOccEl && mOccEl.value.trim()) || myProfile?.motherOcc || myProfile?.mother_occ || state.currentUser?.motherOcc || '';
+        sisterVal = (sisterEl && sisterEl.value.trim()) || myProfile?.sister || state.currentUser?.sister || '—';
+        brotherVal = (brotherEl && brotherEl.value.trim()) || myProfile?.brother || state.currentUser?.brother || '—';
     }
 
     const rawOwnMobile = ownMobileEl ? ownMobileEl.value.trim() : '';
@@ -1012,23 +1047,6 @@ async function saveEditProfile() {
             familyDetailsEnabled: Boolean(isFamilyOn),
             family_details_enabled: Boolean(isFamilyOn)
         };
-        if (!isFamilyOn && myProfile.raw_data) {
-            myProfile.raw_data.father = '';
-            myProfile.raw_data.fatherName = '';
-            myProfile.raw_data.father_name = '';
-            myProfile.raw_data.fatherOcc = '';
-            myProfile.raw_data.father_occ = '';
-            myProfile.raw_data.fatherMobile = '';
-            myProfile.raw_data.rawFatherMobile = '';
-            myProfile.raw_data.father_mobile = '';
-            myProfile.raw_data.mother = '';
-            myProfile.raw_data.motherName = '';
-            myProfile.raw_data.mother_name = '';
-            myProfile.raw_data.motherOcc = '';
-            myProfile.raw_data.mother_occ = '';
-            myProfile.raw_data.sister = '—';
-            myProfile.raw_data.brother = '—';
-        }
     }
 
     if (state.currentUser) {

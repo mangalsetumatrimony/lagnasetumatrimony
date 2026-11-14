@@ -292,6 +292,13 @@ function handleRemoteProfileUpsert(incoming) {
     window.PROFILES = PROFILES;
     saveCommunityProfiles();
 
+    // Cache Invalidation: Ensure remote peer immediately discards stale contact cache
+    if (typeof window !== 'undefined' && window.AUTHORIZED_CONTACT_CACHE) {
+        window.AUTHORIZED_CONTACT_CACHE.delete(Number(prof.id));
+        if (incoming.id) window.AUTHORIZED_CONTACT_CACHE.delete(Number(incoming.id));
+        if (incoming.user_id) window.AUTHORIZED_CONTACT_CACHE.delete(Number(incoming.user_id));
+    }
+
     // Live update currentUser model if own profile was updated remotely
     if (typeof state !== 'undefined' && state.currentUser && prof) {
         const myId = String(state.currentUser.id || state.currentUser.profileId || '');
