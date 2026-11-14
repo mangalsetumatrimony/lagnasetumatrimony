@@ -391,7 +391,7 @@ function mapProfileFromSupabase(row, forAdmin = false) {
     }
 
     const isAdmin = forAdmin || (typeof window !== 'undefined' && (
-        (window.location.pathname.includes('admin') && typeof isSessionValidSync === 'function' && isSessionValidSync())
+        ((window.location.pathname.includes('admin') || window.location.pathname.includes('mangalsetu1180')) && typeof isSessionValidSync === 'function' && isSessionValidSync())
     ));
 
     const isAccepted = (typeof interestStatusFor === 'function') && (
@@ -683,7 +683,7 @@ async function supabaseFetchAuthorizedContact(profileId) {
 
     const isAdmin = (typeof forAdmin !== 'undefined' && forAdmin) || 
                     (typeof isSessionValidSync === 'function' && isSessionValidSync()) || 
-                    (typeof window !== 'undefined' && window.location.pathname.includes('admin'));
+                    (typeof window !== 'undefined' && (window.location.pathname.includes('admin') || window.location.pathname.includes('mangalsetu1180')));
 
     const local = (typeof findProfile === 'function') ? findProfile(profileId) : null;
     const isSelf = (curUser && (
@@ -866,7 +866,7 @@ async function supabaseUpsertProfile(profile) {
     // Only allow upserting if it is current user's profile OR authenticated admin.
     const curUser = (typeof state !== 'undefined' && state.currentUser) ? state.currentUser : null;
     const isAdmin = (typeof isSessionValidSync === 'function' && isSessionValidSync()) || 
-                    (typeof window !== 'undefined' && window.location.pathname.includes('admin'));
+                    (typeof window !== 'undefined' && (window.location.pathname.includes('admin') || window.location.pathname.includes('mangalsetu1180')));
 
     if (!isAdmin && curUser) {
         const curEmail = (curUser.email || '').trim().toLowerCase();
@@ -1748,7 +1748,7 @@ async function supabaseDeleteUserCompletely(id, email, extraId, options = {}) {
     const curId = (curUser && curUser.id) ? String(curUser.id).trim() : '';
 
     const isAdmin = (typeof isSessionValidSync === 'function' && isSessionValidSync()) || 
-                    (typeof window !== 'undefined' && window.location.pathname.includes('admin'));
+                    (typeof window !== 'undefined' && (window.location.pathname.includes('admin') || window.location.pathname.includes('mangalsetu1180')));
 
     const isSelfMatch = Boolean(
         (normEmail && curEmail && normEmail.toLowerCase() === curEmail) ||
@@ -4957,7 +4957,7 @@ async function supabaseGetAppSetting(key, defaultValue = null) {
     // Security Guard: Prevent non-admin contexts from reading sensitive admin credentials
     if (key === 'admin_credentials') {
         const isAdmin = (typeof isSessionValidSync === 'function' && isSessionValidSync()) || 
-                        (typeof window !== 'undefined' && window.location.pathname.includes('admin'));
+                        (typeof window !== 'undefined' && (window.location.pathname.includes('admin') || window.location.pathname.includes('mangalsetu1180')));
         if (!isAdmin) {
             console.warn('[Security Guard] Access to admin_credentials setting blocked.');
             return defaultValue;
@@ -4999,7 +4999,7 @@ async function supabaseSetAppSetting(key, value) {
     // STRICT SECURITY GATEKEEPER:
     // Platform configurations can only be modified by authenticated Administrator!
     const isAdmin = (typeof isSessionValidSync === 'function' && isSessionValidSync()) || 
-                    (typeof window !== 'undefined' && window.location.pathname.includes('admin'));
+                    (typeof window !== 'undefined' && (window.location.pathname.includes('admin') || window.location.pathname.includes('mangalsetu1180')));
     if (!isAdmin) {
         console.error('[Security Guard] Unauthorized app_settings modification blocked for key:', key);
         return { success: false, error: 'Unauthorized: Admin session required.' };

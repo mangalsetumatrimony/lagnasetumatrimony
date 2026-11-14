@@ -743,7 +743,7 @@ function renderRevenueAnalyticsView(container) {
 
                 <div class="insight-box">
                     <div class="ib-title">
-                        <span>Razorpay UPI Breakdown</span>
+                        <span>Direct UPI Breakdown</span>
                         <span style="font-size:10.5px;font-weight:700;color:#059669;background:#ECFDF5;padding:2px 8px;border-radius:10px;"><i class="fa-solid fa-bolt"></i> 100% UPI Only</span>
                     </div>
                     <div class="hotspots-chips">
@@ -759,7 +759,7 @@ function renderRevenueAnalyticsView(container) {
                         <b>Total ₹${revData.totalAllTimeRevenue}</b>
                     </div>
                     <div style="font-size:12px;color:var(--text-muted);line-height:1.5;">
-                        <i class="fa-solid fa-circle-check" style="color:#10B981;"></i> 100% automated collection via Razorpay UPI (Cards &amp; Net Banking Disabled).
+                        <i class="fa-solid fa-circle-check" style="color:#10B981;"></i> 100% direct collection via Instant UPI &amp; QR Scanner.
                     </div>
                 </div>
             </div>

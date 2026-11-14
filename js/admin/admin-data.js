@@ -23,7 +23,7 @@
             { title: 'Personal & family biodata', desc: 'Add education, occupation, income, hobbies, and respectful family background.' },
             { title: 'Upload verified photos', desc: 'Upload up to 3 high-resolution photos (1 main verified photo + 2 gallery slots).' },
             { title: 'Native location & address', desc: 'Specify your native village, taluka, and district for localized matchmaking.' },
-            { title: 'Membership & Instant Activation', desc: 'Community girls: 100% Lifetime Free · Boys: ₹199 for 30 Days Pass via secure Razorpay UPI / Cards.' },
+            { title: 'Membership & Instant UPI Pass', desc: 'Community girls: 100% Lifetime Free · Boys: ₹199 for 30 Days Pass via Instant UPI QR Scan / UPI Apps (GPay, PhonePe, Paytm).' },
             { title: 'Explore verified profiles', desc: 'Browse genuine eligible brides and grooms from your community.' },
             { title: 'Send interest (3 daily limit)', desc: 'Send up to 3 interest requests per day to maintain genuine, spam-free connections.' },
             { title: 'Direct family connect', desc: 'Once interest is accepted, unlock direct Father\'s Phone Call, WhatsApp, and in-app chat.' }
@@ -527,7 +527,14 @@ async function syncAdminDataFromSupabase() {
                     if (typeof renderHelp === 'function' && document.getElementById('faqAdminList')) renderHelp();
                 }
                 if (Array.isArray(remoteGuide) && remoteGuide.length > 0) {
-                    GUIDE_STEPS = remoteGuide.map(s => typeof s === 'string' ? { title: s, desc: '' } : s);
+                    GUIDE_STEPS = remoteGuide.map(s => {
+                        const step = typeof s === 'string' ? { title: s, desc: '' } : { ...s };
+                        if (step.desc && (step.desc.includes('Razorpay') || step.title.includes('Government Verified'))) {
+                            step.title = 'Membership & Instant UPI Pass';
+                            step.desc = 'Community girls: 100% Lifetime Free · Boys: ₹199 for 30 Days Pass via Instant UPI QR Scan / UPI Apps (GPay, PhonePe, Paytm).';
+                        }
+                        return step;
+                    });
                     window.GUIDE_STEPS = GUIDE_STEPS;
                     if (typeof renderHelp === 'function' && document.getElementById('guideAdminList')) renderHelp();
                 }

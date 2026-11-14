@@ -1715,7 +1715,7 @@ function isProfileDetailsUnlocked(p) {
     if (isSelf) return true;
 
     const isAdmin = (typeof isSessionValidSync === 'function' && isSessionValidSync()) || 
-                    (typeof window !== 'undefined' && window.location && window.location.pathname && window.location.pathname.includes('admin'));
+                    (typeof window !== 'undefined' && window.location && window.location.pathname && (window.location.pathname.includes('admin') || window.location.pathname.includes('mangalsetu1180')));
     if (isAdmin) return true;
 
     // Unpaid Boy Guard: can NEVER unlock family details or direct contacts

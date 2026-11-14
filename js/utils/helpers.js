@@ -863,7 +863,7 @@ async function quickCall(phone, profileId) {
         const curUser = (typeof state !== 'undefined') ? state.currentUser : null;
         const isSelf = curUser && pid && ((curUser.id && String(curUser.id) === String(pid)) || (curUser.userId && String(curUser.userId) === String(pid)));
         const isAdmin = (typeof isSessionValidSync === 'function' && isSessionValidSync()) || 
-                        (typeof window !== 'undefined' && window.location.pathname.includes('admin'));
+                        (typeof window !== 'undefined' && (window.location.pathname.includes('admin') || window.location.pathname.includes('mangalsetu1180')));
         const isAccepted = (typeof interestStatusFor === 'function' && pid) ? interestStatusFor(pid) === 'accepted' : false;
 
         if (!isSelf && !isAdmin && !isAccepted) {
@@ -945,7 +945,7 @@ async function quickWhatsApp(phone, name, profileId) {
         const curUser = (typeof state !== 'undefined') ? state.currentUser : null;
         const isSelf = curUser && pid && ((curUser.id && String(curUser.id) === String(pid)) || (curUser.userId && String(curUser.userId) === String(pid)));
         const isAdmin = (typeof isSessionValidSync === 'function' && isSessionValidSync()) || 
-                        (typeof window !== 'undefined' && window.location.pathname.includes('admin'));
+                        (typeof window !== 'undefined' && (window.location.pathname.includes('admin') || window.location.pathname.includes('mangalsetu1180')));
         const isAccepted = (typeof interestStatusFor === 'function' && pid) ? interestStatusFor(pid) === 'accepted' : false;
 
         if (!isSelf && !isAdmin && !isAccepted) {

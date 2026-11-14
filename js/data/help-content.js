@@ -5,7 +5,7 @@ const DEFAULT_HOW_IT_WORKS = [
     { title: 'Personal & family biodata', desc: 'Add education, occupation, income, hobbies, and respectful family background.' },
     { title: 'Upload verified photos', desc: 'Upload up to 3 high-resolution photos (1 main verified photo + 2 gallery slots).' },
     { title: 'Native location & address', desc: 'Specify your native village, taluka, and district for localized matchmaking.' },
-    { title: 'Government Verified & 30-Day Pass', desc: 'Govt. of India MSME Registered (UDYAM-GJ-20-0323404). Girls: 100% Lifetime Free · Boys: Free browsing + ₹199 for 30-Day Pass via UPI (9726362863@ybl).'  },
+    { title: 'Membership & Instant UPI Pass', desc: 'Community girls: 100% Lifetime Free · Boys: ₹199 for 30 Days Pass via Instant UPI QR Scan / UPI Apps (GPay, PhonePe, Paytm).' },
     { title: 'Explore verified profiles', desc: 'Browse genuine eligible brides and grooms from your community.' },
     { title: 'Send interest (3 daily limit)', desc: 'Send up to 3 interest requests per day to maintain genuine, spam-free connections.' },
     { title: 'Direct family connect', desc: 'Once interest is accepted, unlock direct Father\'s Phone Call, WhatsApp, and in-app chat.' }
@@ -15,7 +15,7 @@ const DEFAULT_FAQS = [
     ['Is Mangal Setu a government-registered enterprise?', 'Yes. Mangal Setu Matrimony is an officially verified Micro Enterprise registered with the Ministry of Micro, Small and Medium Enterprises (MSME), Government of India (Udyam Registration No: UDYAM-GJ-20-0323404, Rajkot, Gujarat).'],
     ['How do I register?', 'Sign in with Google in 1 click (no passwords or manual registration forms required), select your community, complete your family details, and upload your photos. Your account is active immediately!'],
     ['Is membership free for girls?', 'Yes! 100% Lifetime Free access is guaranteed for all community girls.'],
-    ['How much is the membership pass for boys?', 'Boys get 30 Days Full Access for just ₹199, payable instantly via Razorpay UPI (Google Pay, PhonePe, Paytm), Debit/Credit Cards, or Net Banking.'],
+    ['How much is the membership pass for boys?', 'Boys get 30 Days Full Access for just ₹199, payable instantly via UPI QR Code Scanner or direct UPI Apps (Google Pay, PhonePe, Paytm, BHIM) to official UPI ID: 9726362863@ybl. Community girls enjoy 100% Lifetime Free access.'],
     ['How many interest requests can I send per day?', 'To maintain privacy, prevent mass spamming, and ensure serious matrimonial connections, every member (both girls and boys) can send a maximum of 3 interest requests in a 24-hour period.'],
     ['What happens after 30 days of membership?', 'After 30 days, your account remains active, but browsing candidate profiles is locked until you renew the ₹199 pass.'],
     ['How do members contact each other?', 'A member can send an in-app interest request. Once the candidate accepts, direct Phone Call and WhatsApp buttons for the girl\'s father are unlocked automatically, along with text chat.'],
@@ -63,14 +63,28 @@ async function syncHelpContentFromSupabase() {
             supabaseGetAppSetting('contact_details')
         ]);
         if (Array.isArray(faqs) && faqs.length > 0) {
-            REMOTE_FAQS = faqs;
-            window.REMOTE_FAQS = faqs;
+            REMOTE_FAQS = faqs.map(([q, a]) => {
+                let cleanA = a || '';
+                if (cleanA.includes('Razorpay')) {
+                    cleanA = cleanA.replace(/Razorpay UPI \(Google Pay, PhonePe, Paytm\), Debit\/Credit Cards, or Net Banking/gi, 'UPI QR Scan or UPI Apps (Google Pay, PhonePe, Paytm, BHIM) to official UPI ID: 9726362863@ybl');
+                    cleanA = cleanA.replace(/Razorpay/gi, 'Instant UPI');
+                }
+                return [q, cleanA];
+            });
+            window.REMOTE_FAQS = REMOTE_FAQS;
             if (typeof renderFaqs === 'function' && document.getElementById('faqList')) {
                 renderFaqs();
             }
         }
         if (Array.isArray(guide) && guide.length > 0) {
-            REMOTE_GUIDE_STEPS = guide.map(s => typeof s === 'string' ? { title: s, desc: '' } : s);
+            REMOTE_GUIDE_STEPS = guide.map(s => {
+                const step = typeof s === 'string' ? { title: s, desc: '' } : { ...s };
+                if (step.desc && (step.desc.includes('Razorpay') || step.title.includes('Government Verified'))) {
+                    step.title = 'Membership & Instant UPI Pass';
+                    step.desc = 'Community girls: 100% Lifetime Free · Boys: ₹199 for 30 Days Pass via Instant UPI QR Scan / UPI Apps (GPay, PhonePe, Paytm).';
+                }
+                return step;
+            });
             window.REMOTE_GUIDE_STEPS = REMOTE_GUIDE_STEPS;
             if (typeof renderHowItWorks === 'function') {
                 renderHowItWorks();
