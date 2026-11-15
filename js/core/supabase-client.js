@@ -178,24 +178,24 @@ function mapProfileForSupabase(p) {
             physical: p.physical || 'Normal',
             community: p.community || p.caste || '',
             hobbies: Array.isArray(p.hobbies) ? p.hobbies : [],
-            father: !isFamOn ? '' : (p.father || p.father_name || p.fatherName || ''),
-            father_name: !isFamOn ? '' : (p.father_name || p.father || p.fatherName || ''),
-            fatherOcc: !isFamOn ? '' : (p.fatherOcc || p.father_occ || ''),
-            father_occ: !isFamOn ? '' : (p.father_occ || p.fatherOcc || ''),
-            fatherMobile: !isFamOn ? '' : ((!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
+            father: (p.father || p.father_name || p.fatherName || ''),
+            father_name: (p.father_name || p.father || p.fatherName || ''),
+            fatherOcc: (p.fatherOcc || p.father_occ || ''),
+            father_occ: (p.father_occ || p.fatherOcc || ''),
+            fatherMobile: ((!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
                           (!p.father_mobile?.includes('•') && p.father_mobile) ||
                           (!p.fatherMobile?.includes('•') && p.fatherMobile) ||
                           ''),
-            rawFatherMobile: !isFamOn ? '' : ((!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
+            rawFatherMobile: ((!p.rawFatherMobile?.includes('•') && p.rawFatherMobile) ||
                              (!p.father_mobile?.includes('•') && p.father_mobile) ||
                              (!p.fatherMobile?.includes('•') && p.fatherMobile) ||
                              ''),
-            mother: !isFamOn ? '' : (p.mother || p.mother_name || p.motherName || ''),
-            mother_name: !isFamOn ? '' : (p.mother_name || p.mother || p.motherName || ''),
-            motherOcc: !isFamOn ? '' : (p.motherOcc || p.mother_occ || ''),
-            mother_occ: !isFamOn ? '' : (p.mother_occ || p.motherOcc || ''),
-            sister: !isFamOn ? '—' : (p.sister || 'None'),
-            brother: !isFamOn ? '—' : (p.brother || 'None'),
+            mother: (p.mother || p.mother_name || p.motherName || ''),
+            mother_name: (p.mother_name || p.mother || p.motherName || ''),
+            motherOcc: (p.motherOcc || p.mother_occ || ''),
+            mother_occ: (p.mother_occ || p.motherOcc || ''),
+            sister: (p.sister || '—'),
+            brother: (p.brother || '—'),
             village: p.village || p.city || '',
             city: p.city || p.village || '',
             taluka: p.taluka || '',

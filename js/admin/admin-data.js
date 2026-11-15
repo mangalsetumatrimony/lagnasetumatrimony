@@ -782,6 +782,11 @@ function setupAdminRealtime() {
                             if (typeof renderUsers === 'function' && document.getElementById('userList')) renderUsers();
                             if (typeof renderProfileMgmt === 'function' && document.getElementById('profileMgmtList')) renderProfileMgmt();
                             if (typeof renderDashboard === 'function') renderDashboard();
+                            const activeScreen = document.querySelector('.screen.active');
+                            if (activeScreen && activeScreen.id === 'scr-userdetail' && typeof openUserDetail === 'function') {
+                                const currentUid = state.activeUserId || sessionStorage.getItem('admin_activeUserId');
+                                if (currentUid) openUserDetail(currentUid);
+                            }
                         }
                     }
                     if (payload && payload.eventType === 'INSERT' && payload.new) {

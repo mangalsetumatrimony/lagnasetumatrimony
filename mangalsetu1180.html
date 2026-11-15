@@ -1533,38 +1533,40 @@
                         </div>
                         <div class="tsub">Turn OFF to hide family members &amp; father contact from matches</div>
                     </div>
-                    <button type="button" class="toggle on" id="adminEditToggleFamily" onclick="this.classList.toggle('on')"></button>
+                    <button type="button" class="toggle on" id="adminEditToggleFamily" onclick="toggleAdminEditFamily()"></button>
                 </div>
-                <div class="row-2">
-                    <div class="field">
-                        <label>Father's Name</label>
-                        <input class="input" id="adminEditFather" placeholder="Father's Name">
+                <div id="adminEditFamilyInputsContainer">
+                    <div class="row-2">
+                        <div class="field">
+                            <label>Father's Name</label>
+                            <input class="input" id="adminEditFather" placeholder="Father's Name">
+                        </div>
+                        <div class="field">
+                            <label>Father's Occupation</label>
+                            <input class="input" id="adminEditFatherOcc" placeholder="Business, Farmer, Job...">
+                        </div>
                     </div>
-                    <div class="field">
-                        <label>Father's Occupation</label>
-                        <input class="input" id="adminEditFatherOcc" placeholder="Business, Farmer, Job...">
-                    </div>
-                </div>
 
-                <div class="row-2">
-                    <div class="field">
-                        <label>Mother's Name</label>
-                        <input class="input" id="adminEditMother" placeholder="Mother's Name">
+                    <div class="row-2">
+                        <div class="field">
+                            <label>Mother's Name</label>
+                            <input class="input" id="adminEditMother" placeholder="Mother's Name">
+                        </div>
+                        <div class="field">
+                            <label>Mother's Occupation</label>
+                            <input class="input" id="adminEditMotherOcc" placeholder="Homemaker, Teacher...">
+                        </div>
                     </div>
-                    <div class="field">
-                        <label>Mother's Occupation</label>
-                        <input class="input" id="adminEditMotherOcc" placeholder="Homemaker, Teacher...">
-                    </div>
-                </div>
 
-                <div class="row-2">
-                    <div class="field">
-                        <label>Sister(s)</label>
-                        <input class="input" id="adminEditSister" placeholder="Names or None">
-                    </div>
-                    <div class="field">
-                        <label>Brother(s)</label>
-                        <input class="input" id="adminEditBrother" placeholder="Names or None">
+                    <div class="row-2">
+                        <div class="field">
+                            <label>Sister(s)</label>
+                            <input class="input" id="adminEditSister" placeholder="Names or None">
+                        </div>
+                        <div class="field">
+                            <label>Brother(s)</label>
+                            <input class="input" id="adminEditBrother" placeholder="Names or None">
+                        </div>
                     </div>
                 </div>
 
@@ -1716,20 +1718,20 @@
         <!-- Supabase JS SDK -->
         <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
         <!-- Cloudinary Image CDN -->
-        <script src="js/utils/cloudinary.js?v=9.6"></script>
-        <script src="js/utils/helpers.js?v=9.6"></script>
+        <script src="js/utils/cloudinary.js?v=9.7"></script>
+        <script src="js/utils/helpers.js?v=9.7"></script>
         <!-- Admin Modular Scripts -->
-        <script src="js/core/supabase-client.js?v=9.6"></script>
-        <script src="js/admin/admin-security.js?v=9.6"></script>
-        <script src="js/admin/admin-data.js?v=9.6"></script>
-        <script src="js/admin/admin-charts.js?v=9.6"></script>
-        <script src="js/admin/admin-actions.js?v=9.6"></script>
-        <script src="js/admin/admin-analytics.js?v=9.6"></script>
+        <script src="js/core/supabase-client.js?v=9.7"></script>
+        <script src="js/admin/admin-security.js?v=9.7"></script>
+        <script src="js/admin/admin-data.js?v=9.7"></script>
+        <script src="js/admin/admin-charts.js?v=9.7"></script>
+        <script src="js/admin/admin-actions.js?v=9.7"></script>
+        <script src="js/admin/admin-analytics.js?v=9.7"></script>
         <!-- EmailJS SDK (for account deletion email notification) -->
         <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
         <!-- Email Notification Service -->
-        <script src="js/services/email-service.js?v=9.6"></script>
-        <script src="js/admin/admin-ui.js?v=9.6"></script>
+        <script src="js/services/email-service.js?v=9.7"></script>
+        <script src="js/admin/admin-ui.js?v=9.7"></script>
 
 </body>
 

@@ -799,11 +799,31 @@
             }
         }
 
-        function openAdminEditUserModal(id) {
-            const u = findUser(id);
+        function toggleAdminEditFamily(forceState) {
+            const btn = document.getElementById('adminEditToggleFamily');
+            const container = document.getElementById('adminEditFamilyInputsContainer');
+            if (!btn) return;
+            let isNowOn;
+            if (typeof forceState === 'boolean') {
+                isNowOn = forceState;
+                btn.classList.toggle('on', isNowOn);
+            } else {
+                isNowOn = btn.classList.toggle('on');
+            }
+            if (container) {
+                container.style.display = isNowOn ? 'block' : 'none';
+            }
+        }
+
+        function populateAdminEditFields(u) {
             if (!u) return;
-            document.getElementById('adminEditUserId').value = u.id;
-            document.getElementById('adminEditName').value = u.name || '';
+            const setVal = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.value = val ?? '';
+            };
+
+            setVal('adminEditUserId', u.id);
+            setVal('adminEditName', u.name || '');
 
             // Gender custom dropdown
             const isGirl = (u.gender === 'girls' || u.gender === 'Girl');
@@ -816,10 +836,11 @@
 
             // DOB & Age
             const dobVal = u.dob || '';
-            document.getElementById('adminEditDob').value = dobVal;
+            setVal('adminEditDob', dobVal);
             const userAge = u.age || 24;
-            document.getElementById('adminEditAge').value = userAge;
-            document.getElementById('adminEditAgeNum').textContent = userAge;
+            setVal('adminEditAge', userAge);
+            const ageNumEl = document.getElementById('adminEditAgeNum');
+            if (ageNumEl) ageNumEl.textContent = userAge;
 
             // Caste / Community selection with tag chip
             const currentCaste = u.community || u.caste || '';
@@ -829,15 +850,15 @@
                 removeAdminEditCaste();
             }
 
-            document.getElementById('adminEditEducation').value = u.education || '';
-            document.getElementById('adminEditOccupation').value = u.occ || u.occupation || '';
+            setVal('adminEditEducation', u.education || '');
+            setVal('adminEditOccupation', u.occ || u.occupation || '');
 
             // Monthly Income custom dropdown
             const incomeVal = u.income || '₹40K – ₹75K';
             pickAdminEditDropdown('adminEditDdIncome', 'adminEditIncome', incomeVal, incomeVal);
 
-            document.getElementById('adminEditHeight').value = u.height || '';
-            document.getElementById('adminEditWeight').value = u.weight || '';
+            setVal('adminEditHeight', u.height || '');
+            setVal('adminEditWeight', u.weight || '');
 
             // Marital Status custom dropdown
             const maritalVal = u.marital || 'Unmarried';
@@ -854,37 +875,102 @@
             };
             const unmaskedOwn = (typeof getAdminUnmaskedPhone === 'function') ? getAdminUnmaskedPhone(u, 'own') : (u.rawOwnMobile || u.ownMobile || u.mobile || '');
             const unmaskedFather = (typeof getAdminUnmaskedPhone === 'function') ? getAdminUnmaskedPhone(u, 'father') : (u.rawFatherMobile || u.fatherMobile || '');
-            document.getElementById('adminEditOwnMobile').value = isValidPhoneField(unmaskedOwn) ? unmaskedOwn : (isValidPhoneField(u.mobile) ? u.mobile : '');
-            document.getElementById('adminEditEmail').value = (u.rawEmail && !u.rawEmail.includes('•')) ? u.rawEmail : (u.email && !u.email.includes('•') ? u.email : (u.raw_data && u.raw_data.email && !u.raw_data.email.includes('•') ? u.raw_data.email : ''));
-            document.getElementById('adminEditFatherMobile').value = isValidPhoneField(unmaskedFather) ? unmaskedFather : '';
-            document.getElementById('adminEditFather').value = u.father || u.fatherName || u.father_name || '';
-            document.getElementById('adminEditFatherOcc').value = u.fatherOcc || u.father_occ || '';
-            document.getElementById('adminEditMother').value = u.mother || u.motherName || u.mother_name || '';
-            document.getElementById('adminEditMotherOcc').value = u.motherOcc || u.mother_occ || '';
-            document.getElementById('adminEditSister').value = u.sister || '';
-            document.getElementById('adminEditBrother').value = u.brother || '';
-            document.getElementById('adminEditVillage').value = u.village || u.city || '';
-            document.getElementById('adminEditTaluka').value = u.taluka || '';
-            document.getElementById('adminEditDistrict').value = u.district || '';
-            document.getElementById('adminEditAddress').value = u.fullAddress || u.full_address || u.address || '';
+            setVal('adminEditOwnMobile', isValidPhoneField(unmaskedOwn) ? unmaskedOwn : (isValidPhoneField(u.mobile) ? u.mobile : ''));
+            setVal('adminEditEmail', (u.rawEmail && !u.rawEmail.includes('•')) ? u.rawEmail : (u.email && !u.email.includes('•') ? u.email : (u.raw_data && u.raw_data.email && !u.raw_data.email.includes('•') ? u.raw_data.email : '')));
+            setVal('adminEditFatherMobile', isValidPhoneField(unmaskedFather) ? unmaskedFather : '');
+
+            // Family Details (check all possible sources so user-added details never get lost)
+            const fatherVal = u.father || u.fatherName || u.father_name || u.raw_data?.father || u.raw_data?.fatherName || u.raw_data?.father_name || '';
+            const fatherOccVal = u.fatherOcc || u.father_occ || u.raw_data?.fatherOcc || u.raw_data?.father_occ || '';
+            const motherVal = u.mother || u.motherName || u.mother_name || u.raw_data?.mother || u.raw_data?.motherName || u.raw_data?.mother_name || '';
+            const motherOccVal = u.motherOcc || u.mother_occ || u.raw_data?.motherOcc || u.raw_data?.mother_occ || '';
+            const sisterVal = (u.sister === '—' || u.sister === 'None' || u.raw_data?.sister === '—' || u.raw_data?.sister === 'None') ? '' : (u.sister || u.raw_data?.sister || '');
+            const brotherVal = (u.brother === '—' || u.brother === 'None' || u.raw_data?.brother === '—' || u.raw_data?.brother === 'None') ? '' : (u.brother || u.raw_data?.brother || '');
+
+            setVal('adminEditFather', fatherVal);
+            setVal('adminEditFatherOcc', fatherOccVal);
+            setVal('adminEditMother', motherVal);
+            setVal('adminEditMotherOcc', motherOccVal);
+            setVal('adminEditSister', sisterVal);
+            setVal('adminEditBrother', brotherVal);
+
+            setVal('adminEditVillage', u.village || u.city || u.raw_data?.village || u.raw_data?.city || '');
+            setVal('adminEditTaluka', u.taluka || u.raw_data?.taluka || '');
+            setVal('adminEditDistrict', u.district || u.raw_data?.district || '');
+            setVal('adminEditAddress', u.fullAddress || u.full_address || u.address || u.raw_data?.fullAddress || u.raw_data?.address || '');
 
             // Family details toggle state
+            const hasFamilyData = Boolean(
+                (fatherVal && fatherVal !== '—') ||
+                (motherVal && motherVal !== '—') ||
+                (unmaskedFather && isValidPhoneField(unmaskedFather))
+            );
             const isFamDisabled = (
                 u.familyDetailsEnabled === false ||
                 u.family_details_enabled === false ||
                 u.raw_data?.familyDetailsEnabled === false ||
-                u.raw_data?.family_details_enabled === false
+                u.raw_data?.family_details_enabled === false ||
+                (!hasFamilyData && u.familyDetailsEnabled !== true && u.family_details_enabled !== true)
             );
-            const famToggleBtn = document.getElementById('adminEditToggleFamily');
-            if (famToggleBtn) {
-                if (isFamDisabled) {
-                    famToggleBtn.classList.remove('on');
-                } else {
-                    famToggleBtn.classList.add('on');
+
+            toggleAdminEditFamily(!isFamDisabled);
+        }
+
+        async function openAdminEditUserModal(id) {
+            let u = findUser(id);
+            if (!u && Array.isArray(window.PROFILES)) {
+                u = window.PROFILES.find(p => p && (String(p.id) === String(id) || String(p.userId) === String(id)));
+            }
+            if (!u && Array.isArray(USERS)) {
+                u = USERS.find(p => p && (String(p.id) === String(id) || String(p.userId) === String(id)));
+            }
+
+            // Immediately display modal with in-memory data for instant responsiveness
+            if (u) {
+                populateAdminEditFields(u);
+                openModal('modalAdminEditUser');
+            }
+
+            // Always fetch 100% fresh live unmasked profile directly from Supabase
+            const client = (typeof getSupabaseClient === 'function') ? getSupabaseClient() : null;
+            if (client && id) {
+                try {
+                    const { data: liveRows } = await client
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', id)
+                        .limit(1);
+                    if (Array.isArray(liveRows) && liveRows.length > 0) {
+                        const freshMapped = (typeof mapProfileFromSupabase === 'function')
+                            ? mapProfileFromSupabase(liveRows[0], true)
+                            : liveRows[0];
+                        if (freshMapped) {
+                            u = { ...(u || {}), ...freshMapped };
+                            if (Array.isArray(USERS)) {
+                                const uIdx = USERS.findIndex(usr => usr && String(usr.id) === String(id));
+                                if (uIdx !== -1) USERS[uIdx] = { ...USERS[uIdx], ...u };
+                            }
+                            if (Array.isArray(window.PROFILES)) {
+                                const pIdx = window.PROFILES.findIndex(p => p && String(p.id) === String(id));
+                                if (pIdx !== -1) window.PROFILES[pIdx] = { ...window.PROFILES[pIdx], ...u };
+                            }
+                            // Re-populate with 100% live database values
+                            populateAdminEditFields(u);
+                        }
+                    }
+                } catch (fetchErr) {
+                    console.warn('[Admin] Live profile fetch note:', fetchErr);
                 }
             }
 
-            openModal('modalAdminEditUser');
+            if (!u) {
+                showToast('Member not found');
+                return;
+            }
+
+            if (!document.getElementById('modalAdminEditUser')?.classList.contains('active')) {
+                openModal('modalAdminEditUser');
+            }
         }
 
         async function saveAdminUserEdit() {
@@ -1735,6 +1821,8 @@ if (typeof openInterestDetail !== 'undefined') {
 if (typeof initAdminApp !== 'undefined') window.initAdminApp = initAdminApp;
 if (typeof findUser !== 'undefined') window.findUser = findUser;
 if (typeof openAdminEditUserModal !== 'undefined') window.openAdminEditUserModal = openAdminEditUserModal;
+if (typeof toggleAdminEditFamily !== 'undefined') window.toggleAdminEditFamily = toggleAdminEditFamily;
+if (typeof populateAdminEditFields !== 'undefined') window.populateAdminEditFields = populateAdminEditFields;
 if (typeof saveAdminUserEdit !== 'undefined') window.saveAdminUserEdit = saveAdminUserEdit;
 if (typeof pickAdminEditDropdown !== 'undefined') window.pickAdminEditDropdown = pickAdminEditDropdown;
 if (typeof filterAdminEditCaste !== 'undefined') window.filterAdminEditCaste = filterAdminEditCaste;
