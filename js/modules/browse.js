@@ -5,37 +5,52 @@ function filterRegCaste(query) {
     if (input) clearFieldError(input);
     const dd = document.getElementById('regCasteDropdown');
     if (!dd) return;
-    const q = (query || '').trim().toLowerCase();
+    const rawQ = (query || '').trim();
+    const q = rawQ.toLowerCase();
 
     const activeList = getActiveCastes();
-    // If query is empty, show the first 35 major communities so user can browse immediately
+    const nonOtherList = activeList.filter(c => !(c.isOther || String(c.name).toLowerCase().startsWith('other (')));
+
+    // Always pin "Other (Type Your Caste)" at the very TOP so any user across India can add their caste effortlessly
+    const otherTopHtml = `
+        <div class="caste-option" onclick="openOtherRegCaste('${rawQ.replace(/'/g, "\\'")}')" style="background:rgba(123,44,191,0.06);border-bottom:1.5px solid rgba(123,44,191,0.18);">
+            <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;">
+                <span class="caste-opt-badge" style="background:var(--primary);color:#fff;"><i class="fa-solid fa-pen-to-square" style="font-size:9.5px;"></i> Custom / Not Listed</span>
+                <div style="font-weight:800;font-size:13.5px;color:var(--primary);">
+                    Other (Type Your Caste) <span style="font-size:12px;color:var(--muted);font-weight:600;">(અન્ય જાતિ જાતે લખો)</span>
+                </div>
+            </div>
+            <i class="fa-solid fa-plus-circle" style="color:var(--primary);font-size:16px;"></i>
+        </div>`;
+
     const matches = q === ''
-        ? activeList.slice(0, 35)
-        : activeList.filter(c =>
+        ? nonOtherList.slice(0, 45)
+        : nonOtherList.filter(c =>
             c.name.toLowerCase().includes(q) ||
             (c.guj && c.guj.toLowerCase().includes(q)) ||
-            c.group.toLowerCase().includes(q) ||
+            (c.group && c.group.toLowerCase().includes(q)) ||
             (c.keywords && c.keywords.toLowerCase().includes(q))
         );
 
     if (matches.length === 0) {
-        dd.innerHTML = `
-            <div class="caste-empty-helpline">
-                <i class="fa-solid fa-headset" style="font-size:26px;color:var(--primary);margin-bottom:8px;"></i>
-                <div style="font-weight:700;font-size:13.5px;color:var(--text);margin-bottom:4px;">No matching community found in Gujarat directory</div>
+        const safeTyped = rawQ.replace(/'/g, "\\'").replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        dd.innerHTML = otherTopHtml + `
+            <div class="caste-empty-helpline" style="padding:18px 14px;">
+                <i class="fa-solid fa-sparkles" style="font-size:24px;color:var(--primary);margin-bottom:8px;"></i>
+                <div style="font-weight:700;font-size:13.5px;color:var(--text);margin-bottom:4px;">"${safeTyped}" not in list? Add it directly!</div>
                 <div style="font-size:12px;color:var(--muted);line-height:1.45;margin-bottom:12px;">
-                    Can't find your community in the list? Contact our community helpline to get it added:
+                    We welcome all Hindu communities across India. Click below to use your caste right away:
                 </div>
-                <a href="tel:+919726362863" class="caste-helpline-link">
-                    <i class="fa-solid fa-phone"></i> +91 97263 62863 (Community Helpline)
-                </a>
+                <button type="button" class="btn btn-primary" style="width:100%;padding:10px 14px;font-size:13px;" onclick="selectRegCaste('${safeTyped}', 'Custom Community')">
+                    <i class="fa-solid fa-check-circle"></i> Use "${safeTyped}" as My Caste
+                </button>
             </div>`;
     } else {
         const headerText = q === ''
-            ? `<div class="caste-dropdown-header"><span>All Hindu Communities (Gujarat)</span><span>${activeList.length} Total</span></div>`
+            ? `<div class="caste-dropdown-header"><span>All-India Hindu Communities</span><span>${nonOtherList.length}+ Total</span></div>`
             : `<div class="caste-dropdown-header"><span>Matching Communities</span><span>${matches.length} Found</span></div>`;
 
-        dd.innerHTML = headerText + matches.map(c => {
+        dd.innerHTML = headerText + otherTopHtml + matches.map(c => {
             const safeName = c.name.replace(/'/g, "\\'");
             const safeGuj = (c.guj || '').replace(/'/g, "\\'");
             return `
@@ -43,7 +58,7 @@ function filterRegCaste(query) {
                     <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;">
                         <span class="caste-opt-badge"><i class="fa-solid fa-layer-group" style="font-size:9.5px;"></i> ${c.group}</span>
                         <div style="font-weight:700;font-size:13.5px;color:var(--text);">
-                            ${c.name} <span style="font-size:12.5px;color:var(--muted);font-weight:500;">(${c.guj})</span>
+                            ${c.name} ${c.guj ? `<span style="font-size:12.5px;color:var(--muted);font-weight:500;">(${c.guj})</span>` : ''}
                         </div>
                     </div>
                     <i class="fa-solid fa-circle-check" style="color:var(--primary);font-size:13.5px;opacity:0.35;"></i>
@@ -53,7 +68,50 @@ function filterRegCaste(query) {
     dd.classList.add('open');
 }
 
+function openOtherRegCaste(prefillVal) {
+    const dd = document.getElementById('regCasteDropdown');
+    const otherWrap = document.getElementById('regOtherCasteWrap');
+    const otherInput = document.getElementById('regOtherCasteInput');
+    if (dd) dd.classList.remove('open');
+    if (otherWrap) otherWrap.style.display = 'block';
+    if (otherInput) {
+        if (prefillVal && !String(prefillVal).toLowerCase().startsWith('other')) {
+            otherInput.value = prefillVal;
+            state.regData.caste = prefillVal.trim();
+        }
+        otherInput.focus();
+    }
+}
+window.openOtherRegCaste = openOtherRegCaste;
+
+function onOtherCasteInput(val) {
+    const clean = (val || '').trim();
+    const otherInput = document.getElementById('regOtherCasteInput');
+    if (otherInput) clearFieldError(otherInput);
+    if (clean.length >= 2) {
+        state.regData.caste = clean;
+    }
+}
+window.onOtherCasteInput = onOtherCasteInput;
+
+function confirmOtherRegCaste() {
+    const otherInput = document.getElementById('regOtherCasteInput');
+    const val = otherInput ? otherInput.value.trim() : '';
+    if (!val || val.length < 2) {
+        if (otherInput) highlightFieldError(otherInput, 'Please enter your caste / community name');
+        return;
+    }
+    const otherWrap = document.getElementById('regOtherCasteWrap');
+    if (otherWrap) otherWrap.style.display = 'none';
+    selectRegCaste(val, 'Custom Community');
+}
+window.confirmOtherRegCaste = confirmOtherRegCaste;
+
 function selectRegCaste(casteName, gujName) {
+    if (String(casteName).toLowerCase().startsWith('other (')) {
+        openOtherRegCaste('');
+        return;
+    }
     state.regData.caste = casteName;
     if (typeof saveRegDraft === 'function') {
         saveRegDraft('scr-reg2');
@@ -62,8 +120,10 @@ function selectRegCaste(casteName, gujName) {
     const chip = document.getElementById('regCasteChip');
     const chipTxt = document.getElementById('regCasteChipText');
     const searchWrap = document.getElementById('regCasteSearchWrap');
+    const otherWrap = document.getElementById('regOtherCasteWrap');
     const dd = document.getElementById('regCasteDropdown');
 
+    if (otherWrap) otherWrap.style.display = 'none';
     if (input) {
         input.value = casteName;
         clearFieldError(input);
@@ -83,11 +143,15 @@ function removeRegCaste() {
     state.regData.caste = '';
     const chip = document.getElementById('regCasteChip');
     const searchWrap = document.getElementById('regCasteSearchWrap');
+    const otherWrap = document.getElementById('regOtherCasteWrap');
+    const otherInput = document.getElementById('regOtherCasteInput');
     const input = document.getElementById('regCasteInput');
     if (chip) {
         chip.classList.remove('active');
         chip.style.display = 'none';
     }
+    if (otherWrap) otherWrap.style.display = 'none';
+    if (otherInput) otherInput.value = '';
     if (searchWrap) searchWrap.style.display = 'block';
     if (input) {
         input.value = '';
@@ -102,9 +166,15 @@ function removeRegCaste() {
 }
 
 function goToRegStep2() {
+    // Also capture typed custom caste if user filled regOtherCasteInput directly
+    const otherWrap = document.getElementById('regOtherCasteWrap');
+    const otherInput = document.getElementById('regOtherCasteInput');
+    if (otherWrap && otherWrap.style.display !== 'none' && otherInput && otherInput.value.trim().length >= 2) {
+        state.regData.caste = otherInput.value.trim();
+    }
     if (!state.regData.caste) {
         const input = document.getElementById('regCasteInput');
-        highlightFieldError(input, 'Please search and select your caste/community to continue');
+        highlightFieldError(input, 'Please search and select your caste/community (or choose Other) to continue');
         return;
     }
     if (typeof closeModal === 'function') {
@@ -1747,14 +1817,14 @@ function renderFilterCasteOptions(searchQuery = '') {
     const listContainer = document.getElementById('fltCustomCasteList');
     if (!listContainer) return;
 
-    const activeList = getActiveCastes();
+    const activeList = getActiveCastes().filter(c => !(c.isOther || String(c.name).toLowerCase().startsWith('other (')));
     const q = (searchQuery || '').trim().toLowerCase();
     const matches = q === ''
         ? activeList
         : activeList.filter(c =>
             c.name.toLowerCase().includes(q) ||
             (c.guj && c.guj.toLowerCase().includes(q)) ||
-            c.group.toLowerCase().includes(q) ||
+            (c.group && c.group.toLowerCase().includes(q)) ||
             (c.keywords && c.keywords.toLowerCase().includes(q))
         );
 
